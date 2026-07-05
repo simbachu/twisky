@@ -1,0 +1,15 @@
+# Executables
+*.exe
+*.dll
+*.so
+*.o
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# OS
+*.DS_Store
+*Thumbs.db
