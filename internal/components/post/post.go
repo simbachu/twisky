@@ -16,25 +16,82 @@ func Post(view feedquery.PostView) g.Node {
 		Header(
 			A(g.Attr("href", "/"+view.AuthorHandle), g.Attr("style", "pointer-events: auto"),
 				g.If(view.AuthorAvatar != "", Figure(
-					FigCaption(g.Text(view.AuthorDisplayName)),
 					Img(
 						g.Attr("src", view.AuthorAvatar),
 						g.Attr("alt", view.AuthorDisplayName),
-						g.Attr("height", "100"),
-						g.Attr("width", "100"),
-					))),
-				P(g.Text(view.AuthorDisplayName), g.Text(" @"+view.AuthorHandle)),
-			),
-			g.If(!view.CreatedAt.IsZero(), Time(
-				DateTime(view.CreatedAt.UTC().Format(time.RFC3339)),
-				g.Text(formatPostTime(view.CreatedAt)),
+					)))),
+			authorLink(view),
+			g.If(!view.CreatedAt.IsZero(), Span(
+				g.Text(" · "),
+				Time(DateTime(view.CreatedAt.UTC().Format(time.RFC3339)),
+					g.Text(formatPostTime(view.CreatedAt)),
+				),
 			)),
 		),
 		postText(view),
 		g.If(len(view.Images) > 0, Figure(
 			g.Group(g.Map(view.Images, postImage)),
 		)),
+		quotedInset(view.QuotedPostMaybe),
+		Footer(
+			Nav(
+				Ul(
+					Li(Button(g.Text("🗪"), g.Attr("aria-label", "Replies"), g.If(view.ReplyCount > 0, g.Text(strconv.Itoa(view.ReplyCount))))),   // Replies
+					Li(Button(g.Text("🔁"), g.Attr("aria-label", "Reposts"), g.If(view.RepostCount > 0, g.Text(strconv.Itoa(view.RepostCount))))), // Reposts
+					Li(Button(g.Text("👍"), g.Attr("aria-label", "Likes"), g.If(view.LikeCount > 0, g.Text(strconv.Itoa(view.LikeCount))))),       // Likes
+					// Bookmark button
+					// Share button
+					// More options button
+				),
+			),
+		),
 	)
+}
+
+func quotedInset(maybe *feedquery.PostView) g.Node {
+	if maybe == nil {
+		return nil
+	}
+	return InsetPost(maybe)
+}
+
+// Condensed post view with Author, Icon, Text and images
+func InsetPost(view *feedquery.PostView) g.Node {
+	return Article(g.Attr("class", "post inset-post"), g.Attr("id", "inset-post-"+url.PathEscape(view.ID)),
+		Header(
+			g.If(view.AuthorAvatar != "", Figure(
+				FigCaption(g.Text(view.AuthorDisplayName)),
+				Img(
+					g.Attr("src", view.AuthorAvatar),
+					g.Attr("alt", view.AuthorDisplayName),
+					g.Attr("height", "100"),
+					g.Attr("width", "100"),
+				))),
+			authorLink(*view),
+			g.If(!view.CreatedAt.IsZero(), Time(
+				DateTime(view.CreatedAt.UTC().Format(time.RFC3339)),
+				g.Text(formatPostTime(view.CreatedAt)),
+			)),
+		),
+		postText(*view),
+		g.If(len(view.Images) > 0, Figure(
+			g.Group(g.Map(view.Images, postImage)),
+		)),
+	)
+}
+
+// authorLink renders the post byline: display name and @handle as separate spans
+// inside one profile link. When the display name equals the handle (no custom
+// name set), only the @handle span is shown to avoid "handle @handle" duplication.
+func authorLink(view feedquery.PostView) g.Node {
+	children := []g.Node{g.Attr("href", "/"+view.AuthorHandle), g.Attr("class", "post-author"), g.Attr("style", "pointer-events: auto")}
+	if view.AuthorDisplayName != view.AuthorHandle {
+		children = append(children, Span(g.Attr("class", "author-name"), g.Text(view.AuthorDisplayName)))
+		children = append(children, Span(g.Attr("class", "author-handle"), g.Text(" @"+view.AuthorHandle)))
+	} else {
+		children = append(children, Span(g.Attr("class", "author-handle"), g.Text("@"+view.AuthorHandle)))
+	}
+	return A(children...)
 }
 
 func formatPostTime(createdAt time.Time) string {
@@ -54,13 +111,13 @@ func segmentNode(segment richtext.Segment) g.Node {
 		return A(
 			g.Attr("href", "/tagged/"+url.PathEscape(segment.Tag)),
 			g.Attr("style", "pointer-events: auto"),
-			g.Text(segment.Text),
+			Span(g.Attr("class", "facet-tag"), g.Text(segment.Text)),
 		)
 	case richtext.Mention:
 		return A(
 			g.Attr("href", "/"+url.PathEscape(segment.Mention)),
 			g.Attr("style", "pointer-events: auto"),
-			g.Text(segment.Text),
+			Span(g.Attr("class", "facet-mention"), g.Text(segment.Text)),
 		)
 	case richtext.Link:
 		return A(
@@ -68,7 +125,7 @@ func segmentNode(segment richtext.Segment) g.Node {
 			g.Attr("target", "_blank"),
 			g.Attr("rel", "noopener noreferrer"),
 			g.Attr("style", "pointer-events: auto"),
-			g.Text(segment.Text),
+			Span(g.Attr("class", "facet-link"), g.Text(segment.Text)),
 		)
 	default:
 		return g.Text(segment.Text)

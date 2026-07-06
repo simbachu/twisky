@@ -10,14 +10,9 @@ import (
 )
 
 func PostPage(view feedquery.PostPageView) g.Node {
-	title := view.Post.AuthorDisplayName
-	if title == "" {
-		title = view.Post.AuthorHandle
-	}
-
 	return page.Page(
-		"Post by "+title,
-		"Viewing a post by "+title,
+		"Post by "+view.Post.AuthorDisplayName,
+		"Viewing a post by "+view.Post.AuthorDisplayName,
 		g.If(len(view.Ancestors) > 0, Section(
 			g.Attr("class", "thread-ancestors"),
 			Ul(g.Group(g.Map(view.Ancestors, ancestorItem))),

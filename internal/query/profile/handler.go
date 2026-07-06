@@ -92,7 +92,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	return ProfileView{
 		DID:         profile.DID,
 		Handle:      profile.Handle,
-		DisplayName: profile.DisplayName,
+		DisplayName: actor.Name(profile.DisplayName, profile.Handle),
 		Description: profile.Description,
 		Avatar:      profile.Avatar,
 		Followers:   profile.Followers,

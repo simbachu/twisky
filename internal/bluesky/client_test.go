@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -525,5 +526,292 @@ func TestClient_GetPostThread_NotFound(t *testing.T) {
 	}
 	if !errors.Is(err, bluesky.ErrNotFound) {
 		t.Fatalf("GetPostThread() err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestClient_GetAuthorFeed_RecordEmbed(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/qrt",
+					"author": {"handle": "dev.example", "displayName": "Dev"},
+					"record": {
+						"text": "my take",
+						"createdAt": "2026-01-15T12:00:00.000Z"
+					},
+					"embed": {
+						"$type": "app.bsky.embed.record#view",
+						"record": {
+							"$type": "app.bsky.embed.record#viewRecord",
+							"uri": "at://did:plc:quoted/app.bsky.feed.post/original",
+							"author": {"handle": "quoted.example", "displayName": "Quoted"},
+							"value": {
+								"text": "original post",
+								"createdAt": "2026-01-14T12:00:00.000Z"
+							}
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{
+		Actor: "dev.example",
+	})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	quoted := items.Feed[0].Post.Embed.QuotedPost()
+	if quoted == nil {
+		t.Fatal("QuotedPost() = nil, want quoted post")
+	}
+	if quoted.URI != "at://did:plc:quoted/app.bsky.feed.post/original" {
+		t.Fatalf("quoted.URI = %q, want original URI", quoted.URI)
+	}
+	if quoted.Author.Handle != "quoted.example" {
+		t.Fatalf("quoted.Author.Handle = %q, want quoted.example", quoted.Author.Handle)
+	}
+	if quoted.Record.Text != "original post" {
+		t.Fatalf("quoted.Record.Text = %q, want original post", quoted.Record.Text)
+	}
+}
+
+func TestClient_GetAuthorFeed_RecordWithMediaEmbed(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/qrt-media",
+					"author": {"handle": "dev.example"},
+					"record": {"text": "quote with media", "createdAt": "2026-01-15T12:00:00.000Z"},
+					"embed": {
+						"$type": "app.bsky.embed.recordWithMedia#view",
+						"record": {
+							"$type": "app.bsky.embed.record#viewRecord",
+							"uri": "at://did:plc:quoted/app.bsky.feed.post/with-image",
+							"author": {"handle": "quoted.example"},
+							"value": {"text": "has image", "createdAt": "2026-01-14T12:00:00.000Z"},
+							"embeds": [{
+								"$type": "app.bsky.embed.images#view",
+								"images": [{
+									"thumb": "https://example.com/thumb.jpg",
+									"fullsize": "https://example.com/full.jpg",
+									"alt": "quoted photo"
+								}]
+							}]
+						},
+						"media": {
+							"$type": "app.bsky.embed.images#view",
+							"images": [{
+								"thumb": "https://example.com/my-thumb.jpg",
+								"fullsize": "https://example.com/my-full.jpg",
+								"alt": "my photo"
+							}]
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "dev.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	post := items.Feed[0].Post
+	media := post.Embed.MediaImages()
+	if len(media) != 1 || media[0].Alt != "my photo" {
+		t.Fatalf("post media = %#v, want my photo", media)
+	}
+
+	quoted := post.Embed.QuotedPost()
+	if quoted == nil {
+		t.Fatal("QuotedPost() = nil, want quoted post")
+	}
+	if quoted.Record.Text != "has image" {
+		t.Fatalf("quoted text = %q, want has image", quoted.Record.Text)
+	}
+	quotedImages := quoted.Embed.MediaImages()
+	if len(quotedImages) != 1 || quotedImages[0].Alt != "quoted photo" {
+		t.Fatalf("quoted images = %#v, want quoted photo", quotedImages)
+	}
+}
+
+func TestClient_GetAuthorFeed_ReplyRefOnRecord(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/reply",
+					"author": {"handle": "dev.example"},
+					"record": {
+						"text": "a reply",
+						"createdAt": "2026-01-15T12:00:00.000Z",
+						"reply": {
+							"root": {"uri": "at://did:plc:example/app.bsky.feed.post/root", "cid": "bafyroot"},
+							"parent": {"uri": "at://did:plc:example/app.bsky.feed.post/parent", "cid": "bafyparent"}
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "dev.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	got := items.Feed[0].Post.ReplyParentURI()
+	want := "at://did:plc:example/app.bsky.feed.post/parent"
+	if got != want {
+		t.Fatalf("ReplyParentURI() = %q, want %q", got, want)
+	}
+}
+
+func TestClient_GetAuthorFeed_FeedItemReplyParent(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/reply",
+					"author": {"handle": "dev.example"},
+					"record": {"text": "a reply", "createdAt": "2026-01-15T12:00:00.000Z"}
+				},
+				"reply": {
+					"root": {
+						"uri": "at://did:plc:example/app.bsky.feed.post/root",
+						"author": {"handle": "dev.example"},
+						"record": {"text": "root", "createdAt": "2026-01-15T11:00:00.000Z"}
+					},
+					"parent": {
+						"uri": "at://did:plc:example/app.bsky.feed.post/parent",
+						"author": {"handle": "other.example"},
+						"record": {"text": "parent post", "createdAt": "2026-01-15T11:30:00.000Z"}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "dev.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	if items.Feed[0].Reply == nil || items.Feed[0].Reply.Parent == nil {
+		t.Fatal("Reply.Parent = nil, want hydrated parent post")
+	}
+	if items.Feed[0].Reply.Parent.Record.Text != "parent post" {
+		t.Fatalf("parent text = %q, want parent post", items.Feed[0].Reply.Parent.Record.Text)
+	}
+}
+
+func TestClient_GetPosts(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/xrpc/app.bsky.feed.getPosts" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.feed.getPosts", r.URL.Path)
+		}
+		uris := r.URL.Query()["uris"]
+		if len(uris) != 2 {
+			t.Fatalf("len(uris) = %d, want 2", len(uris))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"posts": [
+				{
+					"uri": "at://did:plc:example/app.bsky.feed.post/parent",
+					"author": {"handle": "dev.example"},
+					"record": {"text": "parent post", "createdAt": "2026-01-15T11:00:00.000Z"}
+				},
+				{
+					"uri": "at://did:plc:example/app.bsky.feed.post/other",
+					"author": {"handle": "other.example"},
+					"record": {"text": "other post", "createdAt": "2026-01-15T12:00:00.000Z"}
+				}
+			]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	posts, err := client.GetPosts(context.Background(), []string{
+		"at://did:plc:example/app.bsky.feed.post/parent",
+		"at://did:plc:example/app.bsky.feed.post/other",
+	})
+	if err != nil {
+		t.Fatalf("GetPosts() err = %v", err)
+	}
+	if len(posts) != 2 {
+		t.Fatalf("len(posts) = %d, want 2", len(posts))
+	}
+	if posts[0].Record.Text != "parent post" {
+		t.Fatalf("posts[0].text = %q, want parent post", posts[0].Record.Text)
+	}
+}
+
+func TestClient_GetPosts_ChunksRequests(t *testing.T) {
+	t.Parallel()
+
+	var requestCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		uris := r.URL.Query()["uris"]
+		if requestCount == 1 && len(uris) != 25 {
+			t.Fatalf("first request len(uris) = %d, want 25", len(uris))
+		}
+		if requestCount == 2 && len(uris) != 1 {
+			t.Fatalf("second request len(uris) = %d, want 1", len(uris))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"posts":[]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	uris := make([]string, 26)
+	for i := range uris {
+		uris[i] = "at://did:plc:example/app.bsky.feed.post/p" + strconv.Itoa(i)
+	}
+
+	if _, err := client.GetPosts(context.Background(), uris); err != nil {
+		t.Fatalf("GetPosts() err = %v", err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("requestCount = %d, want 2", requestCount)
 	}
 }

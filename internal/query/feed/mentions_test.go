@@ -150,3 +150,63 @@ func TestResolveMentionHandles_ChunksRequests(t *testing.T) {
 		t.Fatalf("last chunk size = %d, want 1", len(resolver.last))
 	}
 }
+
+func TestResolveMentionHandles_ResolvesNestedQuotedPostMentions(t *testing.T) {
+	t.Parallel()
+
+	resolver := &stubResolver{
+		profiles: []bluesky.Profile{{
+			DID:    "did:plc:quoted",
+			Handle: "quoted.example",
+		}},
+	}
+	quoted := feedquery.PostView{
+		TextSegments: []richtext.Segment{{
+			Kind:    richtext.Mention,
+			Text:    "@quoted.example",
+			Mention: "did:plc:quoted",
+		}},
+	}
+	view := feedquery.FeedView{
+		Posts: []feedquery.PostView{{
+			Text:             "my take",
+			QuotedPostMaybe:  &quoted,
+		}},
+	}
+
+	got := feedquery.ResolveMentionHandles(context.Background(), resolver, view)
+
+	if got.Posts[0].QuotedPostMaybe.TextSegments[0].Mention != "quoted.example" {
+		t.Fatalf("quoted mention = %q, want quoted.example", got.Posts[0].QuotedPostMaybe.TextSegments[0].Mention)
+	}
+}
+
+func TestResolveMentionHandles_ResolvesNestedReplyParentMentions(t *testing.T) {
+	t.Parallel()
+
+	resolver := &stubResolver{
+		profiles: []bluesky.Profile{{
+			DID:    "did:plc:parent",
+			Handle: "parent.example",
+		}},
+	}
+	parent := feedquery.PostView{
+		TextSegments: []richtext.Segment{{
+			Kind:    richtext.Mention,
+			Text:    "@parent.example",
+			Mention: "did:plc:parent",
+		}},
+	}
+	view := feedquery.FeedView{
+		Posts: []feedquery.PostView{{
+			Text:             "a reply",
+			ReplyParentMaybe: &parent,
+		}},
+	}
+
+	got := feedquery.ResolveMentionHandles(context.Background(), resolver, view)
+
+	if got.Posts[0].ReplyParentMaybe.TextSegments[0].Mention != "parent.example" {
+		t.Fatalf("parent mention = %q, want parent.example", got.Posts[0].ReplyParentMaybe.TextSegments[0].Mention)
+	}
+}

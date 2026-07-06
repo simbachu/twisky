@@ -16,8 +16,10 @@ type stubReader struct {
 	searchResp *bluesky.SearchPostsResponse
 	err        error
 	profiles   []bluesky.Profile
+	parentPosts []bluesky.Post
 
 	lastSearchRequest bluesky.SearchPostsRequest
+	lastGetPostsURIs  []string
 }
 
 func (s *stubReader) SearchPosts(_ context.Context, req bluesky.SearchPostsRequest) (*bluesky.SearchPostsResponse, error) {
@@ -30,6 +32,11 @@ func (s *stubReader) SearchPosts(_ context.Context, req bluesky.SearchPostsReque
 
 func (s *stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, error) {
 	return s.profiles, nil
+}
+
+func (s *stubReader) GetPosts(_ context.Context, uris []string) ([]bluesky.Post, error) {
+	s.lastGetPostsURIs = append([]string(nil), uris...)
+	return s.parentPosts, nil
 }
 
 func TestHandler_Handle(t *testing.T) {
@@ -157,5 +164,48 @@ func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
 	segment := view.Feed.Posts[0].TextSegments[0]
 	if segment.Mention != "dev.example" {
 		t.Fatalf("mention = %q, want dev.example", segment.Mention)
+	}
+}
+
+func TestHandler_HandleEnrichesReplyParent(t *testing.T) {
+	t.Parallel()
+
+	parentURI := "at://did:plc:example/app.bsky.feed.post/parent"
+	reader := &stubReader{
+		searchResp: &bluesky.SearchPostsResponse{
+			Posts: []bluesky.Post{{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example"},
+				Record: bluesky.PostRecord{
+					Text: "a reply",
+					Reply: &bluesky.RecordReplyRef{
+						Root:   bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/root"},
+						Parent: bluesky.StrongRef{URI: parentURI},
+					},
+				},
+			}},
+		},
+		parentPosts: []bluesky.Post{{
+			URI:    parentURI,
+			Author: bluesky.Author{Handle: "other.example", DisplayName: "Other"},
+			Record: bluesky.PostRecord{Text: "parent post"},
+		}},
+	}
+	handler := tag.NewHandler(reader)
+
+	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
+
+	view, ok := resp.(tag.TagView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want TagView", resp)
+	}
+	if view.Feed.Posts[0].ReplyParentMaybe == nil {
+		t.Fatal("ReplyParentMaybe = nil, want hydrated parent")
+	}
+	if view.Feed.Posts[0].ReplyParentMaybe.Text != "parent post" {
+		t.Fatalf("parent text = %q, want parent post", view.Feed.Posts[0].ReplyParentMaybe.Text)
+	}
+	if len(reader.lastGetPostsURIs) != 1 || reader.lastGetPostsURIs[0] != parentURI {
+		t.Fatalf("lastGetPostsURIs = %v, want [%s]", reader.lastGetPostsURIs, parentURI)
 	}
 }

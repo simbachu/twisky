@@ -39,21 +39,40 @@ func collectMentionDIDs(view FeedView) []string {
 	seen := make(map[string]struct{})
 	dids := make([]string, 0)
 	for _, post := range view.Posts {
-		for _, segment := range post.TextSegments {
-			if segment.Kind != richtext.Mention {
-				continue
-			}
-			if !strings.HasPrefix(segment.Mention, "did:") {
-				continue
-			}
-			if _, ok := seen[segment.Mention]; ok {
-				continue
-			}
-			seen[segment.Mention] = struct{}{}
-			dids = append(dids, segment.Mention)
-			if len(dids) >= maxResolvedMentions {
-				return dids
-			}
+		dids = appendMentionDIDsFromPost(post, seen, dids)
+		if len(dids) >= maxResolvedMentions {
+			return dids[:maxResolvedMentions]
+		}
+	}
+	return dids
+}
+
+func appendMentionDIDsFromPost(post PostView, seen map[string]struct{}, dids []string) []string {
+	dids = appendMentionDIDsFromSegments(post.TextSegments, seen, dids)
+	if post.QuotedPostMaybe != nil {
+		dids = appendMentionDIDsFromSegments(post.QuotedPostMaybe.TextSegments, seen, dids)
+	}
+	if post.ReplyParentMaybe != nil {
+		dids = appendMentionDIDsFromSegments(post.ReplyParentMaybe.TextSegments, seen, dids)
+	}
+	return dids
+}
+
+func appendMentionDIDsFromSegments(segments []richtext.Segment, seen map[string]struct{}, dids []string) []string {
+	for _, segment := range segments {
+		if segment.Kind != richtext.Mention {
+			continue
+		}
+		if !strings.HasPrefix(segment.Mention, "did:") {
+			continue
+		}
+		if _, ok := seen[segment.Mention]; ok {
+			continue
+		}
+		seen[segment.Mention] = struct{}{}
+		dids = append(dids, segment.Mention)
+		if len(dids) >= maxResolvedMentions {
+			return dids
 		}
 	}
 	return dids
@@ -85,24 +104,40 @@ func resolveDIDsToHandles(ctx context.Context, resolver ProfileResolver, dids []
 func rewriteMentionHandles(view FeedView, handleByDID map[string]string) FeedView {
 	posts := make([]PostView, len(view.Posts))
 	for i, post := range view.Posts {
-		posts[i] = post
-		if len(post.TextSegments) == 0 {
-			continue
-		}
-		segments := make([]richtext.Segment, len(post.TextSegments))
-		copy(segments, post.TextSegments)
-		for j, segment := range segments {
-			if segment.Kind != richtext.Mention {
-				continue
-			}
-			if handle, ok := handleByDID[segment.Mention]; ok {
-				segments[j].Mention = handle
-			}
-		}
-		posts[i].TextSegments = segments
+		posts[i] = rewritePostMentionHandles(post, handleByDID)
 	}
 	return FeedView{
 		Posts:      posts,
 		NextCursor: view.NextCursor,
 	}
+}
+
+func rewritePostMentionHandles(post PostView, handleByDID map[string]string) PostView {
+	post.TextSegments = rewriteSegments(post.TextSegments, handleByDID)
+	if post.QuotedPostMaybe != nil {
+		quoted := rewritePostMentionHandles(*post.QuotedPostMaybe, handleByDID)
+		post.QuotedPostMaybe = &quoted
+	}
+	if post.ReplyParentMaybe != nil {
+		parent := rewritePostMentionHandles(*post.ReplyParentMaybe, handleByDID)
+		post.ReplyParentMaybe = &parent
+	}
+	return post
+}
+
+func rewriteSegments(segments []richtext.Segment, handleByDID map[string]string) []richtext.Segment {
+	if len(segments) == 0 {
+		return segments
+	}
+	rewritten := make([]richtext.Segment, len(segments))
+	copy(rewritten, segments)
+	for i, segment := range rewritten {
+		if segment.Kind != richtext.Mention {
+			continue
+		}
+		if handle, ok := handleByDID[segment.Mention]; ok {
+			rewritten[i].Mention = handle
+		}
+	}
+	return rewritten
 }

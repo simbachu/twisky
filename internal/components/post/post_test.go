@@ -8,7 +8,34 @@ import (
 
 	"github.com/simbachu/twisky/internal/components/post"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
+	"github.com/simbachu/twisky/internal/richtext"
 )
+
+func TestPost_RendersFacetSpanClasses(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		TextSegments: []richtext.Segment{
+			{Kind: richtext.Mention, Text: "@dev.example", Mention: "dev.example"},
+			{Kind: richtext.Plain, Text: " see "},
+			{Kind: richtext.Tag, Text: "#golang", Tag: "golang"},
+			{Kind: richtext.Plain, Text: " "},
+			{Kind: richtext.Link, Text: "https://example.com", URI: "https://example.com"},
+		},
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, class := range []string{`class="facet-mention"`, `class="facet-tag"`, `class="facet-link"`} {
+		if !strings.Contains(html, class) {
+			t.Fatalf("html = %q, want %s", html, class)
+		}
+	}
+}
 
 func TestPost_RendersTimestamp(t *testing.T) {
 	t.Parallel()
@@ -45,5 +72,35 @@ func TestPost_OmitsTimestampWhenMissing(t *testing.T) {
 
 	if strings.Contains(buf.String(), "<time") {
 		t.Fatalf("html = %q, want no time element when CreatedAt is zero", buf.String())
+	}
+}
+
+func TestPost_RendersQuotedPostInset(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:           "quoted",
+		AuthorHandle: "quoted.example",
+		Text:         "original post",
+	}
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:              "qrt",
+		AuthorHandle:    "dev.example",
+		Text:            "my take",
+		QuotedPostMaybe: &quoted,
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="post inset-post"`) {
+		t.Fatalf("html = %q, want post inset-post class", html)
+	}
+	if !strings.Contains(html, "original post") {
+		t.Fatalf("html = %q, want quoted post text", html)
+	}
+	if !strings.Contains(html, "my take") {
+		t.Fatalf("html = %q, want main post text", html)
 	}
 }

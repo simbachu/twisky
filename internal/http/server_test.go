@@ -22,6 +22,7 @@ type stubReader struct {
 	searchResp  *bluesky.SearchPostsResponse
 	thread      bluesky.ThreadNode
 	profiles    []bluesky.Profile
+	parentPosts []bluesky.Post
 	err         error
 	feedErr     error
 	searchErr   error
@@ -48,6 +49,23 @@ func (s stubReader) SearchPosts(context.Context, bluesky.SearchPostsRequest) (*b
 
 func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, error) {
 	return s.profiles, nil
+}
+
+func (s stubReader) GetPosts(_ context.Context, uris []string) ([]bluesky.Post, error) {
+	if len(s.parentPosts) == 0 {
+		return nil, nil
+	}
+	byURI := make(map[string]bluesky.Post, len(s.parentPosts))
+	for _, post := range s.parentPosts {
+		byURI[post.URI] = post
+	}
+	posts := make([]bluesky.Post, 0, len(uris))
+	for _, uri := range uris {
+		if post, ok := byURI[uri]; ok {
+			posts = append(posts, post)
+		}
+	}
+	return posts, nil
 }
 
 func (s stubReader) GetPostThread(context.Context, string) (bluesky.ThreadNode, error) {
@@ -302,6 +320,91 @@ func TestHandleTagged_OK(t *testing.T) {
 	}
 	if !strings.Contains(body, "hello ") {
 		t.Fatalf("body = %q, want to contain hello ", body)
+	}
+}
+
+func TestHandleTagged_ReplyThread(t *testing.T) {
+	t.Parallel()
+
+	parentURI := "at://did:plc:example/app.bsky.feed.post/parent"
+	server := newTestServer(stubReader{
+		searchResp: &bluesky.SearchPostsResponse{
+			Posts: []bluesky.Post{{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Developer"},
+				Record: bluesky.PostRecord{
+					Text: "a reply",
+					Reply: &bluesky.RecordReplyRef{
+						Root:   bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/root"},
+						Parent: bluesky.StrongRef{URI: parentURI},
+					},
+				},
+			}},
+		},
+		parentPosts: []bluesky.Post{{
+			URI:    parentURI,
+			Author: bluesky.Author{Handle: "other.example", DisplayName: "Other"},
+			Record: bluesky.PostRecord{Text: "parent post"},
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/tagged/golang", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="feed-thread"`) {
+		t.Fatalf("body = %q, want feed-thread class", body)
+	}
+	if !strings.Contains(body, "parent post") {
+		t.Fatalf("body = %q, want parent post text", body)
+	}
+	if !strings.Contains(body, "a reply") {
+		t.Fatalf("body = %q, want reply text", body)
+	}
+}
+
+func TestHandleTagged_QuotePost(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		searchResp: &bluesky.SearchPostsResponse{
+			Posts: []bluesky.Post{{
+				URI:    "at://did:plc:example/app.bsky.feed.post/qrt",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Developer"},
+				Record: bluesky.PostRecord{Text: "my take"},
+				Embed: &bluesky.Embed{
+					Type: "app.bsky.embed.record#view",
+					Record: []byte(`{
+						"$type": "app.bsky.embed.record#viewRecord",
+						"uri": "at://did:plc:quoted/app.bsky.feed.post/original",
+						"author": {"handle": "quoted.example", "displayName": "Quoted"},
+						"value": {"text": "original post", "createdAt": "2026-01-14T12:00:00.000Z"}
+					}`),
+				},
+			}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/tagged/golang", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="post inset-post"`) {
+		t.Fatalf("body = %q, want post inset-post class", body)
+	}
+	if !strings.Contains(body, "original post") {
+		t.Fatalf("body = %q, want quoted post text", body)
+	}
+	if !strings.Contains(body, "my take") {
+		t.Fatalf("body = %q, want main post text", body)
 	}
 }
 

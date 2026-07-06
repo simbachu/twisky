@@ -59,15 +59,14 @@ type Profile struct {
 	Posts        int    `json:"postsCount"`
 }
 
-type FeedItem struct {
-	Post Post `json:"post"`
-}
-
 type Post struct {
-	URI    string     `json:"uri"`
-	Author Author     `json:"author"`
-	Record PostRecord `json:"record"`
-	Embed  *Embed     `json:"embed,omitempty"`
+	URI         string     `json:"uri"`
+	Author      Author     `json:"author"`
+	Record      PostRecord `json:"record"`
+	Embed       *Embed     `json:"embed,omitempty"`
+	LikeCount   int        `json:"likeCount,omitempty"`
+	RepostCount int        `json:"repostCount,omitempty"`
+	ReplyCount  int        `json:"replyCount,omitempty"`
 }
 
 type Author struct {
@@ -80,6 +79,25 @@ type PostRecord struct {
 	Text      string    `json:"text"`
 	CreatedAt time.Time `json:"createdAt"`
 	Facets    []Facet   `json:"facets,omitempty"`
+	Reply     *RecordReplyRef `json:"reply,omitempty"`
+}
+
+type RecordReplyRef struct {
+	Root   StrongRef `json:"root"`
+	Parent StrongRef `json:"parent"`
+}
+
+type StrongRef struct {
+	URI string `json:"uri"`
+	CID string `json:"cid"`
+}
+
+// ReplyParentURI returns the parent post URI when this post is a reply.
+func (p Post) ReplyParentURI() string {
+	if p.Record.Reply == nil {
+		return ""
+	}
+	return p.Record.Reply.Parent.URI
 }
 
 type Facet struct {
@@ -97,22 +115,6 @@ type FacetFeature struct {
 	Tag  string `json:"tag,omitempty"`
 	DID  string `json:"did,omitempty"`
 	URI  string `json:"uri,omitempty"`
-}
-
-type Embed struct {
-	Type   string       `json:"$type"`
-	Images []EmbedImage `json:"images,omitempty"`
-	Items  []EmbedImage `json:"items,omitempty"`
-}
-
-func (e *Embed) MediaImages() []EmbedImage {
-	if e == nil {
-		return nil
-	}
-	if len(e.Images) > 0 {
-		return e.Images
-	}
-	return e.Items
 }
 
 type AspectRatio struct {
@@ -176,6 +178,12 @@ type apiError struct {
 type getProfilesResponse struct {
 	Profiles []Profile `json:"profiles"`
 }
+
+type getPostsResponse struct {
+	Posts []Post `json:"posts"`
+}
+
+const maxGetPostsURIs = 25
 
 func (c *Client) GetProfile(ctx context.Context, actor string) (*Profile, error) {
 	endpoint, err := url.Parse(c.baseURL + "/app.bsky.actor.getProfile")
@@ -371,4 +379,69 @@ func (c *Client) SearchPosts(ctx context.Context, searchReq SearchPostsRequest) 
 		Posts:  searchResp.Posts,
 		Cursor: searchResp.Cursor,
 	}, nil
+}
+
+func (c *Client) GetPosts(ctx context.Context, uris []string) ([]Post, error) {
+	if len(uris) == 0 {
+		return nil, nil
+	}
+
+	posts := make([]Post, 0, len(uris))
+	for start := 0; start < len(uris); start += maxGetPostsURIs {
+		end := start + maxGetPostsURIs
+		if end > len(uris) {
+			end = len(uris)
+		}
+		chunk, err := c.getPosts(ctx, uris[start:end])
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, chunk...)
+	}
+	return posts, nil
+}
+
+func (c *Client) getPosts(ctx context.Context, uris []string) ([]Post, error) {
+	endpoint, err := url.Parse(c.baseURL + "/app.bsky.feed.getPosts")
+	if err != nil {
+		return nil, err
+	}
+	query := endpoint.Query()
+	for _, uri := range uris {
+		query.Add("uris", uri)
+	}
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		var apiErr apiError
+		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
+			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
+		}
+		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
+	}
+
+	var postsResp getPostsResponse
+	if err := json.Unmarshal(body, &postsResp); err != nil {
+		return nil, err
+	}
+	return postsResp.Posts, nil
 }

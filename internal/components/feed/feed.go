@@ -16,7 +16,7 @@ func Feed(view feedquery.FeedView) g.Node {
 	return Ul(g.Group(g.Map(view.Posts, func(postView feedquery.PostView) g.Node {
 		href := "/" + postView.AuthorHandle + "/post/" + url.PathEscape(postView.ID)
 		return Li(g.Attr("style", "position: relative"),
-			Div(g.Attr("style", "pointer-events: none"), post.Post(postView)),
+			Div(g.Attr("style", "pointer-events: none"), feedItemNode(postView)),
 			A(
 				g.Attr("href", href),
 				g.Attr("style", "position: absolute; inset: 0"),
@@ -24,4 +24,11 @@ func Feed(view feedquery.FeedView) g.Node {
 			),
 		)
 	})))
+}
+
+func feedItemNode(postView feedquery.PostView) g.Node {
+	if postView.ReplyParentMaybe != nil {
+		return FeedThread(*postView.ReplyParentMaybe, postView)
+	}
+	return post.Post(postView)
 }

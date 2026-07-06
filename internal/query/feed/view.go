@@ -3,6 +3,7 @@ package feed
 import (
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/richtext"
@@ -21,10 +22,16 @@ type PostView struct {
 	AuthorHandle      string
 	AuthorDisplayName string
 	AuthorAvatar      string
+	LikeCount         int
+	RepostCount       int
+	ReplyCount        int
 	Text              string
 	TextSegments      []richtext.Segment
 	CreatedAt         time.Time
 	Images            []ImageView
+	ReplyParentMaybe  *PostView
+	QuotedPostMaybe   *PostView
+	replyParentURI    string
 }
 
 type FeedView struct {
@@ -43,30 +50,72 @@ func NewFeedView(posts []bluesky.Post, cursor string) FeedView {
 	}
 }
 
+func NewFeedViewFromItems(items []bluesky.FeedItem, cursor string) FeedView {
+	views := make([]PostView, 0, len(items))
+	for _, item := range items {
+		views = append(views, NewPostViewFromFeedItem(item))
+	}
+	return FeedView{
+		Posts:      views,
+		NextCursor: cursor,
+	}
+}
+
+func NewPostViewFromFeedItem(item bluesky.FeedItem) PostView {
+	view := NewPostView(item.Post)
+	if item.Reply != nil && item.Reply.Parent != nil {
+		parent := insetPostView(NewPostView(*item.Reply.Parent))
+		view.ReplyParentMaybe = &parent
+		view.replyParentURI = ""
+	}
+	return view
+}
+
 func NewPostView(post bluesky.Post) PostView {
-	id, _ := atproto.PostRkey(post.URI)
 	view := PostView{
-		ID:                id,
+		ID:                postID(post.URI),
 		AuthorHandle:      post.Author.Handle,
-		AuthorDisplayName: post.Author.DisplayName,
+		AuthorDisplayName: actor.Name(post.Author.DisplayName, post.Author.Handle),
 		AuthorAvatar:      post.Author.Avatar,
+		LikeCount:         post.LikeCount,
+		RepostCount:       post.RepostCount,
+		ReplyCount:        post.ReplyCount,
 		Text:              post.Record.Text,
 		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
 		CreatedAt:         post.Record.CreatedAt,
+		replyParentURI:    post.ReplyParentURI(),
 	}
+	appendImagesFromEmbed(&view, post.Embed)
+
 	if post.Embed != nil {
-		for _, image := range post.Embed.MediaImages() {
-			imageView := ImageView{
-				Thumb:    image.ThumbURL(),
-				Fullsize: image.Fullsize,
-				Alt:      image.Alt,
-			}
-			if image.AspectRatio != nil {
-				imageView.Width = image.AspectRatio.Width
-				imageView.Height = image.AspectRatio.Height
-			}
-			view.Images = append(view.Images, imageView)
+		if quoted := post.Embed.QuotedPost(); quoted != nil {
+			quotedView := insetPostView(NewPostView(*quoted))
+			view.QuotedPostMaybe = &quotedView
 		}
 	}
+
 	return view
+}
+
+func postID(uri string) string {
+	id, _ := atproto.PostRkey(uri)
+	return id
+}
+
+func appendImagesFromEmbed(view *PostView, embed *bluesky.Embed) {
+	if embed == nil {
+		return
+	}
+	for _, image := range embed.MediaImages() {
+		imageView := ImageView{
+			Thumb:    image.ThumbURL(),
+			Fullsize: image.Fullsize,
+			Alt:      image.Alt,
+		}
+		if image.AspectRatio != nil {
+			imageView.Width = image.AspectRatio.Width
+			imageView.Height = image.AspectRatio.Height
+		}
+		view.Images = append(view.Images, imageView)
+	}
 }

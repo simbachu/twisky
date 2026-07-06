@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// Name returns the human-readable label for an actor: display name if set, otherwise handle.
+func Name(displayName, handle string) string {
+	if displayName != "" {
+		return displayName
+	}
+	return handle
+}
+
 var (
 	ErrInvalidSlug = errors.New("slug is not a valid handle or DID")
 

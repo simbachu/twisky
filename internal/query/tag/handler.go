@@ -14,6 +14,7 @@ import (
 
 type Reader interface {
 	SearchPosts(ctx context.Context, req bluesky.SearchPostsRequest) (*bluesky.SearchPostsResponse, error)
+	GetPosts(ctx context.Context, uris []string) ([]bluesky.Post, error)
 	GetProfiles(ctx context.Context, actors []string) ([]bluesky.Profile, error)
 }
 
@@ -52,8 +53,14 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewTag) response.Respons
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
+	feed := feedquery.NewFeedView(items.Posts, items.Cursor)
+	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
+	if err != nil {
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	}
+
 	return TagView{
 		Tag:  tag,
-		Feed: feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.NewFeedView(items.Posts, items.Cursor)),
+		Feed: feedquery.ResolveMentionHandles(ctx, h.reader, feed),
 	}
 }

@@ -9,6 +9,22 @@ import (
 	"github.com/simbachu/twisky/internal/richtext"
 )
 
+func TestNewPostView_FallsBackToHandleWhenDisplayNameEmpty(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "hello",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+	})
+
+	if view.AuthorDisplayName != "dev.example" {
+		t.Fatalf("view.AuthorDisplayName = %q, want dev.example", view.AuthorDisplayName)
+	}
+}
+
 func TestNewPostView_UsesPostRkeyAsID(t *testing.T) {
 	t.Parallel()
 

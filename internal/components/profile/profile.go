@@ -9,16 +9,11 @@ import (
 )
 
 func Profile(view profilequery.ProfileView) g.Node {
-	title := view.DisplayName
-	if title == "" {
-		title = view.Handle
-	}
-
 	return page.Page(
-		"Viewing profile: "+title,
-		"Viewing the profile of "+title,
+		"Viewing profile: "+view.DisplayName,
+		"Viewing the profile of "+view.DisplayName,
 		Header(
-			H1(g.Text(title)),
+			H1(g.Text(view.DisplayName)),
 			Img(
 				g.Attr("src", view.Avatar),
 				g.Attr("alt", view.DisplayName),
