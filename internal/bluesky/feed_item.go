@@ -3,14 +3,41 @@ package bluesky
 import "encoding/json"
 
 const (
-	postViewType     = "app.bsky.feed.defs#postView"
-	feedNotFoundType = "app.bsky.feed.defs#notFoundPost"
-	feedBlockedType  = "app.bsky.feed.defs#blockedPost"
+	postViewType       = "app.bsky.feed.defs#postView"
+	feedNotFoundType   = "app.bsky.feed.defs#notFoundPost"
+	feedBlockedType    = "app.bsky.feed.defs#blockedPost"
+	reasonRepostType   = "app.bsky.feed.defs#reasonRepost"
 )
 
 type FeedItem struct {
-	Post  Post          `json:"post"`
-	Reply *ReplyContext `json:"reply,omitempty"`
+	Post   Post          `json:"post"`
+	Reply  *ReplyContext `json:"reply,omitempty"`
+	Reason *FeedReason   `json:"reason,omitempty"`
+}
+
+type FeedReason struct {
+	RepostedBy Author
+}
+
+func (r *FeedReason) UnmarshalJSON(data []byte) error {
+	var probe struct {
+		Type string `json:"$type"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	if probe.Type != reasonRepostType {
+		return nil
+	}
+
+	var raw struct {
+		By Author `json:"by"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.RepostedBy = raw.By
+	return nil
 }
 
 type ReplyContext struct {

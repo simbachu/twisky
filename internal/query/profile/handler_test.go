@@ -39,6 +39,10 @@ func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, e
 	return s.profiles, nil
 }
 
+func (s stubReader) GetPosts(context.Context, []string) ([]bluesky.Post, error) {
+	return nil, nil
+}
+
 func TestHandler_Handle(t *testing.T) {
 	t.Parallel()
 
@@ -271,5 +275,38 @@ func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
 	segment := view.Feed.Posts[0].TextSegments[0]
 	if segment.Mention != "dev.example" {
 		t.Fatalf("mention = %q, want dev.example", segment.Mention)
+	}
+}
+
+func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{Handle: "reposter.example"},
+		feed: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{{
+				Post: bluesky.Post{
+					Author: bluesky.Author{Handle: "original.example", DisplayName: "Original"},
+					Record: bluesky.PostRecord{Text: "original post"},
+				},
+				Reason: &bluesky.FeedReason{
+					RepostedBy: bluesky.Author{Handle: "reposter.example", DisplayName: "Reposter"},
+				},
+			}},
+		},
+	}
+	handler := profile.NewHandler(reader)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "reposter.example", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if view.Feed.Posts[0].RepostedByMaybe == nil {
+		t.Fatal("RepostedByMaybe = nil, want reposter metadata")
+	}
+	if view.Feed.Posts[0].RepostedByMaybe.Handle != "reposter.example" {
+		t.Fatalf("RepostedByMaybe.Handle = %q, want reposter.example", view.Feed.Posts[0].RepostedByMaybe.Handle)
 	}
 }

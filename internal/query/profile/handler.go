@@ -15,6 +15,7 @@ import (
 type Reader interface {
 	GetProfile(ctx context.Context, actor string) (*bluesky.Profile, error)
 	GetAuthorFeed(ctx context.Context, req bluesky.AuthorFeedRequest) (*bluesky.AuthorFeedResponse, error)
+	GetPosts(ctx context.Context, uris []string) ([]bluesky.Post, error)
 	GetProfiles(ctx context.Context, actors []string) ([]bluesky.Profile, error)
 }
 
@@ -84,9 +85,10 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
-	posts := make([]bluesky.Post, 0, len(items.Feed))
-	for _, item := range items.Feed {
-		posts = append(posts, item.Post)
+	feed := feedquery.NewFeedViewFromItems(items.Feed, items.Cursor)
+	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
+	if err != nil {
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
 	return ProfileView{
@@ -99,6 +101,6 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Following:   profile.Following,
 		Posts:       profile.Posts,
 		Tab:         tab,
-		Feed:        feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.NewFeedView(posts, items.Cursor)),
+		Feed:        feedquery.ResolveMentionHandles(ctx, h.reader, feed),
 	}
 }

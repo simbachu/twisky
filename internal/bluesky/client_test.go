@@ -735,6 +735,43 @@ func TestClient_GetAuthorFeed_FeedItemReplyParent(t *testing.T) {
 	}
 }
 
+func TestClient_GetAuthorFeed_FeedItemRepostReason(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/original",
+					"author": {"handle": "original.example", "displayName": "Original"},
+					"record": {"text": "original post", "createdAt": "2026-01-15T12:00:00.000Z"}
+				},
+				"reason": {
+					"$type": "app.bsky.feed.defs#reasonRepost",
+					"by": {"handle": "reposter.example", "displayName": "Reposter"},
+					"indexedAt": "2026-01-15T13:00:00.000Z"
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "reposter.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	if items.Feed[0].Reason == nil {
+		t.Fatal("Reason = nil, want repost reason")
+	}
+	if items.Feed[0].Reason.RepostedBy.Handle != "reposter.example" {
+		t.Fatalf("RepostedBy.Handle = %q, want reposter.example", items.Feed[0].Reason.RepostedBy.Handle)
+	}
+}
+
 func TestClient_GetPosts(t *testing.T) {
 	t.Parallel()
 

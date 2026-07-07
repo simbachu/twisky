@@ -1,43 +1,38 @@
 package profile
 
 import (
+	"time"
+
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	"github.com/simbachu/twisky/internal/components/page"
+	"github.com/simbachu/twisky/internal/components/ui"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-func Profile(view profilequery.ProfileView) g.Node {
+func Profile(view profilequery.ProfileView, now time.Time) g.Node {
+	author := ui.AuthorInfo{
+		Handle:      view.Handle,
+		DisplayName: view.DisplayName,
+		Avatar:      view.Avatar,
+	}
+
 	return page.Page(
 		"Viewing profile: "+view.DisplayName,
 		"Viewing the profile of "+view.DisplayName,
 		Header(
-			H1(g.Text(view.DisplayName)),
-			Img(
-				g.Attr("src", view.Avatar),
-				g.Attr("alt", view.DisplayName),
-				g.Attr("height", "100"),
-				g.Attr("width", "100"),
-			),
-			H2(g.Text("@"+view.Handle)),
+			g.Attr("class", "profile-header"),
+			ui.Avatar(author),
+			H1(ui.AuthorName(author)),
+			H2(ui.AuthorHandle(author)),
 			g.If(view.Description != "", P(g.Text(view.Description))),
 			P(g.Textf("%d followers · %d following · %d posts", view.Followers, view.Following, view.Posts)),
 		),
-		Nav(
-			Ul(
-				Li(A(
-					g.Attr("href", "/"+view.Handle),
-					g.Text("Posts"),
-					g.If(view.Tab == profilequery.TabPosts, g.Attr("aria-current", "page")),
-				)),
-				Li(A(
-					g.Attr("href", "/"+view.Handle+"/media"),
-					g.Text("Media"),
-					g.If(view.Tab == profilequery.TabMedia, g.Attr("aria-current", "page")),
-				)),
-			),
-		),
-		feedcomponent.Feed(view.Feed),
+		ui.TabNav("Profile", []ui.TabItem{
+			{Label: "Posts", Href: "/" + view.Handle, Current: view.Tab == profilequery.TabPosts},
+			{Label: "Media", Href: "/" + view.Handle + "/media", Current: view.Tab == profilequery.TabMedia},
+		}),
+		feedcomponent.Feed(view.Feed, now),
 	)
 }

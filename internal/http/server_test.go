@@ -356,11 +356,14 @@ func TestHandleTagged_ReplyThread(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `class="feed-thread"`) {
-		t.Fatalf("body = %q, want feed-thread class", body)
+	if strings.Contains(body, `class="feed-thread"`) {
+		t.Fatalf("body = %q, want no feed-thread class", body)
 	}
-	if !strings.Contains(body, "parent post") {
-		t.Fatalf("body = %q, want parent post text", body)
+	if !strings.Contains(body, "⤷ Reply to @other.example") {
+		t.Fatalf("body = %q, want reply meta line", body)
+	}
+	if strings.Contains(body, "parent post") {
+		t.Fatalf("body = %q, want parent text omitted from feed", body)
 	}
 	if !strings.Contains(body, "a reply") {
 		t.Fatalf("body = %q, want reply text", body)

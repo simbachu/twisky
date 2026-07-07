@@ -126,6 +126,34 @@ func TestNewPostViewFromFeedItem_PopulatesReplyParentMaybe(t *testing.T) {
 	}
 }
 
+func TestNewPostViewFromFeedItem_PopulatesRepostedByMaybe(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostViewFromFeedItem(bluesky.FeedItem{
+		Post: bluesky.Post{
+			URI:    "at://did:plc:example/app.bsky.feed.post/original",
+			Author: bluesky.Author{Handle: "original.example", DisplayName: "Original"},
+			Record: bluesky.PostRecord{
+				Text:      "original post",
+				CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		Reason: &bluesky.FeedReason{
+			RepostedBy: bluesky.Author{Handle: "reposter.example", DisplayName: "Reposter"},
+		},
+	})
+
+	if view.RepostedByMaybe == nil {
+		t.Fatal("RepostedByMaybe = nil, want reposter")
+	}
+	if view.RepostedByMaybe.Handle != "reposter.example" {
+		t.Fatalf("RepostedByMaybe.Handle = %q, want reposter.example", view.RepostedByMaybe.Handle)
+	}
+	if view.RepostedByMaybe.DisplayName != "Reposter" {
+		t.Fatalf("RepostedByMaybe.DisplayName = %q, want Reposter", view.RepostedByMaybe.DisplayName)
+	}
+}
+
 func TestEnrichReplyParents_HydratesParentFromGetPosts(t *testing.T) {
 	t.Parallel()
 

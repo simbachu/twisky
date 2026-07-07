@@ -17,6 +17,12 @@ type ImageView struct {
 	Height   int
 }
 
+type AuthorView struct {
+	Handle      string
+	DisplayName string
+	Avatar      string
+}
+
 type PostView struct {
 	ID                string
 	AuthorHandle      string
@@ -29,6 +35,7 @@ type PostView struct {
 	TextSegments      []richtext.Segment
 	CreatedAt         time.Time
 	Images            []ImageView
+	RepostedByMaybe   *AuthorView
 	ReplyParentMaybe  *PostView
 	QuotedPostMaybe   *PostView
 	replyParentURI    string
@@ -63,12 +70,24 @@ func NewFeedViewFromItems(items []bluesky.FeedItem, cursor string) FeedView {
 
 func NewPostViewFromFeedItem(item bluesky.FeedItem) PostView {
 	view := NewPostView(item.Post)
+	if item.Reason != nil && item.Reason.RepostedBy.Handle != "" {
+		repostedBy := authorView(item.Reason.RepostedBy)
+		view.RepostedByMaybe = &repostedBy
+	}
 	if item.Reply != nil && item.Reply.Parent != nil {
 		parent := insetPostView(NewPostView(*item.Reply.Parent))
 		view.ReplyParentMaybe = &parent
 		view.replyParentURI = ""
 	}
 	return view
+}
+
+func authorView(author bluesky.Author) AuthorView {
+	return AuthorView{
+		Handle:      author.Handle,
+		DisplayName: actor.Name(author.DisplayName, author.Handle),
+		Avatar:      author.Avatar,
+	}
 }
 
 func NewPostView(post bluesky.Post) PostView {

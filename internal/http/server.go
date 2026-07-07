@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
@@ -59,7 +60,7 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 	switch v := resp.(type) {
 	case tag.TagView:
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tagpage.Tag(v).Render(w)
+		_ = tagpage.Tag(v, time.Now().UTC()).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:
@@ -79,7 +80,7 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 		switch v := resp.(type) {
 		case profile.ProfileView:
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_ = profilepage.Profile(v).Render(w)
+			_ = profilepage.Profile(v, time.Now().UTC()).Render(w)
 		case response.ErrorResponse:
 			http.Error(w, v.Message, v.Status)
 		default:
@@ -107,7 +108,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = postpage.PostPage(v).Render(w)
+		_ = postpage.PostPage(v, time.Now().UTC()).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:

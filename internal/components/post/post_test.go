@@ -25,7 +25,7 @@ func TestPost_RendersFacetSpanClasses(t *testing.T) {
 			{Kind: richtext.Plain, Text: " "},
 			{Kind: richtext.Link, Text: "https://example.com", URI: "https://example.com"},
 		},
-	}).Render(&buf); err != nil {
+	}, time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -40,22 +40,26 @@ func TestPost_RendersFacetSpanClasses(t *testing.T) {
 func TestPost_RendersTimestamp(t *testing.T) {
 	t.Parallel()
 
-	createdAt := time.Date(2026, 3, 12, 20, 43, 28, 0, time.UTC)
+	createdAt := time.Date(2026, 3, 12, 18, 43, 28, 0, time.UTC)
+	now := time.Date(2026, 3, 12, 20, 43, 28, 0, time.UTC)
 	var buf bytes.Buffer
 	if err := post.Post(feedquery.PostView{
 		ID:           "abc123",
 		AuthorHandle: "simbachu.com",
 		CreatedAt:    createdAt,
-	}).Render(&buf); err != nil {
+	}, now).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `<time datetime="2026-03-12T20:43:28Z">`) {
+	if !strings.Contains(html, `<time datetime="2026-03-12T18:43:28Z"`) {
 		t.Fatalf("html = %q, want time element with datetime attribute", html)
 	}
-	if !strings.Contains(html, "Mar 12, 2026, 8:43 PM UTC") {
-		t.Fatalf("html = %q, want human-readable timestamp", html)
+	if !strings.Contains(html, `title="Mar 12, 2026, 6:43 PM UTC"`) {
+		t.Fatalf("html = %q, want absolute time in title", html)
+	}
+	if !strings.Contains(html, ">2h<") {
+		t.Fatalf("html = %q, want relative visible timestamp", html)
 	}
 }
 
@@ -66,7 +70,7 @@ func TestPost_OmitsTimestampWhenMissing(t *testing.T) {
 	if err := post.Post(feedquery.PostView{
 		ID:           "abc123",
 		AuthorHandle: "simbachu.com",
-	}).Render(&buf); err != nil {
+	}, time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -89,7 +93,7 @@ func TestPost_RendersQuotedPostInset(t *testing.T) {
 		AuthorHandle:    "dev.example",
 		Text:            "my take",
 		QuotedPostMaybe: &quoted,
-	}).Render(&buf); err != nil {
+	}, time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
