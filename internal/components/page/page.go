@@ -22,6 +22,10 @@ func Page(title string, description string, children ...g.Node) g.Node {
 					g.Attr("name", "description"),
 					g.Attr("content", description),
 				),
+				Link(
+					g.Attr("rel", "stylesheet"),
+					g.Attr("href", "/static/styles/style.css"),
+				),
 			),
 		),
 		Body(

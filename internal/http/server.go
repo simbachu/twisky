@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
@@ -17,6 +19,7 @@ import (
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/query/tag"
 	"github.com/simbachu/twisky/internal/response"
+	"github.com/simbachu/twisky/static"
 )
 
 type Server struct {
@@ -28,26 +31,22 @@ func NewServer(queries *query.Dispatcher) *Server {
 }
 
 func (s *Server) Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{slug}/post/{id}", s.handlePost)
-	mux.HandleFunc("GET /{head}/{tail}", s.handleTwoSegment)
-	mux.HandleFunc("GET /{slug}", s.handleProfile(intent.ProfileTabPosts))
-	return mux
+	staticFS, err := fs.Sub(static.WebFS, "web")
+	if err != nil {
+		panic(err)
+	}
+
+	r := chi.NewRouter()
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
+	r.Get("/tagged/{tag}", s.handleTag)
+	r.Get("/{slug}/post/{id}", s.handlePost)
+	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
+	r.Get("/{slug}", s.handleProfile(intent.ProfileTabPosts))
+	return r
 }
 
-func (s *Server) handleTwoSegment(w http.ResponseWriter, r *http.Request) {
-	head := r.PathValue("head")
-	tail := r.PathValue("tail")
-	if head == "tagged" {
-		s.dispatchTag(w, r, tail)
-		return
-	}
-	if tail == "media" {
-		r.SetPathValue("slug", head)
-		s.handleProfile(intent.ProfileTabMedia)(w, r)
-		return
-	}
-	http.NotFound(w, r)
+func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
+	s.dispatchTag(w, r, chi.URLParam(r, "tag"))
 }
 
 func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName string) {
@@ -70,7 +69,7 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 
 func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		slug := r.PathValue("slug")
+		slug := chi.URLParam(r, "slug")
 		resp, err := s.queries.Dispatch(r.Context(), intent.ViewProfile{Slug: slug, Tab: tab})
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -90,14 +89,14 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 }
 
 func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
-	postID, err := url.PathUnescape(r.PathValue("id"))
+	postID, err := url.PathUnescape(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid post id", http.StatusBadRequest)
 		return
 	}
 
 	resp, err := s.queries.Dispatch(r.Context(), intent.ViewPost{
-		Slug: r.PathValue("slug"),
+		Slug: chi.URLParam(r, "slug"),
 		ID:   postID,
 	})
 	if err != nil {

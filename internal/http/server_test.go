@@ -557,3 +557,21 @@ func TestHandlePost_NotFound(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
+
+func TestHandleStaticStyleCSS_OK(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{})
+
+	req := httptest.NewRequest(http.MethodGet, "/static/styles/style.css", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, ".facet-link") {
+		t.Fatalf("body = %q, want to contain .facet-link", body)
+	}
+}
