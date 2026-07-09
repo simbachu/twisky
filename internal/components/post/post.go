@@ -1,6 +1,7 @@
 package post
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -17,9 +18,7 @@ func Post(view feedquery.PostView, now time.Time) g.Node {
 	return Article(g.Attr("class", "post"), g.Attr("id", "post-"+url.PathEscape(view.ID)),
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
 		postText(view),
-		g.If(len(view.Images) > 0, Figure(
-			g.Group(g.Map(view.Images, postImage)),
-		)),
+		postFigure(view.Images),
 		quotedInset(view.QuotedPostMaybe, now),
 		Footer(
 			Nav(
@@ -48,9 +47,7 @@ func InsetPost(view *feedquery.PostView, now time.Time) g.Node {
 	return Article(g.Attr("class", "post inset-post"), g.Attr("id", "inset-post-"+url.PathEscape(view.ID)),
 		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, ""),
 		postText(*view),
-		g.If(len(view.Images) > 0, Figure(
-			g.Group(g.Map(view.Images, postImage)),
-		)),
+		postFigure(view.Images),
 	)
 }
 
@@ -115,6 +112,20 @@ func segmentNode(segment richtext.Segment) g.Node {
 	default:
 		return g.Text(segment.Text)
 	}
+}
+
+func postFigure(images []feedquery.ImageView) g.Node {
+	if len(images) == 0 {
+		return nil
+	}
+	count := len(images)
+	if count > 4 {
+		count = 4
+	}
+	return Figure(
+		g.Attr("class", fmt.Sprintf("post-images post-images-%d", count)),
+		g.Group(g.Map(images, postImage)),
+	)
 }
 
 func postImage(image feedquery.ImageView) g.Node {

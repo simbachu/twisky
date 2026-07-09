@@ -26,7 +26,7 @@ func TestFeed_RendersReplyMetaInsteadOfParentInset(t *testing.T) {
 			Text:             "a reply",
 			ReplyParentMaybe: &parent,
 		}},
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -58,7 +58,7 @@ func TestFeed_RendersOverlayBehindContent(t *testing.T) {
 			AuthorHandle: "dev.example",
 			Text:         "standalone post",
 		}},
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestFeed_RendersPlainPostWithoutParent(t *testing.T) {
 			AuthorHandle: "dev.example",
 			Text:         "standalone post",
 		}},
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

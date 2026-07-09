@@ -77,6 +77,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Actor:  identifier,
 		Filter: filter,
 		Limit:  ProfileFeedLimit,
+		Cursor: i.Cursor,
 	})
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {

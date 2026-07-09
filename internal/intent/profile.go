@@ -11,8 +11,9 @@ const (
 // ViewProfile loads a Bluesky actor profile for the given URL slug.
 // Slug must be a valid handle (e.g. bsky.app) or DID (e.g. did:plc:...).
 type ViewProfile struct {
-	Slug string
-	Tab  ProfileTab
+	Slug   string
+	Tab    ProfileTab
+	Cursor string
 }
 
 func (ViewProfile) intent() {}

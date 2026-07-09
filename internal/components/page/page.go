@@ -26,6 +26,18 @@ func Page(title string, description string, children ...g.Node) g.Node {
 					g.Attr("rel", "stylesheet"),
 					g.Attr("href", "/static/styles/style.css"),
 				),
+				Script(
+					g.Attr("src", "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"),
+					g.Attr("integrity", "sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"),
+					g.Attr("crossorigin", "anonymous"),
+				),
+				Link(
+					g.Attr("id", "page-favicon"),
+					g.Attr("rel", "icon"),
+					g.Attr("type", "image/png"),
+					g.Attr("href", "/static/icons/favicon.png"),
+				),
+				Script(g.Attr("src", "/static/scripts/favicon-notify.js")),
 			),
 		),
 		Body(

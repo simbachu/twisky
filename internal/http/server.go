@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
@@ -50,7 +51,11 @@ func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName string) {
-	resp, err := s.queries.Dispatch(r.Context(), intent.ViewTag{Tag: tagName})
+	cursor, since, refresh := feedFragmentParams(r)
+	resp, err := s.queries.Dispatch(r.Context(), intent.ViewTag{
+		Tag:    tagName,
+		Cursor: cursor,
+	})
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -58,6 +63,9 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 
 	switch v := resp.(type) {
 	case tag.TagView:
+		if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = tagpage.Tag(v, time.Now().UTC()).Render(w)
 	case response.ErrorResponse:
@@ -70,7 +78,12 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := chi.URLParam(r, "slug")
-		resp, err := s.queries.Dispatch(r.Context(), intent.ViewProfile{Slug: slug, Tab: tab})
+		cursor, since, refresh := feedFragmentParams(r)
+		resp, err := s.queries.Dispatch(r.Context(), intent.ViewProfile{
+			Slug:   slug,
+			Tab:    tab,
+			Cursor: cursor,
+		})
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -78,6 +91,9 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 
 		switch v := resp.(type) {
 		case profile.ProfileView:
+			if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
+				return
+			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			_ = profilepage.Profile(v, time.Now().UTC()).Render(w)
 		case response.ErrorResponse:
@@ -112,6 +128,49 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, v.Message, v.Status)
 	default:
 		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}
+
+func feedFragmentParams(r *http.Request) (cursor, since, refresh string) {
+	query := r.URL.Query()
+	return query.Get("cursor"), query.Get("since"), query.Get("refresh")
+}
+
+func renderFeedFragment(
+	w http.ResponseWriter,
+	r *http.Request,
+	feed feedquery.FeedView,
+	cursor, since, refresh string,
+) bool {
+	now := time.Now().UTC()
+	feedURL := r.URL.Path
+
+	switch {
+	case cursor != "":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = feedcomponent.FeedItems(feed, now, feedURL).Render(w)
+		return true
+	case since != "":
+		newPosts := feedquery.NewPostsSince(feed.Posts, since)
+		banner := feedcomponent.NewPostsBanner(len(newPosts), feedURL, since)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if banner != nil {
+			_ = banner.Render(w)
+		}
+		return true
+	case refresh != "":
+		newPosts := feedquery.NewPostsSince(feed.Posts, refresh)
+		newTop := refresh
+		if len(newPosts) > 0 {
+			newTop = newPosts[0].ID
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		nodes := feedcomponent.PrependItems(newPosts, now)
+		nodes = append(nodes, feedcomponent.NewPostsPollOOB(feedURL, newTop))
+		_ = nodes.Render(w)
+		return true
+	default:
+		return false
 	}
 }
 

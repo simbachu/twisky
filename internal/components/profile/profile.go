@@ -17,10 +17,12 @@ func Profile(view profilequery.ProfileView, now time.Time) g.Node {
 		DisplayName: view.DisplayName,
 		Avatar:      view.Avatar,
 	}
+	feedURL := "/" + view.Handle
+	if view.Tab == profilequery.TabMedia {
+		feedURL += "/media"
+	}
 
-	return page.Page(
-		"Viewing profile: "+view.DisplayName,
-		"Viewing the profile of "+view.DisplayName,
+	children := []g.Node{
 		Header(
 			g.Attr("class", "profile-header"),
 			ui.Avatar(author),
@@ -33,6 +35,15 @@ func Profile(view profilequery.ProfileView, now time.Time) g.Node {
 			{Label: "Posts", Href: "/" + view.Handle, Current: view.Tab == profilequery.TabPosts},
 			{Label: "Media", Href: "/" + view.Handle + "/media", Current: view.Tab == profilequery.TabMedia},
 		}),
-		feedcomponent.Feed(view.Feed, now),
+	}
+	if len(view.Feed.Posts) > 0 {
+		children = append(children, feedcomponent.NewPostsPoll(feedURL, view.Feed.Posts[0].ID))
+	}
+	children = append(children, feedcomponent.Feed(view.Feed, now, feedURL))
+
+	return page.Page(
+		"Viewing profile: "+view.DisplayName,
+		"Viewing the profile of "+view.DisplayName,
+		children...,
 	)
 }

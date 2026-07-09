@@ -2,6 +2,7 @@ package post_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -76,6 +77,94 @@ func TestPost_OmitsTimestampWhenMissing(t *testing.T) {
 
 	if strings.Contains(buf.String(), "<time") {
 		t.Fatalf("html = %q, want no time element when CreatedAt is zero", buf.String())
+	}
+}
+
+func TestPost_RendersImageCountClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		imageCount int
+		wantClass string
+	}{
+		{name: "one image", imageCount: 1, wantClass: `class="post-images post-images-1"`},
+		{name: "two images", imageCount: 2, wantClass: `class="post-images post-images-2"`},
+		{name: "three images", imageCount: 3, wantClass: `class="post-images post-images-3"`},
+		{name: "four images", imageCount: 4, wantClass: `class="post-images post-images-4"`},
+		{name: "five images clamps to four", imageCount: 5, wantClass: `class="post-images post-images-4"`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			images := make([]feedquery.ImageView, tc.imageCount)
+			for i := range images {
+				images[i] = feedquery.ImageView{
+					Thumb: fmt.Sprintf("https://example.com/thumb-%d.jpg", i),
+					Alt:   fmt.Sprintf("image %d", i),
+				}
+			}
+
+			var buf bytes.Buffer
+			if err := post.Post(feedquery.PostView{
+				ID:           "abc123",
+				AuthorHandle: "dev.example",
+				Images:       images,
+			}, time.Now().UTC()).Render(&buf); err != nil {
+				t.Fatalf("Render() err = %v", err)
+			}
+
+			if !strings.Contains(buf.String(), tc.wantClass) {
+				t.Fatalf("html = %q, want %s", buf.String(), tc.wantClass)
+			}
+		})
+	}
+}
+
+func TestInsetPost_RendersImageCountClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		imageCount int
+		wantClass string
+	}{
+		{name: "one image", imageCount: 1, wantClass: `class="post-images post-images-1"`},
+		{name: "two images", imageCount: 2, wantClass: `class="post-images post-images-2"`},
+		{name: "three images", imageCount: 3, wantClass: `class="post-images post-images-3"`},
+		{name: "four images", imageCount: 4, wantClass: `class="post-images post-images-4"`},
+		{name: "five images clamps to four", imageCount: 5, wantClass: `class="post-images post-images-4"`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			images := make([]feedquery.ImageView, tc.imageCount)
+			for i := range images {
+				images[i] = feedquery.ImageView{
+					Thumb: fmt.Sprintf("https://example.com/thumb-%d.jpg", i),
+					Alt:   fmt.Sprintf("image %d", i),
+				}
+			}
+
+			view := feedquery.PostView{
+				ID:           "abc123",
+				AuthorHandle: "dev.example",
+				Images:       images,
+			}
+
+			var buf bytes.Buffer
+			if err := post.InsetPost(&view, time.Now().UTC()).Render(&buf); err != nil {
+				t.Fatalf("Render() err = %v", err)
+			}
+
+			if !strings.Contains(buf.String(), tc.wantClass) {
+				t.Fatalf("html = %q, want %s", buf.String(), tc.wantClass)
+			}
+		})
 	}
 }
 

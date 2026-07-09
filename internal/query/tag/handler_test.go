@@ -97,6 +97,27 @@ func TestHandler_HandlePassesNextCursor(t *testing.T) {
 	}
 }
 
+func TestHandler_HandlePassesCursor(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		searchResp: &bluesky.SearchPostsResponse{},
+	}
+	handler := tag.NewHandler(reader)
+
+	resp := handler.Handle(context.Background(), intent.ViewTag{
+		Tag:    "golang",
+		Cursor: "page-2",
+	})
+
+	if _, ok := resp.(tag.TagView); !ok {
+		t.Fatalf("Handle() type = %T, want TagView", resp)
+	}
+	if reader.lastSearchRequest.Cursor != "page-2" {
+		t.Fatalf("lastSearchRequest.Cursor = %q, want page-2", reader.lastSearchRequest.Cursor)
+	}
+}
+
 func TestHandler_HandleInvalidTag(t *testing.T) {
 	t.Parallel()
 

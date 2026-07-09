@@ -167,6 +167,29 @@ func TestHandler_HandlePassesNextCursor(t *testing.T) {
 	}
 }
 
+func TestHandler_HandlePassesCursor(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{Handle: "bsky.app"},
+		feed:    &bluesky.AuthorFeedResponse{},
+	}
+	handler := profile.NewHandler(reader)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{
+		Slug:   "bsky.app",
+		Tab:    intent.ProfileTabPosts,
+		Cursor: "page-2",
+	})
+
+	if _, ok := resp.(profile.ProfileView); !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if reader.lastFeedRequest.Cursor != "page-2" {
+		t.Fatalf("lastFeedRequest.Cursor = %q, want page-2", reader.lastFeedRequest.Cursor)
+	}
+}
+
 func TestHandler_HandleInvalidSlug(t *testing.T) {
 	t.Parallel()
 

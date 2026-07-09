@@ -120,6 +120,15 @@ func TestHandleSlug_OK(t *testing.T) {
 	if !strings.Contains(body, `aria-current="page"`) || !strings.Contains(body, ">Posts<") {
 		t.Fatalf("body = %q, want Posts tab marked current", body)
 	}
+	if !strings.Contains(body, `id="page-favicon"`) {
+		t.Fatalf("body = %q, want page favicon link", body)
+	}
+	if !strings.Contains(body, `href="/static/icons/favicon.png"`) {
+		t.Fatalf("body = %q, want default favicon href", body)
+	}
+	if !strings.Contains(body, `src="/static/scripts/favicon-notify.js"`) {
+		t.Fatalf("body = %q, want favicon notify script", body)
+	}
 }
 
 func TestHandleSlug_MediaTab(t *testing.T) {
@@ -168,7 +177,7 @@ func TestHandleSlug_MediaTab(t *testing.T) {
 	if !strings.Contains(body, `srcset="https://example.com/thumb.jpg 1000w, https://example.com/full.jpg 2000w"`) {
 		t.Fatalf("body = %q, want srcset with thumb and fullsize URLs", body)
 	}
-	if !strings.Contains(body, "<figure>") {
+	if !strings.Contains(body, `class="post-images post-images-1"`) {
 		t.Fatalf("body = %q, want figure wrapper for post images", body)
 	}
 	if !strings.Contains(body, ">Media<") {
@@ -227,7 +236,7 @@ func TestHandleSlug_MediaTab_GalleryEmbed(t *testing.T) {
 	if !strings.Contains(body, "gallery post") {
 		t.Fatalf("body = %q, want to contain gallery post", body)
 	}
-	if !strings.Contains(body, "<figure>") {
+	if !strings.Contains(body, `class="post-images post-images-2"`) {
 		t.Fatalf("body = %q, want figure wrapper for gallery images", body)
 	}
 	if !strings.Contains(body, `src="https://example.com/thumb1.jpg"`) {
@@ -573,5 +582,184 @@ func TestHandleStaticStyleCSS_OK(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, ".facet-link") {
 		t.Fatalf("body = %q, want to contain .facet-link", body)
+	}
+}
+
+func TestHandleSlug_CursorFragment(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "bsky.app",
+			DisplayName: "Bluesky",
+		},
+		feed: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/page-two",
+					Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+					Record: bluesky.PostRecord{Text: "page two post"},
+				},
+			}},
+			Cursor: "page-3",
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app?cursor=page-2", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<html") {
+		t.Fatalf("body = %q, want fragment without full page wrapper", body)
+	}
+	if !strings.Contains(body, "page two post") {
+		t.Fatalf("body = %q, want page two post", body)
+	}
+	if !strings.Contains(body, `class="feed-sentinel"`) {
+		t.Fatalf("body = %q, want feed sentinel", body)
+	}
+}
+
+func TestHandleSlug_SinceFragment(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "bsky.app",
+			DisplayName: "Bluesky",
+		},
+		feed: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{
+				{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/new-one",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "new one"},
+					},
+				},
+				{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/new-two",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "new two"},
+					},
+				},
+				{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/top",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "top post"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app?since=top", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<html") {
+		t.Fatalf("body = %q, want fragment without full page wrapper", body)
+	}
+	if !strings.Contains(body, "Show 2 new posts") {
+		t.Fatalf("body = %q, want new posts banner", body)
+	}
+	if !strings.Contains(body, `hx-get="/bsky.app?refresh=top"`) {
+		t.Fatalf("body = %q, want refresh link", body)
+	}
+}
+
+func TestHandleSlug_RefreshFragment(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "bsky.app",
+			DisplayName: "Bluesky",
+		},
+		feed: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{
+				{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/new-one",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "new one"},
+					},
+				},
+				{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/top",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "top post"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app?refresh=top", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<html") {
+		t.Fatalf("body = %q, want fragment without full page wrapper", body)
+	}
+	if !strings.Contains(body, "new one") {
+		t.Fatalf("body = %q, want prepended post", body)
+	}
+	if strings.Contains(body, "top post") {
+		t.Fatalf("body = %q, want top post omitted from prepend fragment", body)
+	}
+	if !strings.Contains(body, `hx-swap-oob="true"`) {
+		t.Fatalf("body = %q, want out-of-band poller reset", body)
+	}
+	if !strings.Contains(body, `hx-get="/bsky.app?since=new-one"`) {
+		t.Fatalf("body = %q, want poller reset to new top id", body)
+	}
+}
+
+func TestHandleTagged_CursorFragment(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		searchResp: &bluesky.SearchPostsResponse{
+			Posts: []bluesky.Post{{
+				URI:    "at://did:plc:example/app.bsky.feed.post/page-two",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Developer"},
+				Record: bluesky.PostRecord{Text: "tag page two"},
+			}},
+			Cursor: "page-3",
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/tagged/golang?cursor=page-2", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<html") {
+		t.Fatalf("body = %q, want fragment without full page wrapper", body)
+	}
+	if !strings.Contains(body, "tag page two") {
+		t.Fatalf("body = %q, want tag page two", body)
+	}
+	if !strings.Contains(body, `hx-get="/tagged/golang?cursor=page-3"`) {
+		t.Fatalf("body = %q, want next cursor sentinel", body)
 	}
 }

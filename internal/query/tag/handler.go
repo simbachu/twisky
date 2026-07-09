@@ -43,8 +43,9 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewTag) response.Respons
 	}
 
 	items, err := h.reader.SearchPosts(ctx, bluesky.SearchPostsRequest{
-		Tag:   tag,
-		Limit: TagFeedLimit,
+		Tag:    tag,
+		Limit:  TagFeedLimit,
+		Cursor: i.Cursor,
 	})
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
