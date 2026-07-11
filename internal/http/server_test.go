@@ -77,9 +77,9 @@ func (s stubReader) GetPostThread(context.Context, string) (bluesky.ThreadNode, 
 
 func newTestServer(reader stubReader) http.Handler {
 	queries := query.NewDispatcher(
-		profile.NewHandler(reader),
-		tag.NewHandler(reader),
-		post.NewHandler(reader),
+		profile.NewHandler(reader, nil),
+		tag.NewHandler(reader, nil),
+		post.NewHandler(reader, nil),
 	)
 	return twiskyhttp.NewServer(queries).Handler()
 }

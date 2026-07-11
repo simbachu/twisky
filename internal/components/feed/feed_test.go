@@ -125,3 +125,37 @@ func TestNewPostsPollOOB_RendersOutOfBandSwap(t *testing.T) {
 		t.Fatalf("html = %q, want updated since id", html)
 	}
 }
+
+func TestFeedItems_OmitsFilteredPosts(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := feed.FeedItems(feedquery.FeedView{
+		Posts: []feedquery.PostView{
+			{
+				ID:           "visible",
+				AuthorHandle: "dev.example",
+				Text:         "hello",
+			},
+			{
+				ID:           "hidden",
+				AuthorHandle: "dev.example",
+				Text:         "blocked",
+				Moderation:   feedquery.ModerationView{Filtered: true},
+			},
+		},
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, "hello") {
+		t.Fatalf("html = %q, want visible post", html)
+	}
+	if strings.Contains(html, "blocked") {
+		t.Fatalf("html = %q, want filtered post omitted", html)
+	}
+	if strings.Count(html, `class="feed-item"`) != 1 {
+		t.Fatalf("html = %q, want one feed item", html)
+	}
+}

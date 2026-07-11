@@ -45,10 +45,11 @@ func (e *Embed) QuotedPost() *Post {
 }
 
 type embedRecordView struct {
-	Type   string          `json:"$type"`
-	URI    string          `json:"uri"`
-	Author Author          `json:"author"`
-	Value  PostRecord      `json:"value"`
+	Type   string            `json:"$type"`
+	URI    string            `json:"uri"`
+	Author Author            `json:"author"`
+	Value  PostRecord        `json:"value"`
+	Labels []Label           `json:"labels,omitempty"`
 	Embeds []json.RawMessage `json:"embeds,omitempty"`
 }
 
@@ -66,6 +67,7 @@ func postFromRecordEmbed(raw json.RawMessage) *Post {
 		URI:    record.URI,
 		Author: record.Author,
 		Record: record.Value,
+		Labels: record.Labels,
 	}
 	for _, nestedRaw := range record.Embeds {
 		if embed := parseNestedEmbed(nestedRaw); embed != nil {

@@ -6,8 +6,17 @@ import (
 	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/richtext"
 )
+
+type ModerationView struct {
+	Filtered   bool
+	Blurred    bool
+	NoOverride bool
+	AlertText  string
+	BlurMedia  bool
+}
 
 type ImageView struct {
 	Thumb    string
@@ -38,7 +47,11 @@ type PostView struct {
 	RepostedByMaybe   *AuthorView
 	ReplyParentMaybe  *PostView
 	QuotedPostMaybe   *PostView
+	Moderation        ModerationView
 	replyParentURI    string
+	authorDID         string
+	labels            []moderation.Label
+	authorLabels      []moderation.Label
 }
 
 type FeedView struct {
@@ -103,6 +116,9 @@ func NewPostView(post bluesky.Post) PostView {
 		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
 		CreatedAt:         post.Record.CreatedAt,
 		replyParentURI:    post.ReplyParentURI(),
+		authorDID:         post.Author.DID,
+		labels:            moderationLabels(post.AllLabels()),
+		authorLabels:      moderationLabels(post.Author.Labels),
 	}
 	appendImagesFromEmbed(&view, post.Embed)
 
@@ -114,6 +130,17 @@ func NewPostView(post bluesky.Post) PostView {
 	}
 
 	return view
+}
+
+func moderationLabels(labels []bluesky.Label) []moderation.Label {
+	if len(labels) == 0 {
+		return nil
+	}
+	out := make([]moderation.Label, 0, len(labels))
+	for _, label := range labels {
+		out = append(out, moderation.Label{Val: label.Val, Src: label.Src})
+	}
+	return out
 }
 
 func postID(uri string) string {

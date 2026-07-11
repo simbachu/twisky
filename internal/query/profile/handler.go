@@ -9,6 +9,7 @@ import (
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/intent"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/response"
 )
 
@@ -21,12 +22,16 @@ type Reader interface {
 
 type Handler struct {
 	reader Reader
+	prefs  moderation.PrefsProvider
 }
 
 const ProfileFeedLimit = 20
 
-func NewHandler(reader Reader) *Handler {
-	return &Handler{reader: reader}
+func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
+	if prefs == nil {
+		prefs = moderation.DefaultPrefsProvider{}
+	}
+	return &Handler{reader: reader, prefs: prefs}
 }
 
 type Tab string
@@ -102,6 +107,6 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Following:   profile.Following,
 		Posts:       profile.Posts,
 		Tab:         tab,
-		Feed:        feedquery.ResolveMentionHandles(ctx, h.reader, feed),
+		Feed: feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList),
 	}
 }

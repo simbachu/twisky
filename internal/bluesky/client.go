@@ -59,6 +59,12 @@ type Profile struct {
 	Posts        int    `json:"postsCount"`
 }
 
+type Label struct {
+	Val string `json:"val"`
+	Src string `json:"src"`
+	URI string `json:"uri,omitempty"`
+}
+
 type Post struct {
 	URI         string     `json:"uri"`
 	Author      Author     `json:"author"`
@@ -67,19 +73,57 @@ type Post struct {
 	LikeCount   int        `json:"likeCount,omitempty"`
 	RepostCount int        `json:"repostCount,omitempty"`
 	ReplyCount  int        `json:"replyCount,omitempty"`
+	Labels      []Label    `json:"labels,omitempty"`
 }
 
 type Author struct {
-	Handle      string `json:"handle"`
-	DisplayName string `json:"displayName"`
-	Avatar      string `json:"avatar"`
+	DID         string  `json:"did"`
+	Handle      string  `json:"handle"`
+	DisplayName string  `json:"displayName"`
+	Avatar      string  `json:"avatar"`
+	Labels      []Label `json:"labels,omitempty"`
 }
 
 type PostRecord struct {
-	Text      string    `json:"text"`
-	CreatedAt time.Time `json:"createdAt"`
-	Facets    []Facet   `json:"facets,omitempty"`
-	Reply     *RecordReplyRef `json:"reply,omitempty"`
+	Text       string          `json:"text"`
+	CreatedAt  time.Time       `json:"createdAt"`
+	Facets     []Facet         `json:"facets,omitempty"`
+	Reply      *RecordReplyRef `json:"reply,omitempty"`
+	SelfLabels *SelfLabels     `json:"labels,omitempty"`
+}
+
+type SelfLabels struct {
+	Type   string          `json:"$type"`
+	Values []SelfLabelValue `json:"values"`
+}
+
+type SelfLabelValue struct {
+	Val string `json:"val"`
+}
+
+// AllLabels returns post view labels plus self-labels from the record.
+func (p Post) AllLabels() []Label {
+	labels := append([]Label{}, p.Labels...)
+	if p.Author.DID == "" {
+		return labels
+	}
+	for _, value := range p.Record.SelfLabelValues() {
+		labels = append(labels, Label{Val: value, Src: p.Author.DID})
+	}
+	return labels
+}
+
+func (r PostRecord) SelfLabelValues() []string {
+	if r.SelfLabels == nil {
+		return nil
+	}
+	values := make([]string, 0, len(r.SelfLabels.Values))
+	for _, value := range r.SelfLabels.Values {
+		if value.Val != "" {
+			values = append(values, value.Val)
+		}
+	}
+	return values
 }
 
 type RecordReplyRef struct {

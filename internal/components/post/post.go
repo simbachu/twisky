@@ -14,21 +14,21 @@ import (
 )
 
 func Post(view feedquery.PostView, now time.Time) g.Node {
+	if view.Moderation.Filtered {
+		return nil
+	}
+
 	repostedBy, replyParent, replyParentID := postHeaderMeta(view)
 	return Article(g.Attr("class", "post"), g.Attr("id", "post-"+url.PathEscape(view.ID)),
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
-		postText(view),
-		postFigure(view.Images),
-		quotedInset(view.QuotedPostMaybe, now),
+		moderationNotice(view.Moderation),
+		moderationBody(view, now),
 		Footer(
 			Nav(
 				Ul(
 					Li(ui.ActionButton(ui.IconReply, "Reply", view.ReplyCount)),
 					Li(ui.ActionButton(ui.IconRepost, "Repost", view.RepostCount)),
 					Li(ui.ActionButton(ui.IconLike, "Like", view.LikeCount)),
-					// Bookmark button
-					// Share button
-					// More options button
 				),
 			),
 		),
@@ -44,11 +44,56 @@ func quotedInset(maybe *feedquery.PostView, now time.Time) g.Node {
 
 // Condensed post view with Author, Icon, Text and images
 func InsetPost(view *feedquery.PostView, now time.Time) g.Node {
+	if view == nil || view.Moderation.Filtered {
+		return nil
+	}
 	return Article(g.Attr("class", "post inset-post"), g.Attr("id", "inset-post-"+url.PathEscape(view.ID)),
 		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, ""),
-		postText(*view),
-		postFigure(view.Images),
+		moderationNotice(view.Moderation),
+		moderationBody(*view, now),
 	)
+}
+
+func moderationNotice(mod feedquery.ModerationView) g.Node {
+	if mod.AlertText == "" || mod.Blurred {
+		return nil
+	}
+	return Div(g.Attr("class", "post-moderation-notice"), g.Text(mod.AlertText))
+}
+
+func moderationBody(view feedquery.PostView, now time.Time) g.Node {
+	content := postContent(view, now)
+	if !view.Moderation.Blurred {
+		return content
+	}
+	if view.Moderation.NoOverride {
+		return Div(g.Attr("class", "post-moderation-gate"),
+			moderationCover(view.Moderation),
+		)
+	}
+	return Details(g.Attr("class", "post-moderation-gate"),
+		Summary(
+			moderationCover(view.Moderation),
+			g.Text("Show anyway"),
+		),
+		Div(content),
+	)
+}
+
+func moderationCover(mod feedquery.ModerationView) g.Node {
+	message := mod.AlertText
+	if message == "" {
+		message = "Content warning"
+	}
+	return P(g.Text(message))
+}
+
+func postContent(view feedquery.PostView, now time.Time) g.Node {
+	return g.Group{
+		postText(view),
+		postFigure(view.Images, view.Moderation),
+		quotedInset(view.QuotedPostMaybe, now),
+	}
 }
 
 func authorInfo(view feedquery.PostView) ui.AuthorInfo {
@@ -114,7 +159,29 @@ func segmentNode(segment richtext.Segment) g.Node {
 	}
 }
 
-func postFigure(images []feedquery.ImageView) g.Node {
+func postFigure(images []feedquery.ImageView, mod feedquery.ModerationView) g.Node {
+	figure := postFigureBase(images)
+	if figure == nil {
+		return nil
+	}
+	if mod.Blurred || !mod.BlurMedia {
+		return figure
+	}
+	if mod.NoOverride {
+		return Div(g.Attr("class", "post-moderation-gate"),
+			moderationCover(mod),
+		)
+	}
+	return Details(g.Attr("class", "post-moderation-gate"),
+		Summary(
+			moderationCover(mod),
+			g.Text("Show media"),
+		),
+		figure,
+	)
+}
+
+func postFigureBase(images []feedquery.ImageView) g.Node {
 	if len(images) == 0 {
 		return nil
 	}

@@ -20,7 +20,7 @@ func PostPage(view feedquery.PostPageView, now time.Time) g.Node {
 				return ancestorItem(postView, now)
 			}))),
 		)),
-		Section(g.Attr("class", "thread-root"), Post(view.Post, now)),
+		Section(g.Attr("class", "thread-root"), threadRootPost(view.Post, now)),
 		g.If(len(view.Replies) > 0, Section(
 			g.Attr("class", "thread-replies"),
 			Ul(g.Group(g.Map(view.Replies, func(node feedquery.ThreadNodeView) g.Node {
@@ -30,13 +30,26 @@ func PostPage(view feedquery.PostPageView, now time.Time) g.Node {
 	)
 }
 
+func threadRootPost(view feedquery.PostView, now time.Time) g.Node {
+	if view.Moderation.Filtered {
+		return P(g.Text("Post hidden by moderation"))
+	}
+	return Post(view, now)
+}
+
 func ancestorItem(postView feedquery.PostView, now time.Time) g.Node {
+	if postView.Moderation.Filtered {
+		return Li(P(g.Text("Post hidden by moderation")))
+	}
 	return Li(Post(postView, now))
 }
 
 func replyItem(node feedquery.ThreadNodeView, now time.Time) g.Node {
 	if node.Unavailable {
 		return Li(P(g.Text("Post unavailable")))
+	}
+	if node.Post.Moderation.Filtered {
+		return Li(P(g.Text("Post hidden by moderation")))
 	}
 
 	href := "/" + node.Post.AuthorHandle + "/post/" + url.PathEscape(node.Post.ID)

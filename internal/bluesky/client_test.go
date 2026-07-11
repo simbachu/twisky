@@ -2,6 +2,7 @@ package bluesky_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -850,5 +851,37 @@ func TestClient_GetPosts_ChunksRequests(t *testing.T) {
 	}
 	if requestCount != 2 {
 		t.Fatalf("requestCount = %d, want 2", requestCount)
+	}
+}
+
+func TestPost_AllLabels_IncludesViewAndSelfLabels(t *testing.T) {
+	t.Parallel()
+
+	var post bluesky.Post
+	if err := json.Unmarshal([]byte(`{
+		"uri": "at://did:plc:author/app.bsky.feed.post/abc",
+		"author": {"did": "did:plc:author", "handle": "author.example"},
+		"record": {
+			"text": "hello",
+			"createdAt": "2026-01-15T12:00:00.000Z",
+			"labels": {
+				"$type": "com.atproto.label.defs#selfLabels",
+				"values": [{"val": "nudity"}]
+			}
+		},
+		"labels": [{"val": "sexual", "src": "did:plc:moderation"}]
+	}`), &post); err != nil {
+		t.Fatalf("Unmarshal() err = %v", err)
+	}
+
+	labels := post.AllLabels()
+	if len(labels) != 2 {
+		t.Fatalf("len(labels) = %d, want 2", len(labels))
+	}
+	if labels[0].Val != "sexual" || labels[0].Src != "did:plc:moderation" {
+		t.Fatalf("labels[0] = %#v, want sexual from moderation labeler", labels[0])
+	}
+	if labels[1].Val != "nudity" || labels[1].Src != "did:plc:author" {
+		t.Fatalf("labels[1] = %#v, want nudity self-label", labels[1])
 	}
 }

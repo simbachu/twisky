@@ -11,6 +11,7 @@ import (
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/intent"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/response"
 )
 
@@ -22,10 +23,14 @@ type Reader interface {
 
 type Handler struct {
 	reader Reader
+	prefs  moderation.PrefsProvider
 }
 
-func NewHandler(reader Reader) *Handler {
-	return &Handler{reader: reader}
+func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
+	if prefs == nil {
+		prefs = moderation.DefaultPrefsProvider{}
+	}
+	return &Handler{reader: reader, prefs: prefs}
 }
 
 func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Response {
@@ -60,6 +65,6 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 		return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
 	}
 
-	view := feedquery.ResolveMentionHandlesInThread(ctx, h.reader, feedquery.NewPostPageView(root))
+	view := feedquery.ApplyModerationToPostPage(ctx, h.prefs, feedquery.ResolveMentionHandlesInThread(ctx, h.reader, feedquery.NewPostPageView(root)))
 	return view
 }

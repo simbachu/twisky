@@ -71,7 +71,7 @@ func TestHandler_Handle_OK(t *testing.T) {
 		},
 	}
 
-	handler := post.NewHandler(reader)
+	handler := post.NewHandler(reader, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -98,7 +98,7 @@ func TestHandler_Handle_OK(t *testing.T) {
 func TestHandler_Handle_InvalidSlug(t *testing.T) {
 	t.Parallel()
 
-	handler := post.NewHandler(&stubReader{})
+	handler := post.NewHandler(&stubReader{}, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "hello", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -115,7 +115,7 @@ func TestHandler_Handle_InvalidPostID(t *testing.T) {
 
 	handler := post.NewHandler(&stubReader{
 		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
-	})
+	}, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "  "})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -133,7 +133,7 @@ func TestHandler_Handle_PostNotFound(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile:   &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		threadErr: bluesky.ErrNotFound,
-	})
+	}, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "missing"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -151,7 +151,7 @@ func TestHandler_Handle_UpstreamError(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile:   &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		threadErr: errors.New("network failure"),
-	})
+	}, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -169,7 +169,7 @@ func TestHandler_Handle_RootNotThreadViewPost(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		thread:  bluesky.NotFoundPost{URI: "at://did:plc:example/app.bsky.feed.post/missing"},
-	})
+	}, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "missing"})
 
 	errResp, ok := resp.(response.ErrorResponse)

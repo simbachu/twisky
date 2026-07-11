@@ -197,3 +197,77 @@ func TestPost_RendersQuotedPostInset(t *testing.T) {
 		t.Fatalf("html = %q, want main post text", html)
 	}
 }
+
+func TestPost_RendersModerationBlurWithReveal(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hidden text",
+		Moderation: feedquery.ModerationView{
+			Blurred:   true,
+			AlertText: "Adult content",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+		t.Fatalf("html = %q, want moderation blur wrapper", html)
+	}
+	if !strings.Contains(html, "Show anyway") {
+		t.Fatalf("html = %q, want reveal control", html)
+	}
+	if !strings.Contains(html, "Adult content") {
+		t.Fatalf("html = %q, want moderation message", html)
+	}
+}
+
+func TestPost_OmitsFilteredPost(t *testing.T) {
+	t.Parallel()
+
+	node := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hidden",
+		Moderation:   feedquery.ModerationView{Filtered: true},
+	}, time.Now().UTC())
+	if node != nil {
+		t.Fatalf("Post() = %v, want nil for filtered post", node)
+	}
+}
+
+func TestPost_RendersMediaBlurWithReveal(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "visible text",
+		Images: []feedquery.ImageView{{
+			Thumb: "https://example.com/thumb.jpg",
+			Alt:   "photo",
+		}},
+		Moderation: feedquery.ModerationView{
+			BlurMedia: true,
+			AlertText: "Suggestive content",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+		t.Fatalf("html = %q, want media moderation wrapper", html)
+	}
+	if !strings.Contains(html, "Show media") {
+		t.Fatalf("html = %q, want media reveal control", html)
+	}
+	if !strings.Contains(html, "visible text") {
+		t.Fatalf("html = %q, want visible post text", html)
+	}
+}

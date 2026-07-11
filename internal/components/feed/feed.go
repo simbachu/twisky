@@ -81,6 +81,9 @@ func NewPostsBanner(count int, feedURL, sinceID string) g.Node {
 }
 
 func feedItem(postView feedquery.PostView, now time.Time) g.Node {
+	if postView.Moderation.Filtered {
+		return nil
+	}
 	href := "/" + postView.AuthorHandle + "/post/" + url.PathEscape(postView.ID)
 	return Li(g.Attr("class", "feed-item"),
 		A(

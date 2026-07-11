@@ -50,7 +50,7 @@ func TestHandler_Handle(t *testing.T) {
 			}},
 		},
 	}
-	handler := tag.NewHandler(reader)
+	handler := tag.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
 
@@ -84,7 +84,7 @@ func TestHandler_HandlePassesNextCursor(t *testing.T) {
 			Cursor: "next-page",
 		},
 	}
-	handler := tag.NewHandler(reader)
+	handler := tag.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
 
@@ -103,7 +103,7 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 	reader := &stubReader{
 		searchResp: &bluesky.SearchPostsResponse{},
 	}
-	handler := tag.NewHandler(reader)
+	handler := tag.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{
 		Tag:    "golang",
@@ -121,7 +121,7 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 func TestHandler_HandleInvalidTag(t *testing.T) {
 	t.Parallel()
 
-	handler := tag.NewHandler(&stubReader{})
+	handler := tag.NewHandler(&stubReader{}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: ""})
 
@@ -137,7 +137,7 @@ func TestHandler_HandleInvalidTag(t *testing.T) {
 func TestHandler_HandleUpstreamError(t *testing.T) {
 	t.Parallel()
 
-	handler := tag.NewHandler(&stubReader{err: errors.New("network failure")})
+	handler := tag.NewHandler(&stubReader{err: errors.New("network failure")}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
 
@@ -174,7 +174,7 @@ func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
 			Handle: "dev.example",
 		}},
 	}
-	handler := tag.NewHandler(reader)
+	handler := tag.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
 
@@ -212,7 +212,7 @@ func TestHandler_HandleEnrichesReplyParent(t *testing.T) {
 			Record: bluesky.PostRecord{Text: "parent post"},
 		}},
 	}
-	handler := tag.NewHandler(reader)
+	handler := tag.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "golang"})
 

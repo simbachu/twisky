@@ -10,6 +10,7 @@ import (
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/command"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
 	"github.com/simbachu/twisky/internal/query/profile"
@@ -21,12 +22,13 @@ func main() {
 	defer stop()
 
 	blueskyClient := bluesky.NewClient()
+	prefs := moderation.DefaultPrefsProvider{}
 	_ = command.NewDispatcher() // reserved for future write intents
 
 	queries := query.NewDispatcher(
-		profile.NewHandler(blueskyClient),
-		tag.NewHandler(blueskyClient),
-		post.NewHandler(blueskyClient),
+		profile.NewHandler(blueskyClient, prefs),
+		tag.NewHandler(blueskyClient, prefs),
+		post.NewHandler(blueskyClient, prefs),
 	)
 
 	server := twiskyhttp.NewServer(queries)

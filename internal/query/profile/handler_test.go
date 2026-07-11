@@ -62,7 +62,7 @@ func TestHandler_Handle(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -115,7 +115,7 @@ func TestHandler_HandleMediaTab(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabMedia})
 
@@ -154,7 +154,7 @@ func TestHandler_HandlePassesNextCursor(t *testing.T) {
 			Cursor: "next-page",
 		},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -174,7 +174,7 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 		profile: &bluesky.Profile{Handle: "bsky.app"},
 		feed:    &bluesky.AuthorFeedResponse{},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{
 		Slug:   "bsky.app",
@@ -193,7 +193,7 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 func TestHandler_HandleInvalidSlug(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{})
+	handler := profile.NewHandler(&stubReader{}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "hello", Tab: intent.ProfileTabPosts})
 
@@ -209,7 +209,7 @@ func TestHandler_HandleInvalidSlug(t *testing.T) {
 func TestHandler_HandleNotFound(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{err: bluesky.ErrNotFound})
+	handler := profile.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "missing.example", Tab: intent.ProfileTabPosts})
 
@@ -225,7 +225,7 @@ func TestHandler_HandleNotFound(t *testing.T) {
 func TestHandler_HandleUpstreamError(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{err: errors.New("network failure")})
+	handler := profile.NewHandler(&stubReader{err: errors.New("network failure")}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -244,7 +244,7 @@ func TestHandler_HandleFeedUpstreamError(t *testing.T) {
 	handler := profile.NewHandler(&stubReader{
 		profile: &bluesky.Profile{Handle: "bsky.app"},
 		feedErr: errors.New("network failure"),
-	})
+	}, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -284,7 +284,7 @@ func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
 			Handle: "dev.example",
 		}},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -318,7 +318,7 @@ func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader)
+	handler := profile.NewHandler(reader, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "reposter.example", Tab: intent.ProfileTabPosts})
 
