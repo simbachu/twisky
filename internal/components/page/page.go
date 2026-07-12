@@ -31,6 +31,13 @@ func Page(title string, description string, children ...g.Node) g.Node {
 					g.Attr("integrity", "sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"),
 					g.Attr("crossorigin", "anonymous"),
 				),
+				Script(
+					g.Attr("src", "https://cdn.jsdelivr.net/npm/hls.js@1.6.2/dist/hls.min.js"),
+					g.Attr("integrity", "sha384-QHoMEQEjeievZsHu5ejPFm+o1o93XoWIEziW/+oc9LLMGsPNAbp1pN4PHhI/KIzW"),
+					g.Attr("crossorigin", "anonymous"),
+					g.Attr("defer", ""),
+				),
+				Script(g.Attr("src", "/static/scripts/post-video.js"), g.Attr("defer", "")),
 				Link(
 					g.Attr("id", "page-favicon"),
 					g.Attr("rel", "icon"),

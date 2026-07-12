@@ -26,6 +26,15 @@ type ImageView struct {
 	Height   int
 }
 
+type VideoView struct {
+	Playlist     string
+	Thumbnail    string
+	Alt          string
+	Width        int
+	Height       int
+	Presentation string
+}
+
 type AuthorView struct {
 	Handle      string
 	DisplayName string
@@ -44,6 +53,7 @@ type PostView struct {
 	TextSegments      []richtext.Segment
 	CreatedAt         time.Time
 	Images            []ImageView
+	Videos            []VideoView
 	RepostedByMaybe   *AuthorView
 	ReplyParentMaybe  *PostView
 	QuotedPostMaybe   *PostView
@@ -121,6 +131,7 @@ func NewPostView(post bluesky.Post) PostView {
 		authorLabels:      moderationLabels(post.Author.Labels),
 	}
 	appendImagesFromEmbed(&view, post.Embed)
+	appendVideosFromEmbed(&view, post.Embed)
 
 	if post.Embed != nil {
 		if quoted := post.Embed.QuotedPost(); quoted != nil {
@@ -163,5 +174,24 @@ func appendImagesFromEmbed(view *PostView, embed *bluesky.Embed) {
 			imageView.Height = image.AspectRatio.Height
 		}
 		view.Images = append(view.Images, imageView)
+	}
+}
+
+func appendVideosFromEmbed(view *PostView, embed *bluesky.Embed) {
+	if embed == nil {
+		return
+	}
+	for _, video := range embed.MediaVideos() {
+		videoView := VideoView{
+			Playlist:     video.Playlist,
+			Thumbnail:    video.Thumbnail,
+			Alt:          video.Alt,
+			Presentation: video.Presentation,
+		}
+		if video.AspectRatio != nil {
+			videoView.Width = video.AspectRatio.Width
+			videoView.Height = video.AspectRatio.Height
+		}
+		view.Videos = append(view.Videos, videoView)
 	}
 }

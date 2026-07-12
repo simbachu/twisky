@@ -654,6 +654,131 @@ func TestClient_GetAuthorFeed_RecordWithMediaEmbed(t *testing.T) {
 	}
 }
 
+func TestClient_GetAuthorFeed_VideoEmbed(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/video",
+					"author": {"handle": "dev.example"},
+					"record": {"text": "check this clip", "createdAt": "2026-01-15T12:00:00.000Z"},
+					"embed": {
+						"$type": "app.bsky.embed.video#view",
+						"cid": "bafyvideocid",
+						"playlist": "https://video.example.com/playlist.m3u8",
+						"thumbnail": "https://video.example.com/thumb.jpg",
+						"alt": "a short clip",
+						"aspectRatio": {"width": 1920, "height": 1080},
+						"presentation": "default"
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "dev.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	videos := items.Feed[0].Post.Embed.MediaVideos()
+	if len(videos) != 1 {
+		t.Fatalf("len(videos) = %d, want 1", len(videos))
+	}
+	video := videos[0]
+	if video.Playlist != "https://video.example.com/playlist.m3u8" {
+		t.Fatalf("video.Playlist = %q, want playlist URL", video.Playlist)
+	}
+	if video.Thumbnail != "https://video.example.com/thumb.jpg" {
+		t.Fatalf("video.Thumbnail = %q, want thumbnail URL", video.Thumbnail)
+	}
+	if video.Alt != "a short clip" {
+		t.Fatalf("video.Alt = %q, want a short clip", video.Alt)
+	}
+	if video.AspectRatio == nil || video.AspectRatio.Width != 1920 || video.AspectRatio.Height != 1080 {
+		t.Fatalf("video.AspectRatio = %#v, want 1920x1080", video.AspectRatio)
+	}
+	if video.Presentation != "default" {
+		t.Fatalf("video.Presentation = %q, want default", video.Presentation)
+	}
+}
+
+func TestClient_GetAuthorFeed_RecordWithMediaVideoEmbed(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/qrt-video",
+					"author": {"handle": "dev.example"},
+					"record": {"text": "quote with video", "createdAt": "2026-01-15T12:00:00.000Z"},
+					"embed": {
+						"$type": "app.bsky.embed.recordWithMedia#view",
+						"record": {
+							"$type": "app.bsky.embed.record#viewRecord",
+							"uri": "at://did:plc:quoted/app.bsky.feed.post/with-video",
+							"author": {"handle": "quoted.example"},
+							"value": {"text": "has video", "createdAt": "2026-01-14T12:00:00.000Z"},
+							"embeds": [{
+								"$type": "app.bsky.embed.video#view",
+								"cid": "bafyquotedvideo",
+								"playlist": "https://video.example.com/quoted.m3u8",
+								"thumbnail": "https://video.example.com/quoted-thumb.jpg",
+								"alt": "quoted clip"
+							}]
+						},
+						"media": {
+							"$type": "app.bsky.embed.video#view",
+							"cid": "bafymyvideo",
+							"playlist": "https://video.example.com/my.m3u8",
+							"thumbnail": "https://video.example.com/my-thumb.jpg",
+							"alt": "my clip",
+							"presentation": "gif"
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{Actor: "dev.example"})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	post := items.Feed[0].Post
+	videos := post.Embed.MediaVideos()
+	if len(videos) != 1 || videos[0].Alt != "my clip" {
+		t.Fatalf("post videos = %#v, want my clip", videos)
+	}
+	if !videos[0].IsGIF() {
+		t.Fatal("video.IsGIF() = false, want true for gif presentation")
+	}
+
+	quoted := post.Embed.QuotedPost()
+	if quoted == nil {
+		t.Fatal("QuotedPost() = nil, want quoted post")
+	}
+	if quoted.Record.Text != "has video" {
+		t.Fatalf("quoted text = %q, want has video", quoted.Record.Text)
+	}
+	quotedVideos := quoted.Embed.MediaVideos()
+	if len(quotedVideos) != 1 || quotedVideos[0].Alt != "quoted clip" {
+		t.Fatalf("quoted videos = %#v, want quoted clip", quotedVideos)
+	}
+}
+
 func TestClient_GetAuthorFeed_ReplyRefOnRecord(t *testing.T) {
 	t.Parallel()
 

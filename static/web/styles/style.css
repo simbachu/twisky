@@ -21,6 +21,7 @@ nav ul {
 
   &[role="tablist"] {
     overflow-x: auto;
+    border: 1px solid dimgrey;
 
     > li {
       flex: 1 1 0;
@@ -33,7 +34,6 @@ nav ul {
       box-sizing: border-box;
       text-align: center;
       padding: 0.5rem 1rem;
-      border: 1px solid dimgrey;
       color: dimgrey;
       text-decoration: none;
 
@@ -160,6 +160,43 @@ footer {
     }
   }
 
+  .post-video {
+    position: relative;
+    overflow: clip;
+    border-radius: 0.5rem;
+    cursor: pointer;
+
+    video {
+      width: 100%;
+      height: auto;
+      max-height: 32rem;
+      display: block;
+      background: #000;
+    }
+
+    .post-video-play {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 3rem;
+      line-height: 1;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    &.post-video--playing {
+      cursor: default;
+
+      .post-video-play {
+        opacity: 0;
+        visibility: hidden;
+      }
+    }
+  }
+
   .post-images-1 {
     img {
       height: auto;
@@ -250,7 +287,8 @@ footer {
   }
 
   details > div,
-  details .post-images {
+  details .post-images,
+  details .post-video {
     margin-top: 0.75rem;
   }
 
@@ -277,7 +315,7 @@ footer {
     z-index: 1;
     pointer-events: none;
 
-    a, button {
+    a, button, .post-video {
       position: relative;
       z-index: 1;
       pointer-events: auto;

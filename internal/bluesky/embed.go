@@ -8,14 +8,21 @@ const (
 	embedRecordType          = "app.bsky.embed.record#view"
 	embedRecordWithMediaType = "app.bsky.embed.recordWithMedia#view"
 	embedRecordViewType      = "app.bsky.embed.record#viewRecord"
+	embedVideoType           = "app.bsky.embed.video#view"
 )
 
 type Embed struct {
-	Type   string       `json:"$type"`
-	Images []EmbedImage `json:"images,omitempty"`
-	Items  []EmbedImage `json:"items,omitempty"`
-	Record json.RawMessage `json:"record,omitempty"`
-	Media  *Embed       `json:"media,omitempty"`
+	Type         string          `json:"$type"`
+	Images       []EmbedImage    `json:"images,omitempty"`
+	Items        []EmbedImage    `json:"items,omitempty"`
+	Record       json.RawMessage `json:"record,omitempty"`
+	Media        *Embed          `json:"media,omitempty"`
+	CID          string          `json:"cid,omitempty"`
+	Playlist     string          `json:"playlist,omitempty"`
+	Thumbnail    string          `json:"thumbnail,omitempty"`
+	Alt          string          `json:"alt,omitempty"`
+	AspectRatio  *AspectRatio    `json:"aspectRatio,omitempty"`
+	Presentation string          `json:"presentation,omitempty"`
 }
 
 func (e *Embed) MediaImages() []EmbedImage {
@@ -29,6 +36,23 @@ func (e *Embed) MediaImages() []EmbedImage {
 		return e.Images
 	}
 	return e.Items
+}
+
+func (e *Embed) MediaVideos() []*Embed {
+	if e == nil {
+		return nil
+	}
+	if e.Type == embedRecordWithMediaType && e.Media != nil {
+		return e.Media.MediaVideos()
+	}
+	if e.Type == embedVideoType && e.Playlist != "" {
+		return []*Embed{e}
+	}
+	return nil
+}
+
+func (e *Embed) IsGIF() bool {
+	return e != nil && e.Presentation == "gif"
 }
 
 // QuotedPost returns the embedded quoted post for record and record-with-media embeds.
@@ -91,7 +115,7 @@ func parseNestedEmbed(raw json.RawMessage) *Embed {
 	}
 
 	switch header.Type {
-	case embedImagesType, embedGalleryType, embedRecordType, embedRecordWithMediaType:
+	case embedImagesType, embedGalleryType, embedRecordType, embedRecordWithMediaType, embedVideoType:
 		var embed Embed
 		if err := json.Unmarshal(raw, &embed); err != nil {
 			return nil

@@ -271,3 +271,116 @@ func TestPost_RendersMediaBlurWithReveal(t *testing.T) {
 		t.Fatalf("html = %q, want visible post text", html)
 	}
 }
+
+func TestPost_RendersDefaultVideo(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Videos: []feedquery.VideoView{{
+			Playlist:     "https://video.example.com/playlist.m3u8",
+			Thumbnail:    "https://video.example.com/thumb.jpg",
+			Alt:          "a clip",
+			Presentation: "default",
+			Width:        1920,
+			Height:       1080,
+		}},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="post-video"`,
+		`class="post-video-player"`,
+		`class="post-video-play"`,
+		`poster="https://video.example.com/thumb.jpg"`,
+		`data-playlist="https://video.example.com/playlist.m3u8"`,
+		`data-presentation="default"`,
+		`aria-label="a clip"`,
+		`width="1920"`,
+		`height="1080"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `controls`) {
+		t.Fatalf("html = %q, want no controls until playback starts", html)
+	}
+	if strings.Contains(html, `autoplay`) {
+		t.Fatalf("html = %q, want no autoplay for default presentation", html)
+	}
+}
+
+func TestPost_RendersGIFVideo(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Videos: []feedquery.VideoView{{
+			Playlist:     "https://video.example.com/gif.m3u8",
+			Thumbnail:    "https://video.example.com/gif-thumb.jpg",
+			Presentation: "gif",
+		}},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`data-presentation="gif"`,
+		`autoplay`,
+		`loop`,
+		`muted`,
+		`src="https://video.example.com/gif.m3u8"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `controls`) {
+		t.Fatalf("html = %q, want no controls for gif presentation", html)
+	}
+	if strings.Contains(html, `class="post-video-play"`) {
+		t.Fatalf("html = %q, want no play overlay for gif presentation", html)
+	}
+}
+
+func TestPost_RendersVideoMediaBlurWithReveal(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "visible text",
+		Videos: []feedquery.VideoView{{
+			Playlist:     "https://video.example.com/playlist.m3u8",
+			Thumbnail:    "https://video.example.com/thumb.jpg",
+			Alt:          "clip",
+			Presentation: "default",
+		}},
+		Moderation: feedquery.ModerationView{
+			BlurMedia: true,
+			AlertText: "Suggestive content",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+		t.Fatalf("html = %q, want video media moderation wrapper", html)
+	}
+	if !strings.Contains(html, "Show media") {
+		t.Fatalf("html = %q, want media reveal control", html)
+	}
+	if !strings.Contains(html, `class="post-video"`) {
+		t.Fatalf("html = %q, want post-video inside gate", html)
+	}
+}

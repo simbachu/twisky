@@ -92,6 +92,7 @@ func postContent(view feedquery.PostView, now time.Time) g.Node {
 	return g.Group{
 		postText(view),
 		postFigure(view.Images, view.Moderation),
+		postVideo(view.Videos, view.Moderation),
 		quotedInset(view.QuotedPostMaybe, now),
 	}
 }
@@ -211,4 +212,70 @@ func postImage(image feedquery.ImageView) g.Node {
 		)
 	}
 	return Img(attrs...)
+}
+
+func postVideo(videos []feedquery.VideoView, mod feedquery.ModerationView) g.Node {
+	figure := postVideoBase(videos)
+	if figure == nil {
+		return nil
+	}
+	if mod.Blurred || !mod.BlurMedia {
+		return figure
+	}
+	if mod.NoOverride {
+		return Div(g.Attr("class", "post-moderation-gate"),
+			moderationCover(mod),
+		)
+	}
+	return Details(g.Attr("class", "post-moderation-gate"),
+		Summary(
+			moderationCover(mod),
+			g.Text("Show media"),
+		),
+		figure,
+	)
+}
+
+func postVideoBase(videos []feedquery.VideoView) g.Node {
+	if len(videos) == 0 {
+		return nil
+	}
+	video := videos[0]
+	attrs := []g.Node{
+		g.Attr("class", "post-video-player"),
+		g.Attr("poster", video.Thumbnail),
+		g.Attr("preload", "none"),
+		g.Attr("playsinline", ""),
+		g.Attr("data-playlist", video.Playlist),
+		g.Attr("data-presentation", video.Presentation),
+	}
+	if video.Alt != "" {
+		attrs = append(attrs, g.Attr("aria-label", video.Alt))
+	}
+	if video.Width > 0 && video.Height > 0 {
+		attrs = append(attrs,
+			g.Attr("width", strconv.Itoa(video.Width)),
+			g.Attr("height", strconv.Itoa(video.Height)),
+		)
+	}
+	if video.Presentation == "gif" {
+		attrs = append(attrs,
+			g.Attr("autoplay", ""),
+			g.Attr("loop", ""),
+			g.Attr("muted", ""),
+			g.Attr("src", video.Playlist),
+		)
+	}
+	nodes := []g.Node{Video(attrs...)}
+	if video.Presentation != "gif" {
+		nodes = append(nodes, Span(
+			g.Attr("class", "post-video-play"),
+			g.Attr("aria-hidden", "true"),
+			g.Text("▶️"),
+		))
+	}
+	return Figure(
+		g.Attr("class", "post-video"),
+		g.Group(nodes),
+	)
 }

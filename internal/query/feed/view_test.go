@@ -159,3 +159,97 @@ func TestNewPostView_PopulatesImagesFromGalleryEmbed(t *testing.T) {
 		t.Fatalf("view.Images[1].Alt = %q, want second", view.Images[1].Alt)
 	}
 }
+
+func TestNewPostView_PopulatesVideosFromVideoEmbed(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/video",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "video post",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Embed: &bluesky.Embed{
+			Type:         "app.bsky.embed.video#view",
+			Playlist:     "https://video.example.com/playlist.m3u8",
+			Thumbnail:    "https://video.example.com/thumb.jpg",
+			Alt:          "a clip",
+			Presentation: "default",
+			AspectRatio: &bluesky.AspectRatio{
+				Width:  1920,
+				Height: 1080,
+			},
+		},
+	})
+
+	if len(view.Videos) != 1 {
+		t.Fatalf("len(view.Videos) = %d, want 1", len(view.Videos))
+	}
+	video := view.Videos[0]
+	if video.Playlist != "https://video.example.com/playlist.m3u8" {
+		t.Fatalf("video.Playlist = %q, want playlist URL", video.Playlist)
+	}
+	if video.Thumbnail != "https://video.example.com/thumb.jpg" {
+		t.Fatalf("video.Thumbnail = %q, want thumbnail URL", video.Thumbnail)
+	}
+	if video.Alt != "a clip" {
+		t.Fatalf("video.Alt = %q, want a clip", video.Alt)
+	}
+	if video.Presentation != "default" {
+		t.Fatalf("video.Presentation = %q, want default", video.Presentation)
+	}
+	if video.Width != 1920 || video.Height != 1080 {
+		t.Fatalf("video dimensions = %dx%d, want 1920x1080", video.Width, video.Height)
+	}
+}
+
+func TestNewPostView_PopulatesVideoFromRecordWithMediaEmbed(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/qrt-video",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "quote with video",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Embed: &bluesky.Embed{
+			Type: "app.bsky.embed.recordWithMedia#view",
+			Record: mustRawJSON(`{
+				"$type": "app.bsky.embed.record#viewRecord",
+				"uri": "at://did:plc:quoted/app.bsky.feed.post/with-image",
+				"author": {"handle": "quoted.example"},
+				"value": {"text": "has image", "createdAt": "2026-01-14T12:00:00.000Z"},
+				"embeds": [{
+					"$type": "app.bsky.embed.images#view",
+					"images": [{
+						"thumb": "https://example.com/thumb.jpg",
+						"fullsize": "https://example.com/full.jpg",
+						"alt": "quoted photo"
+					}]
+				}]
+			}`),
+			Media: &bluesky.Embed{
+				Type:         "app.bsky.embed.video#view",
+				Playlist:     "https://video.example.com/my.m3u8",
+				Thumbnail:    "https://video.example.com/my-thumb.jpg",
+				Alt:          "my clip",
+				Presentation: "gif",
+			},
+		},
+	})
+
+	if len(view.Videos) != 1 || view.Videos[0].Alt != "my clip" {
+		t.Fatalf("view.Videos = %#v, want my clip", view.Videos)
+	}
+	if len(view.Images) != 0 {
+		t.Fatalf("len(view.Images) = %d, want 0 on top-level post", len(view.Images))
+	}
+	if view.QuotedPostMaybe == nil {
+		t.Fatal("QuotedPostMaybe = nil, want quoted post")
+	}
+	if len(view.QuotedPostMaybe.Images) != 1 || view.QuotedPostMaybe.Images[0].Alt != "quoted photo" {
+		t.Fatalf("quoted images = %#v, want quoted photo", view.QuotedPostMaybe.Images)
+	}
+}
