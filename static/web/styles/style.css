@@ -18,7 +18,36 @@ ul {
 
 nav ul {
   display: flex;
-  
+
+  &[role="tablist"] {
+    overflow-x: auto;
+
+    > li {
+      flex: 1 1 0;
+      min-width: 5rem;
+    }
+
+    a[role="tab"] {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      border: 1px solid dimgrey;
+      color: dimgrey;
+      text-decoration: none;
+
+      &[aria-selected="true"] {
+        border-block-end: 2px solid black;
+        color: black;
+      }
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+    }
+  }
+
   li {
     button {
       min-width: 3rem;
@@ -53,6 +82,13 @@ footer {
   flex: 1;
 }
 
+.byline-avatar img {
+  width: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: block;
+}
+
 .byline {
   display: flex;
   align-items: center;
@@ -78,44 +114,37 @@ footer {
 
   .byline-avatar img {
     max-height: 3em;
-    width: auto;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    display: block;
     transform: scale(1.2);
     margin: 0.5em;
   }
 }
 
-.post-header {
-  margin-block-end: 0.5rem;
-}
-
-.post-meta {
-  font-size: 0.85em;
-  color: dimgrey;
-  margin: 0 0 0.15rem 2rem;
-
-  a {
-    color: dimgrey;
-    text-decoration: none;
-  }
-}
-
-.profile-header {
-  .byline-avatar img {
-    z-index: 99;
-    max-height: 6em;
-    width: auto;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    display: block;
-  }
+.profile-header .byline-avatar img {
+  z-index: 99;
+  max-height: 6em;
 }
 
 .post {
+  --post-indent: 2rem;
+
   border: grey 1px solid;
   margin-bottom: 1rem;
+
+  & > header {
+    margin-block-end: 0.5rem;
+
+    .post-meta {
+      font-size: 0.85em;
+      color: dimgrey;
+      margin: 0 0 0.15rem;
+      margin-inline-start: var(--post-indent);
+
+      a {
+        color: dimgrey;
+        text-decoration: none;
+      }
+    }
+  }
 
   .post-images {
     display: grid;
@@ -139,29 +168,30 @@ footer {
     }
   }
 
-  .post-images-2 {
+  .post-images-2,
+  .post-images-3,
+  .post-images-4 {
     grid-template-columns: repeat(2, 1fr);
     aspect-ratio: 16 / 9;
   }
 
-  .post-images-3 {
-    grid-template-columns: repeat(2, 1fr);
+  .post-images-3,
+  .post-images-4 {
     grid-template-rows: repeat(2, 1fr);
-    aspect-ratio: 16 / 9;
+  }
 
+  .post-images-3 {
     img:first-child {
       grid-row: 1 / 3;
     }
   }
 
-  .post-images-4 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    aspect-ratio: 16 / 9;
-  }
-
-  & > p, .inset-post {
-    margin-inline-start: 2rem;
+  & > p,
+  .inset-post,
+  .post-moderation-notice,
+  details,
+  .post-moderation-gate {
+    margin-inline-start: var(--post-indent);
   }
 
   &.inset-post {
@@ -190,37 +220,12 @@ footer {
 
   .post-moderation-notice {
     margin: 0 0 0.5rem;
-    margin-inline-start: 2rem;
     padding: 0.5rem 0.75rem;
     background-color: rgba(0, 0, 0, 0.04);
     font-size: 0.9em;
   }
 
-  details,
-  .post-moderation-gate {
-    margin-inline-start: 2rem;
-  }
-
-  details summary {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-    padding: 1rem;
-    background-color: rgba(0, 0, 0, 0.06);
-    cursor: pointer;
-    list-style: none;
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-
-    p {
-      margin: 0;
-      font-weight: 600;
-    }
-  }
-
+  details summary,
   .post-moderation-gate:not(details) {
     display: flex;
     flex-direction: column;
@@ -232,6 +237,15 @@ footer {
     p {
       margin: 0;
       font-weight: 600;
+    }
+  }
+
+  details summary {
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
     }
   }
 
@@ -247,28 +261,28 @@ footer {
 
 .feed-item {
   position: relative;
-}
 
-.feed-item-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
+  &:hover .post {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
 
-.feed-item-content {
-  position: relative;
-  z-index: 1;
-  pointer-events: none;
+  > a {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
 
-  a, button {
+  > div {
     position: relative;
     z-index: 1;
-    pointer-events: auto;
-  }
-}
+    pointer-events: none;
 
-.feed-item:hover .post {
-  background-color: rgba(0, 0, 0, 0.05);
+    a, button {
+      position: relative;
+      z-index: 1;
+      pointer-events: auto;
+    }
+  }
 }
 
 .feed-sentinel {
@@ -282,16 +296,16 @@ footer {
   content: "Loading more posts…";
 }
 
-.new-posts-slot {
+#new-posts-slot {
   display: flex;
-}
 
-.new-posts-button {
-  width: 100%;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-}
+  button {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
 
-.new-posts-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+  }
 }

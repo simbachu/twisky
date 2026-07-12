@@ -42,7 +42,6 @@ func PrependItems(posts []feedquery.PostView, now time.Time) g.Group {
 func NewPostsPoll(feedURL, sinceID string) g.Node {
 	return Div(
 		g.Attr("id", "new-posts-slot"),
-		g.Attr("class", "new-posts-slot"),
 		g.Attr("hx-get", feedURL+"?since="+url.QueryEscape(sinceID)),
 		g.Attr("hx-trigger", "every 20s"),
 		g.Attr("hx-swap", "innerHTML"),
@@ -53,7 +52,6 @@ func NewPostsPoll(feedURL, sinceID string) g.Node {
 func NewPostsPollOOB(feedURL, sinceID string) g.Node {
 	return Div(
 		g.Attr("id", "new-posts-slot"),
-		g.Attr("class", "new-posts-slot"),
 		g.Attr("hx-get", feedURL+"?since="+url.QueryEscape(sinceID)),
 		g.Attr("hx-trigger", "every 20s"),
 		g.Attr("hx-swap", "innerHTML"),
@@ -72,7 +70,6 @@ func NewPostsBanner(count int, feedURL, sinceID string) g.Node {
 	}
 	return Button(
 		g.Attr("type", "button"),
-		g.Attr("class", "new-posts-button"),
 		g.Attr("hx-get", feedURL+"?refresh="+url.QueryEscape(sinceID)),
 		g.Attr("hx-target", "#feed-list"),
 		g.Attr("hx-swap", "afterbegin"),
@@ -88,10 +85,9 @@ func feedItem(postView feedquery.PostView, now time.Time) g.Node {
 	return Li(g.Attr("class", "feed-item"),
 		A(
 			g.Attr("href", href),
-			g.Attr("class", "feed-item-overlay"),
 			g.Attr("aria-label", "View post"),
 		),
-		Div(g.Attr("class", "feed-item-content"), post.Post(postView, now)),
+		Div(post.Post(postView, now)),
 	)
 }
 

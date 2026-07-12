@@ -3,7 +3,7 @@
   const notifyIcon = "/static/icons/favicon-notify.png";
 
   function hasPendingNewPosts() {
-    return document.querySelector("#new-posts-slot .new-posts-button") !== null;
+    return document.querySelector("#new-posts-slot button") !== null;
   }
 
   function updateFavicon() {

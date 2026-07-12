@@ -63,10 +63,10 @@ func TestFeed_RendersOverlayBehindContent(t *testing.T) {
 	}
 
 	html := buf.String()
-	overlayIdx := strings.Index(html, `class="feed-item-overlay"`)
-	contentIdx := strings.Index(html, `class="feed-item-content"`)
+	overlayIdx := strings.Index(html, `aria-label="View post"`)
+	contentIdx := strings.Index(html, `<article class="post"`)
 	if overlayIdx < 0 || contentIdx < 0 {
-		t.Fatalf("html = %q, want feed-item-overlay and feed-item-content", html)
+		t.Fatalf("html = %q, want feed overlay link and post content", html)
 	}
 	if overlayIdx > contentIdx {
 		t.Fatalf("html = %q, want overlay before content in DOM", html)

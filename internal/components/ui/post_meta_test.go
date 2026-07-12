@@ -21,7 +21,7 @@ func TestRepostMeta_RendersHandle(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="post-meta post-meta-repost"`) {
+	if !strings.Contains(html, `class="post-meta"`) {
 		t.Fatalf("html = %q, want repost meta class", html)
 	}
 	if !strings.Contains(html, "Reposted by") {
@@ -77,8 +77,8 @@ func TestPostHeader_OmitsMetaWhenNil(t *testing.T) {
 	if strings.Contains(html, "post-meta-reply") {
 		t.Fatalf("html = %q, want no reply meta", html)
 	}
-	if !strings.Contains(html, `class="post-header"`) {
-		t.Fatalf("html = %q, want post-header", html)
+	if !strings.Contains(html, "<header>") {
+		t.Fatalf("html = %q, want post header element", html)
 	}
 }
 

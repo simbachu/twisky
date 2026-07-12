@@ -75,8 +75,8 @@ func TestNewPostsBanner_RendersButtonWhenCountNonZero(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="new-posts-button"`) {
-		t.Fatalf("html = %q, want new-posts-button", html)
+	if !strings.Contains(html, `<button type="button"`) {
+		t.Fatalf("html = %q, want new posts button", html)
 	}
 	if !strings.Contains(html, `hx-get="/dev.example?refresh=top"`) {
 		t.Fatalf("html = %q, want refresh hx-get", html)

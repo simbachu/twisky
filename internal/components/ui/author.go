@@ -39,7 +39,6 @@ func AuthorHandle(author AuthorInfo) g.Node {
 func AuthorLink(author AuthorInfo) g.Node {
 	children := []g.Node{
 		g.Attr("href", "/"+author.Handle),
-		g.Attr("class", "byline-author"),
 		g.Attr("style", "pointer-events: auto"),
 	}
 	if author.DisplayName != author.Handle {
