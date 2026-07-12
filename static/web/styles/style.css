@@ -1,3 +1,9 @@
+
+:root {
+  --content-width: 50rem;
+  --content-padding-inline: 1rem;
+}
+
 .facet-link {
   &::after {
     content: "^";
@@ -67,19 +73,24 @@ body {
   }
 }
 
-header {
-  flex: 1;
+header,
+footer {
+  flex: 0 0 auto;
+
+  @media (min-width: 768px) {
+    flex: 1 1 0;
+  }
 }
 
 main {
-  flex: 1;
-  max-width: 40rem;
-  margin-inline: auto;
-  padding-inline: 1rem;
-}
+  flex: 1 1 auto;
+  width: min(var(--content-width), 100%);
+  max-width: var(--content-width);
+  padding-inline: var(--content-padding-inline);
 
-footer {
-  flex: 1;
+  @media (min-width: 768px) {
+    flex: 0 1 var(--content-width);
+  }
 }
 
 .byline-avatar img {
