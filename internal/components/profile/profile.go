@@ -28,7 +28,7 @@ func Profile(view profilequery.ProfileView, now time.Time) g.Node {
 			ui.Avatar(author),
 			H1(ui.AuthorName(author)),
 			H2(ui.AuthorHandle(author)),
-			g.If(view.Description != "", P(g.Text(view.Description))),
+			g.If(view.Description != "", profileDescription(view)),
 			P(g.Textf("%d followers · %d following · %d posts", view.Followers, view.Following, view.Posts)),
 		),
 		ui.TabNav("Profile", []ui.TabItem{
@@ -46,4 +46,11 @@ func Profile(view profilequery.ProfileView, now time.Time) g.Node {
 		"Viewing the profile of "+view.DisplayName,
 		children...,
 	)
+}
+
+func profileDescription(view profilequery.ProfileView) g.Node {
+	if len(view.DescriptionSegments) == 0 {
+		return P(g.Text(view.Description))
+	}
+	return P(ui.RichText(view.DescriptionSegments))
 }

@@ -11,6 +11,7 @@ import (
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/response"
+	"github.com/simbachu/twisky/internal/richtext"
 )
 
 type Reader interface {
@@ -46,8 +47,9 @@ type ProfileView struct {
 	DID         string // No need to surface this to the user
 	Handle      string // format @handle.url
 	DisplayName string
-	Description string
-	Avatar      string // url
+	Description         string
+	DescriptionSegments []richtext.Segment
+	Avatar              string // url
 	Followers   int
 	Following   int
 	Posts       int
@@ -97,16 +99,23 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
+	descriptionSegments := feedquery.ResolveMentionHandlesInSegments(
+		ctx,
+		h.reader,
+		richtext.BuildSegments(profile.Description, profile.DescriptionFacets),
+	)
+
 	return ProfileView{
-		DID:         profile.DID,
-		Handle:      profile.Handle,
-		DisplayName: actor.Name(profile.DisplayName, profile.Handle),
-		Description: profile.Description,
-		Avatar:      profile.Avatar,
-		Followers:   profile.Followers,
-		Following:   profile.Following,
-		Posts:       profile.Posts,
-		Tab:         tab,
+		DID:                 profile.DID,
+		Handle:              profile.Handle,
+		DisplayName:         actor.Name(profile.DisplayName, profile.Handle),
+		Description:         profile.Description,
+		DescriptionSegments: descriptionSegments,
+		Avatar:              profile.Avatar,
+		Followers:           profile.Followers,
+		Following:           profile.Following,
+		Posts:               profile.Posts,
+		Tab:                 tab,
 		Feed: feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList),
 	}
 }

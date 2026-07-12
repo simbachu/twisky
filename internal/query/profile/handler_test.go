@@ -10,6 +10,7 @@ import (
 	"github.com/simbachu/twisky/internal/intent"
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/response"
+	"github.com/simbachu/twisky/internal/richtext"
 )
 
 type stubReader struct {
@@ -331,5 +332,105 @@ func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
 	}
 	if view.Feed.Posts[0].RepostedByMaybe.Handle != "reposter.example" {
 		t.Fatalf("RepostedByMaybe.Handle = %q, want reposter.example", view.Feed.Posts[0].RepostedByMaybe.Handle)
+	}
+}
+
+func TestHandler_HandleBuildsDescriptionSegmentsFromFacets(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "dev.example",
+			DisplayName: "Developer",
+			Description: "hello #golang",
+			DescriptionFacets: []bluesky.Facet{{
+				Index: bluesky.FacetIndex{ByteStart: 6, ByteEnd: 13},
+				Features: []bluesky.FacetFeature{{
+					Type: "app.bsky.richtext.facet#tag",
+					Tag:  "golang",
+				}},
+			}},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "dev.example", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(view.DescriptionSegments) != 2 {
+		t.Fatalf("len(view.DescriptionSegments) = %d, want 2", len(view.DescriptionSegments))
+	}
+	if view.DescriptionSegments[0].Kind != richtext.Plain || view.DescriptionSegments[0].Text != "hello " {
+		t.Fatalf("first segment = %#v, want plain hello ", view.DescriptionSegments[0])
+	}
+	if view.DescriptionSegments[1].Kind != richtext.Tag || view.DescriptionSegments[1].Tag != "golang" {
+		t.Fatalf("second segment = %#v, want tag golang", view.DescriptionSegments[1])
+	}
+}
+
+func TestHandler_HandleResolvesDescriptionMentionHandles(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "bsky.app",
+			Description: "@dev.example hello",
+			DescriptionFacets: []bluesky.Facet{{
+				Index: bluesky.FacetIndex{ByteStart: 0, ByteEnd: 12},
+				Features: []bluesky.FacetFeature{{
+					Type: "app.bsky.richtext.facet#mention",
+					DID:  "did:plc:example",
+				}},
+			}},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+		profiles: []bluesky.Profile{{
+			DID:    "did:plc:example",
+			Handle: "dev.example",
+		}},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(view.DescriptionSegments) != 2 {
+		t.Fatalf("len(view.DescriptionSegments) = %d, want 2", len(view.DescriptionSegments))
+	}
+	if view.DescriptionSegments[0].Mention != "dev.example" {
+		t.Fatalf("mention = %q, want dev.example", view.DescriptionSegments[0].Mention)
+	}
+}
+
+func TestHandler_HandleBuildsDescriptionSegmentsFromRegex(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "dev.example",
+			Description: "see https://example.com",
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "dev.example", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(view.DescriptionSegments) != 2 {
+		t.Fatalf("len(view.DescriptionSegments) = %d, want 2", len(view.DescriptionSegments))
+	}
+	if view.DescriptionSegments[1].Kind != richtext.Link || view.DescriptionSegments[1].URI != "https://example.com" {
+		t.Fatalf("second segment = %#v, want link https://example.com", view.DescriptionSegments[1])
 	}
 }

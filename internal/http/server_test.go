@@ -420,6 +420,54 @@ func TestHandleTagged_QuotePost(t *testing.T) {
 	}
 }
 
+func TestHandleSlug_ProfileDescriptionFacets(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			Handle:      "dev.example",
+			DisplayName: "Developer",
+			Description: "@dev.example see https://example.com",
+			DescriptionFacets: []bluesky.Facet{
+				{
+					Index: bluesky.FacetIndex{ByteStart: 0, ByteEnd: 12},
+					Features: []bluesky.FacetFeature{{
+						Type: "app.bsky.richtext.facet#mention",
+						DID:  "did:plc:example",
+					}},
+				},
+				{
+					Index: bluesky.FacetIndex{ByteStart: 17, ByteEnd: 36},
+					Features: []bluesky.FacetFeature{{
+						Type: "app.bsky.richtext.facet#link",
+						URI:  "https://example.com",
+					}},
+				},
+			},
+		},
+		profiles: []bluesky.Profile{{
+			DID:    "did:plc:example",
+			Handle: "dev.example",
+		}},
+		feed: &bluesky.AuthorFeedResponse{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dev.example", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `href="/dev.example"`) {
+		t.Fatalf("body = %q, want mention link to /dev.example", body)
+	}
+	if !strings.Contains(body, `href="https://example.com"`) {
+		t.Fatalf("body = %q, want external link to https://example.com", body)
+	}
+}
+
 func TestHandleSlug_MentionAndLinkLinks(t *testing.T) {
 	t.Parallel()
 

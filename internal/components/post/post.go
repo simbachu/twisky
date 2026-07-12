@@ -8,7 +8,6 @@ import (
 
 	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
-	"github.com/simbachu/twisky/internal/richtext"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -130,34 +129,7 @@ func postText(view feedquery.PostView) g.Node {
 	if len(view.TextSegments) == 0 {
 		return P(g.Text(view.Text))
 	}
-	return P(g.Group(g.Map(view.TextSegments, segmentNode)))
-}
-
-func segmentNode(segment richtext.Segment) g.Node {
-	switch segment.Kind {
-	case richtext.Tag:
-		return A(
-			g.Attr("href", "/tagged/"+url.PathEscape(segment.Tag)),
-			g.Attr("style", "pointer-events: auto"),
-			Span(g.Attr("class", "facet-tag"), g.Text(segment.Text)),
-		)
-	case richtext.Mention:
-		return A(
-			g.Attr("href", "/"+url.PathEscape(segment.Mention)),
-			g.Attr("style", "pointer-events: auto"),
-			Span(g.Attr("class", "facet-mention"), g.Text(segment.Text)),
-		)
-	case richtext.Link:
-		return A(
-			g.Attr("href", segment.URI),
-			g.Attr("target", "_blank"),
-			g.Attr("rel", "noopener noreferrer"),
-			g.Attr("style", "pointer-events: auto"),
-			Span(g.Attr("class", "facet-link"), g.Text(segment.Text)),
-		)
-	default:
-		return g.Text(segment.Text)
-	}
+	return P(ui.RichText(view.TextSegments))
 }
 
 func postFigure(images []feedquery.ImageView, mod feedquery.ModerationView) g.Node {

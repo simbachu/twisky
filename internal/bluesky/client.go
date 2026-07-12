@@ -49,14 +49,15 @@ func NewClientWith(baseURL string, httpClient *http.Client) *Client {
 }
 
 type Profile struct {
-	DID          string `json:"did"`
-	Handle       string `json:"handle"`
-	DisplayName  string `json:"displayName"`
-	Description  string `json:"description"`
-	Avatar       string `json:"avatar"`
-	Followers    int    `json:"followersCount"`
-	Following    int    `json:"followsCount"`
-	Posts        int    `json:"postsCount"`
+	DID                string  `json:"did"`
+	Handle             string  `json:"handle"`
+	DisplayName        string  `json:"displayName"`
+	Description        string  `json:"description"`
+	DescriptionFacets  []Facet `json:"descriptionFacets,omitempty"`
+	Avatar             string  `json:"avatar"`
+	Followers          int     `json:"followersCount"`
+	Following          int     `json:"followsCount"`
+	Posts              int     `json:"postsCount"`
 }
 
 type Label struct {

@@ -17,6 +17,24 @@ type ProfileResolver interface {
 	GetProfiles(ctx context.Context, actors []string) ([]bluesky.Profile, error)
 }
 
+func ResolveMentionHandlesInSegments(ctx context.Context, resolver ProfileResolver, segments []richtext.Segment) []richtext.Segment {
+	if resolver == nil || len(segments) == 0 {
+		return segments
+	}
+
+	seen := make(map[string]struct{})
+	dids := appendMentionDIDsFromSegments(segments, seen, nil)
+	if len(dids) == 0 {
+		return segments
+	}
+
+	handleByDID := resolveDIDsToHandles(ctx, resolver, dids)
+	if len(handleByDID) == 0 {
+		return segments
+	}
+	return rewriteSegments(segments, handleByDID)
+}
+
 func ResolveMentionHandles(ctx context.Context, resolver ProfileResolver, view FeedView) FeedView {
 	if resolver == nil {
 		return view
