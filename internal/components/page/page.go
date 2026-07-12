@@ -11,7 +11,39 @@ const (
 	AppName          = "Twisky"
 	AppCopyrightYear = 2026
 	Version          = "0.1.0"
+
+	ATProtoRepoURL    = "https://github.com/bluesky-social/atproto"
+	BlueskyAPIRepoURL = "https://github.com/bluesky-social/indigo"
+	BlueskySocialURL  = "https://github.com/bluesky-social"
+	TwiskyRepoURL     = "https://github.com/simbachu/twisky"
 )
+
+func externalLink(label, href string) g.Node {
+	return A(
+		g.Attr("href", href),
+		g.Attr("target", "_blank"),
+		g.Attr("rel", "noopener noreferrer"),
+		g.Text(label),
+	)
+}
+
+func ProtocolAttribution() g.Node {
+	return P(
+		g.Text("Implements the "),
+		externalLink("ATProto protocol", ATProtoRepoURL),
+		g.Text(" and the "),
+		externalLink("Bluesky API", BlueskyAPIRepoURL),
+		g.Text(" by "),
+		externalLink("@bluesky.social", BlueskySocialURL),
+	)
+}
+
+func VersionInfo() g.Node {
+	return P(
+		externalLink(AppName, TwiskyRepoURL),
+		g.Text(fmt.Sprintf(" Version: %s", Version)),
+	)
+}
 
 func Page(title string, description string, children ...g.Node) g.Node {
 	return HTML(
@@ -54,8 +86,8 @@ func Page(title string, description string, children ...g.Node) g.Node {
 			Main(children...),
 			Footer(
 				Section(
-					P(g.Text("Implements the ATProto protocol by @ATProto.com")), // TODO: Add a link to the ATProto account
-					P(g.Text(fmt.Sprintf("%s Version: %s", AppName, Version))),
+					ProtocolAttribution(),
+					VersionInfo(),
 					P(g.Text(fmt.Sprintf("© %d %s", AppCopyrightYear, AppName))),
 				),
 			),
