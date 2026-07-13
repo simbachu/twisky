@@ -628,8 +628,8 @@ func TestHandleStaticStyleCSS_OK(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, ".facet-link") {
-		t.Fatalf("body = %q, want to contain .facet-link", body)
+	if !strings.Contains(body, "--content-width") {
+		t.Fatalf("body = %q, want to contain --content-width", body)
 	}
 }
 

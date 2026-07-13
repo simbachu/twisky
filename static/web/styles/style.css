@@ -4,12 +4,6 @@
   --content-padding-inline: 1rem;
 }
 
-.facet-link {
-  &::after {
-    content: "^";
-  }
-}
-
 time {
   pointer-events: auto;
   cursor: help;

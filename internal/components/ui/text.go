@@ -32,7 +32,11 @@ func SegmentNode(segment richtext.Segment) g.Node {
 			g.Attr("target", "_blank"),
 			g.Attr("rel", "noopener noreferrer"),
 			g.Attr("style", "pointer-events: auto"),
-			Span(g.Attr("class", "facet-link"), g.Text(segment.Text)),
+			Span(
+				g.Attr("class", "facet-link"),
+				g.Text(segment.Text),
+				g.Text("🡕"),
+			),
 		)
 	default:
 		return g.Text(segment.Text)
