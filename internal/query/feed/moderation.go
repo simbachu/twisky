@@ -20,10 +20,23 @@ func ApplyModeration(ctx context.Context, provider moderation.PrefsProvider, fee
 }
 
 func ApplyModerationToPostPage(ctx context.Context, provider moderation.PrefsProvider, page PostPageView) PostPageView {
-	page.Ancestors = applyModerationToPostViews(ctx, provider, page.Ancestors, moderation.UIContextContentView)
+	page.Ancestors = applyModerationToAncestorNodes(ctx, provider, page.Ancestors)
 	page.Post = applyModerationToPostView(ctx, provider, page.Post, moderation.UIContextContentView)
 	page.Replies = applyModerationToThreadNodes(ctx, provider, page.Replies)
 	return page
+}
+
+func applyModerationToAncestorNodes(ctx context.Context, provider moderation.PrefsProvider, nodes []AncestorNodeView) []AncestorNodeView {
+	out := make([]AncestorNodeView, 0, len(nodes))
+	for _, node := range nodes {
+		if node.Unavailable {
+			out = append(out, node)
+			continue
+		}
+		node.Post = applyModerationToPostView(ctx, provider, node.Post, moderation.UIContextContentView)
+		out = append(out, node)
+	}
+	return out
 }
 
 func applyModerationToPostViews(ctx context.Context, provider moderation.PrefsProvider, posts []PostView, uiContext moderation.UIContext) []PostView {

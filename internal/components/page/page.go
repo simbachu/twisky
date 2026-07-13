@@ -70,6 +70,7 @@ func Page(title string, description string, children ...g.Node) g.Node {
 					g.Attr("defer", ""),
 				),
 				Script(g.Attr("src", "/static/scripts/post-video.js"), g.Attr("defer", "")),
+				Script(g.Attr("src", "/static/scripts/post-page-ancestors.js"), g.Attr("defer", "")),
 				Link(
 					g.Attr("id", "page-favicon"),
 					g.Attr("rel", "icon"),

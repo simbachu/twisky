@@ -13,12 +13,16 @@ import (
 )
 
 func Post(view feedquery.PostView, now time.Time) g.Node {
+	return PostArticle(view, now, "post")
+}
+
+func PostArticle(view feedquery.PostView, now time.Time, class string, extra ...g.Node) g.Node {
 	if view.Moderation.Filtered {
 		return nil
 	}
 
 	repostedBy, replyParent, replyParentID := postHeaderMeta(view)
-	return Article(g.Attr("class", "post"), g.Attr("id", "post-"+url.PathEscape(view.ID)),
+	children := []g.Node{
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
@@ -31,7 +35,9 @@ func Post(view feedquery.PostView, now time.Time) g.Node {
 				),
 			),
 		),
-	)
+	}
+	children = append(children, extra...)
+	return Article(g.Attr("class", class), g.Attr("id", "post-"+url.PathEscape(view.ID)), g.Group(children))
 }
 
 func quotedInset(maybe *feedquery.PostView, now time.Time) g.Node {
@@ -92,6 +98,7 @@ func postContent(view feedquery.PostView, now time.Time) g.Node {
 		postText(view),
 		postFigure(view.Images, view.Moderation),
 		postVideo(view.Videos, view.Moderation),
+		postLinkPreview(view.LinkPreviewMaybe, view.Moderation),
 		quotedInset(view.QuotedPostMaybe, now),
 	}
 }
@@ -250,4 +257,71 @@ func postVideoBase(videos []feedquery.VideoView) g.Node {
 		g.Attr("class", "post-video"),
 		g.Group(nodes),
 	)
+}
+
+func postLinkPreview(preview *feedquery.LinkPreviewView, mod feedquery.ModerationView) g.Node {
+	card := postLinkPreviewBase(preview)
+	if card == nil {
+		return nil
+	}
+	if preview.Thumb == "" || mod.Blurred || !mod.BlurMedia {
+		return card
+	}
+	if mod.NoOverride {
+		return Div(g.Attr("class", "post-moderation-gate"),
+			moderationCover(mod),
+		)
+	}
+	return Details(g.Attr("class", "post-moderation-gate"),
+		Summary(
+			moderationCover(mod),
+			g.Text("Show media"),
+		),
+		card,
+	)
+}
+
+func postLinkPreviewBase(preview *feedquery.LinkPreviewView) g.Node {
+	if preview == nil || preview.URI == "" {
+		return nil
+	}
+
+	body := []g.Node{
+		Span(g.Attr("class", "post-link-preview-title"), g.Text(preview.Title)),
+	}
+	if preview.Description != "" {
+		body = append(body, Span(g.Attr("class", "post-link-preview-description"), g.Text(preview.Description)))
+	}
+	if host := linkPreviewHost(preview.URI); host != "" {
+		body = append(body, Span(g.Attr("class", "post-link-preview-host"), g.Text(host)))
+	}
+
+	children := []g.Node{Span(g.Attr("class", "post-link-preview-body"), g.Group(body))}
+	if preview.Thumb != "" {
+		children = append([]g.Node{
+			Img(
+				g.Attr("class", "post-link-preview-thumb"),
+				g.Attr("src", preview.Thumb),
+				g.Attr("alt", ""),
+				g.Attr("loading", "lazy"),
+			),
+		}, children...)
+	}
+
+	return A(
+		g.Attr("class", "post-link-preview"),
+		g.Attr("href", preview.URI),
+		g.Attr("target", "_blank"),
+		g.Attr("rel", "noopener noreferrer"),
+		g.Attr("style", "pointer-events: auto"),
+		g.Group(children),
+	)
+}
+
+func linkPreviewHost(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return ""
+	}
+	return parsed.Host
 }

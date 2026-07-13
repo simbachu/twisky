@@ -351,6 +351,105 @@ func TestPost_RendersGIFVideo(t *testing.T) {
 	}
 }
 
+func TestPost_RendersLinkPreview(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "link",
+		AuthorHandle: "dev.example",
+		Text:         "check this out",
+		LinkPreviewMaybe: &feedquery.LinkPreviewView{
+			URI:         "https://example.com/page",
+			Title:       "Example Page",
+			Description: "A useful page",
+			Thumb:       "https://example.com/thumb.jpg",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="post-link-preview"`,
+		`href="https://example.com/page"`,
+		`class="post-link-preview-title"`,
+		`>Example Page<`,
+		`class="post-link-preview-description"`,
+		`>A useful page<`,
+		`class="post-link-preview-host"`,
+		`>example.com<`,
+		`class="post-link-preview-thumb"`,
+		`src="https://example.com/thumb.jpg"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPost_RendersLinkPreviewWithoutThumb(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "link",
+		AuthorHandle: "dev.example",
+		LinkPreviewMaybe: &feedquery.LinkPreviewView{
+			URI:   "https://example.com",
+			Title: "Example",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="post-link-preview"`) {
+		t.Fatalf("html = %q, want link preview card", html)
+	}
+	if strings.Contains(html, `class="post-link-preview-thumb"`) {
+		t.Fatalf("html = %q, want no thumb image", html)
+	}
+}
+
+func TestPost_RendersLinkPreviewBeforeQuotedPost(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:           "quoted",
+		AuthorHandle: "quoted.example",
+		Text:         "original post",
+	}
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "qrt",
+		AuthorHandle: "dev.example",
+		Text:         "my take",
+		Images: []feedquery.ImageView{{
+			Thumb: "https://example.com/thumb.jpg",
+			Alt:   "photo",
+		}},
+		LinkPreviewMaybe: &feedquery.LinkPreviewView{
+			URI:   "https://example.com",
+			Title: "Example",
+		},
+		QuotedPostMaybe: &quoted,
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	imagesIdx := strings.Index(html, "post-images")
+	previewIdx := strings.Index(html, "post-link-preview")
+	insetIdx := strings.Index(html, "inset-post")
+	if imagesIdx < 0 || previewIdx < 0 || insetIdx < 0 {
+		t.Fatalf("html = %q, want images, link preview, and inset post", html)
+	}
+	if imagesIdx > previewIdx || previewIdx > insetIdx {
+		t.Fatalf("html order wrong: images@%d preview@%d inset@%d", imagesIdx, previewIdx, insetIdx)
+	}
+}
+
 func TestPost_RendersVideoMediaBlurWithReveal(t *testing.T) {
 	t.Parallel()
 

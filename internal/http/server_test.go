@@ -579,8 +579,259 @@ func TestHandlePost_OK(t *testing.T) {
 	if !strings.Contains(body, "nested reply") {
 		t.Fatalf("body = %q, want to contain nested reply", body)
 	}
-	if !strings.Contains(body, `href="/dev.example/post/reply1"`) {
-		t.Fatalf("body = %q, want reply link to /dev.example/post/reply1", body)
+	if !strings.Contains(body, `class="post post-page"`) {
+		t.Fatalf("body = %q, want root post-page article", body)
+	}
+	if !strings.Contains(body, `class="post-replies"`) {
+		t.Fatalf("body = %q, want nested reply list", body)
+	}
+	if strings.Contains(body, `href="/dev.example/post/reply1"`) {
+		t.Fatalf("body = %q, want no link wrapper around reply article", body)
+	}
+}
+
+func TestHandlePost_AncestorThread(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "bsky.app",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Dev"},
+				Record: bluesky.PostRecord{Text: "linked reply"},
+			},
+			Parent: bluesky.ThreadViewPost{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/grandparent",
+					Author: bluesky.Author{Handle: "other.example", DisplayName: "Other"},
+					Record: bluesky.PostRecord{Text: "grandparent post"},
+				},
+				Parent: bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "parent post"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dev.example/post/reply", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="post-page-ancestors"`) {
+		t.Fatalf("body = %q, want ancestors slot", body)
+	}
+	if !strings.Contains(body, `hx-get="/dev.example/post/reply?ancestors=1"`) {
+		t.Fatalf("body = %q, want ancestors fragment hx-get", body)
+	}
+	if strings.Contains(body, `id="post-grandparent"`) || strings.Contains(body, `id="post-parent"`) {
+		t.Fatalf("body = %q, want no inline ancestor posts on initial page", body)
+	}
+	if !strings.Contains(body, "linked reply") {
+		t.Fatalf("body = %q, want linked post text", body)
+	}
+	if !strings.Contains(body, `class="post post-page"`) {
+		t.Fatalf("body = %q, want focused post-page article", body)
+	}
+
+	ancestorsIdx := strings.Index(body, `id="post-page-ancestors"`)
+	focusIdx := strings.Index(body, `class="post post-page"`)
+	if ancestorsIdx < 0 || focusIdx < 0 || ancestorsIdx > focusIdx {
+		t.Fatalf("body order wrong: ancestors@%d focus@%d", ancestorsIdx, focusIdx)
+	}
+}
+
+func TestHandlePost_AncestorsFragment(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "dev.example",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Dev"},
+				Record: bluesky.PostRecord{Text: "linked reply"},
+			},
+			Parent: bluesky.ThreadViewPost{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/grandparent",
+					Author: bluesky.Author{Handle: "other.example", DisplayName: "Other"},
+					Record: bluesky.PostRecord{Text: "grandparent post"},
+				},
+				Parent: bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+						Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+						Record: bluesky.PostRecord{Text: "parent post"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dev.example/post/reply?ancestors=1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `<html`) {
+		t.Fatalf("body = %q, want ancestors fragment without page wrapper", body)
+	}
+	if !strings.Contains(body, "parent post") || !strings.Contains(body, "grandparent post") {
+		t.Fatalf("body = %q, want ancestor post text", body)
+	}
+	grandparentIdx := strings.Index(body, `id="post-grandparent"`)
+	parentIdx := strings.Index(body, `id="post-parent"`)
+	if grandparentIdx < 0 || parentIdx < 0 || grandparentIdx > parentIdx {
+		t.Fatalf("body order wrong: grandparent@%d parent@%d", grandparentIdx, parentIdx)
+	}
+}
+
+func TestHandlePost_AncestorsFragment_BlockedParent(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "dev.example",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Dev"},
+				Record: bluesky.PostRecord{Text: "linked reply"},
+			},
+			Parent: bluesky.BlockedPost{URI: "at://did:plc:example/app.bsky.feed.post/parent"},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dev.example/post/reply?ancestors=1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Post unavailable") {
+		t.Fatalf("body = %q, want unavailable ancestor message", body)
+	}
+}
+
+func TestHandlePost_AncestorsQueryRequiresOne(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "dev.example",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+				Author: bluesky.Author{Handle: "dev.example", DisplayName: "Dev"},
+				Record: bluesky.PostRecord{Text: "linked reply"},
+			},
+			Parent: bluesky.ThreadViewPost{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+					Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+					Record: bluesky.PostRecord{Text: "parent post"},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dev.example/post/reply?ancestors=0", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<html`) {
+		t.Fatalf("body = %q, want full page for ancestors=0", body)
+	}
+	if strings.Contains(body, "parent post") {
+		t.Fatalf("body = %q, want ancestors omitted on full page", body)
+	}
+}
+
+func TestHandlePost_QuotedPostWithExternalLinkPreview(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "bsky.app",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+				Record: bluesky.PostRecord{Text: "Personnel news"},
+				Embed: &bluesky.Embed{
+					Type: "app.bsky.embed.record#view",
+					Record: []byte(`{
+						"$type": "app.bsky.embed.record#viewRecord",
+						"uri": "at://did:plc:quoted/app.bsky.feed.post/with-link",
+						"author": {"handle": "quoted.example", "displayName": "Quoted"},
+						"value": {
+							"text": "Staying in the game https://example.com/article",
+							"createdAt": "2026-01-14T12:00:00.000Z"
+						},
+						"embeds": [{
+							"$type": "app.bsky.embed.external#view",
+							"external": {
+								"uri": "https://example.com/article",
+								"title": "Staying in the game",
+								"description": "An update on my role",
+								"thumb": "https://example.com/thumb.jpg"
+							}
+						}]
+					}`),
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="post-link-preview"`) {
+		t.Fatalf("body = %q, want link preview card in quoted post", body)
+	}
+	if !strings.Contains(body, "Staying in the game") {
+		t.Fatalf("body = %q, want link preview title", body)
+	}
+	if !strings.Contains(body, `href="https://example.com/article"`) {
+		t.Fatalf("body = %q, want link preview href", body)
+	}
+	if !strings.Contains(body, `class="post inset-post"`) {
+		t.Fatalf("body = %q, want quoted inset post", body)
 	}
 }
 

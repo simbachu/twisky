@@ -87,11 +87,57 @@ func TestHandler_Handle_OK(t *testing.T) {
 	if view.Post.ID != "root" || view.Post.Text != "root post" {
 		t.Fatalf("view.Post = %#v, want root post", view.Post)
 	}
-	if len(view.Ancestors) != 1 || view.Ancestors[0].ID != "parent" {
-		t.Fatalf("view.Ancestors = %#v, want one parent", view.Ancestors)
+	if !view.HasAncestors {
+		t.Fatal("HasAncestors = false, want true")
+	}
+	if len(view.Ancestors) != 0 {
+		t.Fatalf("view.Ancestors = %#v, want empty on full page", view.Ancestors)
 	}
 	if len(view.Replies) != 1 || view.Replies[0].Post.ID != "reply1" {
 		t.Fatalf("view.Replies = %#v, want one reply", view.Replies)
+	}
+}
+
+func TestHandler_Handle_AncestorsFragment(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "bsky.app",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+			Parent: bluesky.ThreadViewPost{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+					Author: bluesky.Author{Handle: "bsky.app"},
+					Record: bluesky.PostRecord{Text: "parent post"},
+				},
+			},
+		},
+	}
+
+	handler := post.NewHandler(reader, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "root",
+		Part: feedquery.PostPagePartAncestors,
+	})
+
+	view, ok := resp.(feedquery.PostPageView)
+	if !ok {
+		t.Fatalf("response type = %T, want PostPageView", resp)
+	}
+	if len(view.Ancestors) != 1 || view.Ancestors[0].Post.ID != "parent" {
+		t.Fatalf("view.Ancestors = %#v, want one parent", view.Ancestors)
+	}
+	if view.Post.ID != "" {
+		t.Fatalf("view.Post.ID = %q, want empty on ancestors fragment", view.Post.ID)
 	}
 }
 

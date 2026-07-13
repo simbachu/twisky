@@ -41,6 +41,13 @@ type AuthorView struct {
 	Avatar      string
 }
 
+type LinkPreviewView struct {
+	URI         string
+	Title       string
+	Description string
+	Thumb       string
+}
+
 type PostView struct {
 	ID                string
 	AuthorHandle      string
@@ -54,6 +61,7 @@ type PostView struct {
 	CreatedAt         time.Time
 	Images            []ImageView
 	Videos            []VideoView
+	LinkPreviewMaybe  *LinkPreviewView
 	RepostedByMaybe   *AuthorView
 	ReplyParentMaybe  *PostView
 	QuotedPostMaybe   *PostView
@@ -132,6 +140,7 @@ func NewPostView(post bluesky.Post) PostView {
 	}
 	appendImagesFromEmbed(&view, post.Embed)
 	appendVideosFromEmbed(&view, post.Embed)
+	appendLinkPreviewFromEmbed(&view, post.Embed)
 
 	if post.Embed != nil {
 		if quoted := post.Embed.QuotedPost(); quoted != nil {
@@ -193,5 +202,21 @@ func appendVideosFromEmbed(view *PostView, embed *bluesky.Embed) {
 			videoView.Height = video.AspectRatio.Height
 		}
 		view.Videos = append(view.Videos, videoView)
+	}
+}
+
+func appendLinkPreviewFromEmbed(view *PostView, embed *bluesky.Embed) {
+	if embed == nil {
+		return
+	}
+	external := embed.ExternalLink()
+	if external == nil || external.URI == "" {
+		return
+	}
+	view.LinkPreviewMaybe = &LinkPreviewView{
+		URI:         external.URI,
+		Title:       external.Title,
+		Description: external.Description,
+		Thumb:       external.Thumb,
 	}
 }

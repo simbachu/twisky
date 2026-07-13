@@ -15,10 +15,24 @@ func ResolveMentionHandlesInThread(ctx context.Context, resolver ProfileResolver
 		postByID[post.ID] = post
 	}
 
-	view.Ancestors = rewritePostViews(view.Ancestors, postByID)
+	view.Ancestors = rewriteAncestorNodes(view.Ancestors, postByID)
 	view.Post = postByID[view.Post.ID]
 	view.Replies = rewriteThreadNodes(view.Replies, postByID)
 	return view
+}
+
+func rewriteAncestorNodes(nodes []AncestorNodeView, postByID map[string]PostView) []AncestorNodeView {
+	rewritten := make([]AncestorNodeView, len(nodes))
+	for i, node := range nodes {
+		rewritten[i] = node
+		if node.Unavailable {
+			continue
+		}
+		if resolved, ok := postByID[node.Post.ID]; ok {
+			rewritten[i].Post = resolved
+		}
+	}
+	return rewritten
 }
 
 func rewritePostViews(posts []PostView, postByID map[string]PostView) []PostView {

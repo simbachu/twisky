@@ -586,6 +586,130 @@ func TestClient_GetAuthorFeed_RecordEmbed(t *testing.T) {
 	}
 }
 
+func TestClient_GetAuthorFeed_ExternalEmbed(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/link",
+					"author": {"handle": "dev.example"},
+					"record": {
+						"text": "check this out https://example.com",
+						"createdAt": "2026-01-15T12:00:00.000Z"
+					},
+					"embed": {
+						"$type": "app.bsky.embed.external#view",
+						"external": {
+							"uri": "https://example.com",
+							"title": "Example Site",
+							"description": "An example website",
+							"thumb": "https://example.com/thumb.jpg"
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{
+		Actor: "dev.example",
+	})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	external := items.Feed[0].Post.Embed.ExternalLink()
+	if external == nil {
+		t.Fatal("ExternalLink() = nil, want external card")
+	}
+	if external.URI != "https://example.com" {
+		t.Fatalf("external.URI = %q, want https://example.com", external.URI)
+	}
+	if external.Title != "Example Site" {
+		t.Fatalf("external.Title = %q, want Example Site", external.Title)
+	}
+	if external.Description != "An example website" {
+		t.Fatalf("external.Description = %q, want An example website", external.Description)
+	}
+	if external.Thumb != "https://example.com/thumb.jpg" {
+		t.Fatalf("external.Thumb = %q, want thumb URL", external.Thumb)
+	}
+}
+
+func TestClient_GetAuthorFeed_NestedExternalInQuotedPost(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"feed": [{
+				"post": {
+					"uri": "at://did:plc:example/app.bsky.feed.post/qrt-link",
+					"author": {"handle": "dev.example"},
+					"record": {
+						"text": "sharing news",
+						"createdAt": "2026-01-15T12:00:00.000Z"
+					},
+					"embed": {
+						"$type": "app.bsky.embed.record#view",
+						"record": {
+							"$type": "app.bsky.embed.record#viewRecord",
+							"uri": "at://did:plc:quoted/app.bsky.feed.post/with-link",
+							"author": {"handle": "quoted.example"},
+							"value": {
+								"text": "read more https://example.com/article",
+								"createdAt": "2026-01-14T12:00:00.000Z"
+							},
+							"embeds": [{
+								"$type": "app.bsky.embed.external#view",
+								"external": {
+									"uri": "https://example.com/article",
+									"title": "Article Title",
+									"description": "Article summary"
+								}
+							}]
+						}
+					}
+				}
+			}]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	items, err := client.GetAuthorFeed(context.Background(), bluesky.AuthorFeedRequest{
+		Actor: "dev.example",
+	})
+	if err != nil {
+		t.Fatalf("GetAuthorFeed() err = %v", err)
+	}
+
+	quoted := items.Feed[0].Post.Embed.QuotedPost()
+	if quoted == nil {
+		t.Fatal("QuotedPost() = nil, want quoted post")
+	}
+	if quoted.Embed == nil {
+		t.Fatal("quoted.Embed = nil, want nested external embed")
+	}
+	external := quoted.Embed.ExternalLink()
+	if external == nil {
+		t.Fatal("ExternalLink() = nil, want nested external card")
+	}
+	if external.URI != "https://example.com/article" {
+		t.Fatalf("external.URI = %q, want article URL", external.URI)
+	}
+	if external.Title != "Article Title" {
+		t.Fatalf("external.Title = %q, want Article Title", external.Title)
+	}
+}
+
 func TestClient_GetAuthorFeed_RecordWithMediaEmbed(t *testing.T) {
 	t.Parallel()
 

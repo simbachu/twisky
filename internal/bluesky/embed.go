@@ -9,7 +9,15 @@ const (
 	embedRecordWithMediaType = "app.bsky.embed.recordWithMedia#view"
 	embedRecordViewType      = "app.bsky.embed.record#viewRecord"
 	embedVideoType           = "app.bsky.embed.video#view"
+	embedExternalType        = "app.bsky.embed.external#view"
 )
+
+type ExternalView struct {
+	URI         string `json:"uri"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Thumb       string `json:"thumb,omitempty"`
+}
 
 type Embed struct {
 	Type         string          `json:"$type"`
@@ -17,6 +25,7 @@ type Embed struct {
 	Items        []EmbedImage    `json:"items,omitempty"`
 	Record       json.RawMessage `json:"record,omitempty"`
 	Media        *Embed          `json:"media,omitempty"`
+	External     *ExternalView   `json:"external,omitempty"`
 	CID          string          `json:"cid,omitempty"`
 	Playlist     string          `json:"playlist,omitempty"`
 	Thumbnail    string          `json:"thumbnail,omitempty"`
@@ -53,6 +62,20 @@ func (e *Embed) MediaVideos() []*Embed {
 
 func (e *Embed) IsGIF() bool {
 	return e != nil && e.Presentation == "gif"
+}
+
+// ExternalLink returns the external link card for external and record-with-media embeds.
+func (e *Embed) ExternalLink() *ExternalView {
+	if e == nil {
+		return nil
+	}
+	if e.Type == embedExternalType && e.External != nil {
+		return e.External
+	}
+	if e.Type == embedRecordWithMediaType && e.Media != nil && e.Media.Type == embedExternalType && e.Media.External != nil {
+		return e.Media.External
+	}
+	return nil
 }
 
 // QuotedPost returns the embedded quoted post for record and record-with-media embeds.
@@ -115,7 +138,7 @@ func parseNestedEmbed(raw json.RawMessage) *Embed {
 	}
 
 	switch header.Type {
-	case embedImagesType, embedGalleryType, embedRecordType, embedRecordWithMediaType, embedVideoType:
+	case embedImagesType, embedGalleryType, embedRecordType, embedRecordWithMediaType, embedVideoType, embedExternalType:
 		var embed Embed
 		if err := json.Unmarshal(raw, &embed); err != nil {
 			return nil

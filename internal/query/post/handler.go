@@ -65,6 +65,8 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 		return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
 	}
 
-	view := feedquery.ApplyModerationToPostPage(ctx, h.prefs, feedquery.ResolveMentionHandlesInThread(ctx, h.reader, feedquery.NewPostPageView(root)))
+	view := feedquery.NewPostPageView(root, i.Part)
+	view = feedquery.ResolveMentionHandlesInThread(ctx, h.reader, view)
+	view = feedquery.ApplyModerationToPostPage(ctx, h.prefs, view)
 	return view
 }

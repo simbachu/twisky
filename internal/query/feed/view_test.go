@@ -253,3 +253,124 @@ func TestNewPostView_PopulatesVideoFromRecordWithMediaEmbed(t *testing.T) {
 		t.Fatalf("quoted images = %#v, want quoted photo", view.QuotedPostMaybe.Images)
 	}
 }
+
+func TestNewPostView_PopulatesLinkPreviewFromExternalEmbed(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/link",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "check this out",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Embed: &bluesky.Embed{
+			Type: "app.bsky.embed.external#view",
+			External: &bluesky.ExternalView{
+				URI:         "https://example.com",
+				Title:       "Example Site",
+				Description: "An example website",
+				Thumb:       "https://example.com/thumb.jpg",
+			},
+		},
+	})
+
+	if view.LinkPreviewMaybe == nil {
+		t.Fatal("LinkPreviewMaybe = nil, want link preview")
+	}
+	if view.LinkPreviewMaybe.URI != "https://example.com" {
+		t.Fatalf("LinkPreviewMaybe.URI = %q, want https://example.com", view.LinkPreviewMaybe.URI)
+	}
+	if view.LinkPreviewMaybe.Title != "Example Site" {
+		t.Fatalf("LinkPreviewMaybe.Title = %q, want Example Site", view.LinkPreviewMaybe.Title)
+	}
+	if view.LinkPreviewMaybe.Description != "An example website" {
+		t.Fatalf("LinkPreviewMaybe.Description = %q, want An example website", view.LinkPreviewMaybe.Description)
+	}
+	if view.LinkPreviewMaybe.Thumb != "https://example.com/thumb.jpg" {
+		t.Fatalf("LinkPreviewMaybe.Thumb = %q, want thumb URL", view.LinkPreviewMaybe.Thumb)
+	}
+}
+
+func TestNewPostView_PopulatesLinkPreviewFromRecordWithMediaExternal(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/qrt-external",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "quote with link card",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Embed: &bluesky.Embed{
+			Type: "app.bsky.embed.recordWithMedia#view",
+			Record: mustRawJSON(`{
+				"$type": "app.bsky.embed.record#viewRecord",
+				"uri": "at://did:plc:quoted/app.bsky.feed.post/original",
+				"author": {"handle": "quoted.example"},
+				"value": {"text": "original post", "createdAt": "2026-01-14T12:00:00.000Z"}
+			}`),
+			Media: &bluesky.Embed{
+				Type: "app.bsky.embed.external#view",
+				External: &bluesky.ExternalView{
+					URI:         "https://example.com",
+					Title:       "Example",
+					Description: "Description",
+				},
+			},
+		},
+	})
+
+	if view.LinkPreviewMaybe == nil {
+		t.Fatal("LinkPreviewMaybe = nil, want link preview from record-with-media")
+	}
+	if view.LinkPreviewMaybe.Title != "Example" {
+		t.Fatalf("LinkPreviewMaybe.Title = %q, want Example", view.LinkPreviewMaybe.Title)
+	}
+	if view.QuotedPostMaybe == nil {
+		t.Fatal("QuotedPostMaybe = nil, want quoted post")
+	}
+}
+
+func TestNewPostView_PopulatesLinkPreviewOnQuotedPost(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/qrt",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "sharing",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Embed: &bluesky.Embed{
+			Type: "app.bsky.embed.record#view",
+			Record: mustRawJSON(`{
+				"$type": "app.bsky.embed.record#viewRecord",
+				"uri": "at://did:plc:quoted/app.bsky.feed.post/with-link",
+				"author": {"handle": "quoted.example"},
+				"value": {"text": "read more", "createdAt": "2026-01-14T12:00:00.000Z"},
+				"embeds": [{
+					"$type": "app.bsky.embed.external#view",
+					"external": {
+						"uri": "https://example.com/article",
+						"title": "Article Title",
+						"description": "Article summary"
+					}
+				}]
+			}`),
+		},
+	})
+
+	if view.LinkPreviewMaybe != nil {
+		t.Fatalf("LinkPreviewMaybe = %#v, want nil on parent post", view.LinkPreviewMaybe)
+	}
+	if view.QuotedPostMaybe == nil {
+		t.Fatal("QuotedPostMaybe = nil, want quoted post")
+	}
+	if view.QuotedPostMaybe.LinkPreviewMaybe == nil {
+		t.Fatal("quoted LinkPreviewMaybe = nil, want nested link preview")
+	}
+	if view.QuotedPostMaybe.LinkPreviewMaybe.Title != "Article Title" {
+		t.Fatalf("quoted LinkPreviewMaybe.Title = %q, want Article Title", view.QuotedPostMaybe.LinkPreviewMaybe.Title)
+	}
+}

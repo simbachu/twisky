@@ -114,6 +114,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.queries.Dispatch(r.Context(), intent.ViewPost{
 		Slug: chi.URLParam(r, "slug"),
 		ID:   postID,
+		Part: postPagePart(r),
 	})
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -123,6 +124,10 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if postPagePart(r) == feedquery.PostPagePartAncestors {
+			_ = postpage.PostPageAncestors(v, time.Now().UTC()).Render(w)
+			return
+		}
 		_ = postpage.PostPage(v, time.Now().UTC()).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
@@ -134,6 +139,13 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 func feedFragmentParams(r *http.Request) (cursor, since, refresh string) {
 	query := r.URL.Query()
 	return query.Get("cursor"), query.Get("since"), query.Get("refresh")
+}
+
+func postPagePart(r *http.Request) string {
+	if r.URL.Query().Get("ancestors") == "1" {
+		return feedquery.PostPagePartAncestors
+	}
+	return ""
 }
 
 func renderFeedFragment(

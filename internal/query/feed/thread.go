@@ -1,6 +1,8 @@
 package feed
 
 import (
+	"sort"
+
 	"github.com/simbachu/twisky/internal/bluesky"
 )
 
@@ -10,34 +12,53 @@ type ThreadNodeView struct {
 	Replies      []ThreadNodeView
 }
 
+type AncestorNodeView struct {
+	Post        PostView
+	Unavailable bool
+}
+
+const PostPagePartAncestors = "ancestors"
+
 type PostPageView struct {
-	Post      PostView
-	Ancestors []PostView
-	Replies   []ThreadNodeView
+	Post         PostView
+	Ancestors    []AncestorNodeView
+	Replies      []ThreadNodeView
+	HasAncestors bool
 }
 
 func (PostPageView) IsResponse() {}
 
-func NewPostPageView(root bluesky.ThreadViewPost) PostPageView {
+func NewPostPageView(root bluesky.ThreadViewPost, part string) PostPageView {
+	if part == PostPagePartAncestors {
+		return PostPageView{
+			Ancestors: CollectAncestorNodes(root),
+		}
+	}
+	ancestors := CollectAncestorNodes(root)
 	return PostPageView{
-		Post:      NewPostView(root.Post),
-		Ancestors: CollectAncestors(root),
-		Replies:   NewThreadNodeViews(root.Replies),
+		Post:         NewPostView(root.Post),
+		HasAncestors: len(ancestors) > 0,
+		Replies:      NewThreadNodeViews(root.Replies),
 	}
 }
 
-func CollectAncestors(root bluesky.ThreadViewPost) []PostView {
-	ancestors := make([]PostView, 0)
+func CollectAncestorNodes(root bluesky.ThreadViewPost) []AncestorNodeView {
+	ancestors := make([]AncestorNodeView, 0)
 	for node := root.Parent; node != nil; {
-		thread, ok := node.(bluesky.ThreadViewPost)
-		if !ok {
-			break
+		switch typed := node.(type) {
+		case bluesky.ThreadViewPost:
+			ancestors = append(ancestors, AncestorNodeView{
+				Post: NewPostView(typed.Post),
+			})
+			node = typed.Parent
+		case bluesky.NotFoundPost, bluesky.BlockedPost:
+			ancestors = append(ancestors, AncestorNodeView{Unavailable: true})
+			return reverseAncestorNodes(ancestors)
+		default:
+			return reverseAncestorNodes(ancestors)
 		}
-		ancestors = append(ancestors, NewPostView(thread.Post))
-		node = thread.Parent
 	}
-	reversePostViews(ancestors)
-	return ancestors
+	return reverseAncestorNodes(ancestors)
 }
 
 func NewThreadNodeViews(nodes []bluesky.ThreadNode) []ThreadNodeView {
@@ -53,7 +74,25 @@ func NewThreadNodeViews(nodes []bluesky.ThreadNode) []ThreadNodeView {
 			views = append(views, ThreadNodeView{Unavailable: true})
 		}
 	}
+	sortThreadNodesOldestFirst(&views)
 	return views
+}
+
+func sortThreadNodesOldestFirst(nodes *[]ThreadNodeView) {
+	available := make([]ThreadNodeView, 0, len(*nodes))
+	unavailable := make([]ThreadNodeView, 0)
+	for _, node := range *nodes {
+		if node.Unavailable {
+			unavailable = append(unavailable, node)
+			continue
+		}
+		sortThreadNodesOldestFirst(&node.Replies)
+		available = append(available, node)
+	}
+	sort.Slice(available, func(i, j int) bool {
+		return available[i].Post.CreatedAt.Before(available[j].Post.CreatedAt)
+	})
+	*nodes = append(available, unavailable...)
 }
 
 func reversePostViews(views []PostView) {
@@ -62,10 +101,24 @@ func reversePostViews(views []PostView) {
 	}
 }
 
+func reverseAncestorNodes(nodes []AncestorNodeView) []AncestorNodeView {
+	for i, j := 0, len(nodes)-1; i < j; i, j = i+1, j-1 {
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	}
+	return nodes
+}
+
 func collectPostsFromPage(view PostPageView) []PostView {
 	posts := make([]PostView, 0, 1+len(view.Ancestors))
-	posts = append(posts, view.Ancestors...)
-	posts = append(posts, view.Post)
+	for _, ancestor := range view.Ancestors {
+		if ancestor.Unavailable {
+			continue
+		}
+		posts = append(posts, ancestor.Post)
+	}
+	if view.Post.ID != "" {
+		posts = append(posts, view.Post)
+	}
 	posts = append(posts, collectPostsFromThreadNodes(view.Replies)...)
 	return posts
 }
