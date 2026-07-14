@@ -106,7 +106,7 @@ func NewPostViewFromFeedItem(item bluesky.FeedItem) PostView {
 		view.RepostedByMaybe = &repostedBy
 	}
 	if item.Reply != nil && item.Reply.Parent != nil {
-		parent := insetPostView(NewPostView(*item.Reply.Parent))
+		parent := InsetPostView(NewPostView(*item.Reply.Parent))
 		view.ReplyParentMaybe = &parent
 		view.replyParentURI = ""
 	}
@@ -144,7 +144,7 @@ func NewPostView(post bluesky.Post) PostView {
 
 	if post.Embed != nil {
 		if quoted := post.Embed.QuotedPost(); quoted != nil {
-			quotedView := insetPostView(NewPostView(*quoted))
+			quotedView := InsetPostView(NewPostView(*quoted))
 			view.QuotedPostMaybe = &quotedView
 		}
 	}

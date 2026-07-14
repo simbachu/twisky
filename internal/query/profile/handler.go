@@ -54,6 +54,7 @@ type ProfileView struct {
 	Following   int
 	Posts       int
 	Tab         Tab
+	PinnedPostMaybe *feedquery.PostView
 	Feed        feedquery.FeedView
 }
 
@@ -105,6 +106,8 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		richtext.BuildSegments(profile.Description, profile.DescriptionFacets),
 	)
 
+	moderatedFeed := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList)
+
 	return ProfileView{
 		DID:                 profile.DID,
 		Handle:              profile.Handle,
@@ -116,6 +119,27 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Following:           profile.Following,
 		Posts:               profile.Posts,
 		Tab:                 tab,
-		Feed: feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList),
+		PinnedPostMaybe:     h.pinnedPostMaybe(ctx, profile, i.Cursor),
+		Feed:                moderatedFeed,
 	}
+}
+
+func (h *Handler) pinnedPostMaybe(ctx context.Context, profile *bluesky.Profile, cursor string) *feedquery.PostView {
+	if profile.PinnedPost == nil || cursor != "" {
+		return nil
+	}
+
+	posts, err := h.reader.GetPosts(ctx, []string{profile.PinnedPost.URI})
+	if err != nil || len(posts) == 0 {
+		return nil
+	}
+
+	pinned := feedquery.InsetPostView(feedquery.NewPostView(posts[0]))
+	moderated := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.FeedView{
+		Posts: []feedquery.PostView{pinned},
+	}), moderation.UIContextContentList)
+	if len(moderated.Posts) == 0 {
+		return nil
+	}
+	return &moderated.Posts[0]
 }

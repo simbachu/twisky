@@ -28,7 +28,7 @@ func EnrichReplyParents(ctx context.Context, fetcher PostFetcher, view FeedView)
 
 	parentByURI := make(map[string]PostView, len(posts))
 	for _, post := range posts {
-		parentByURI[post.URI] = insetPostView(NewPostView(post))
+		parentByURI[post.URI] = InsetPostView(NewPostView(post))
 	}
 
 	enriched := make([]PostView, len(view.Posts))
@@ -66,8 +66,8 @@ func collectReplyParentURIs(posts []PostView) []string {
 	return uris
 }
 
-// insetPostView returns a single-level post view suitable for inset cards in feeds.
-func insetPostView(view PostView) PostView {
+// InsetPostView returns a single-level post view suitable for inset cards in feeds.
+func InsetPostView(view PostView) PostView {
 	view.ReplyParentMaybe = nil
 	view.QuotedPostMaybe = nil
 	view.replyParentURI = ""

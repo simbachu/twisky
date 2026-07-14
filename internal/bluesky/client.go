@@ -48,16 +48,22 @@ func NewClientWith(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
+type StrongRef struct {
+	URI string `json:"uri"`
+	CID string `json:"cid"`
+}
+
 type Profile struct {
-	DID                string  `json:"did"`
-	Handle             string  `json:"handle"`
-	DisplayName        string  `json:"displayName"`
-	Description        string  `json:"description"`
-	DescriptionFacets  []Facet `json:"descriptionFacets,omitempty"`
-	Avatar             string  `json:"avatar"`
-	Followers          int     `json:"followersCount"`
-	Following          int     `json:"followsCount"`
-	Posts              int     `json:"postsCount"`
+	DID                string     `json:"did"`
+	Handle             string     `json:"handle"`
+	DisplayName        string     `json:"displayName"`
+	Description        string     `json:"description"`
+	DescriptionFacets  []Facet    `json:"descriptionFacets,omitempty"`
+	Avatar             string     `json:"avatar"`
+	Followers          int        `json:"followersCount"`
+	Following          int        `json:"followsCount"`
+	Posts              int        `json:"postsCount"`
+	PinnedPost         *StrongRef `json:"pinnedPost,omitempty"`
 }
 
 type Label struct {
@@ -130,11 +136,6 @@ func (r PostRecord) SelfLabelValues() []string {
 type RecordReplyRef struct {
 	Root   StrongRef `json:"root"`
 	Parent StrongRef `json:"parent"`
-}
-
-type StrongRef struct {
-	URI string `json:"uri"`
-	CID string `json:"cid"`
 }
 
 // ReplyParentURI returns the parent post URI when this post is a reply.

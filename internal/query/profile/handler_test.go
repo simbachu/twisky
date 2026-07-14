@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/intent"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/response"
 	"github.com/simbachu/twisky/internal/richtext"
@@ -20,8 +22,11 @@ type stubReader struct {
 	feedErr error
 
 	profiles []bluesky.Profile
+	posts    []bluesky.Post
+	postsErr error
 
-	lastFeedRequest bluesky.AuthorFeedRequest
+	lastFeedRequest  bluesky.AuthorFeedRequest
+	lastGetPostsURIs []string
 }
 
 func (s stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
@@ -40,8 +45,12 @@ func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, e
 	return s.profiles, nil
 }
 
-func (s stubReader) GetPosts(context.Context, []string) ([]bluesky.Post, error) {
-	return nil, nil
+func (s *stubReader) GetPosts(_ context.Context, uris []string) ([]bluesky.Post, error) {
+	s.lastGetPostsURIs = append([]string(nil), uris...)
+	if s.postsErr != nil {
+		return nil, s.postsErr
+	}
+	return s.posts, nil
 }
 
 func TestHandler_Handle(t *testing.T) {
@@ -432,5 +441,141 @@ func TestHandler_HandleBuildsDescriptionSegmentsFromRegex(t *testing.T) {
 	}
 	if view.DescriptionSegments[1].Kind != richtext.Link || view.DescriptionSegments[1].URI != "https://example.com" {
 		t.Fatalf("second segment = %#v, want link https://example.com", view.DescriptionSegments[1])
+	}
+}
+
+func TestHandler_HandleHydratesPinnedPost(t *testing.T) {
+	t.Parallel()
+
+	const pinnedURI = "at://did:plc:example/app.bsky.feed.post/pinned123"
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle: "bsky.app",
+			PinnedPost: &bluesky.StrongRef{
+				URI: pinnedURI,
+				CID: "bafyreicid",
+			},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+		posts: []bluesky.Post{{
+			URI:    pinnedURI,
+			Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+			Record: bluesky.PostRecord{
+				Text:      "pinned hello",
+				CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+			},
+		}},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(reader.lastGetPostsURIs) != 1 || reader.lastGetPostsURIs[0] != pinnedURI {
+		t.Fatalf("lastGetPostsURIs = %v, want [%s]", reader.lastGetPostsURIs, pinnedURI)
+	}
+	if view.PinnedPostMaybe == nil {
+		t.Fatal("PinnedPostMaybe = nil, want pinned post")
+	}
+	if view.PinnedPostMaybe.Text != "pinned hello" {
+		t.Fatalf("PinnedPostMaybe.Text = %q, want pinned hello", view.PinnedPostMaybe.Text)
+	}
+}
+
+func TestHandler_HandleSkipsPinnedPostWhenPaginating(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle: "bsky.app",
+			PinnedPost: &bluesky.StrongRef{
+				URI: "at://did:plc:example/app.bsky.feed.post/pinned123",
+			},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{
+		Slug:   "bsky.app",
+		Tab:    intent.ProfileTabPosts,
+		Cursor: "page-2",
+	})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(reader.lastGetPostsURIs) != 0 {
+		t.Fatalf("lastGetPostsURIs = %v, want none when paginating", reader.lastGetPostsURIs)
+	}
+	if view.PinnedPostMaybe != nil {
+		t.Fatal("PinnedPostMaybe = non-nil, want nil when paginating")
+	}
+}
+
+func TestHandler_HandleOmitsPinnedPostWhenGetPostsFails(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle: "bsky.app",
+			PinnedPost: &bluesky.StrongRef{
+				URI: "at://did:plc:example/app.bsky.feed.post/pinned123",
+			},
+		},
+		feed:     &bluesky.AuthorFeedResponse{},
+		postsErr: errors.New("network failure"),
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if view.PinnedPostMaybe != nil {
+		t.Fatal("PinnedPostMaybe = non-nil, want nil when GetPosts fails")
+	}
+}
+
+func TestHandler_HandleOmitsFilteredPinnedPost(t *testing.T) {
+	t.Parallel()
+
+	const pinnedURI = "at://did:plc:example/app.bsky.feed.post/pinned123"
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			Handle: "bsky.app",
+			PinnedPost: &bluesky.StrongRef{
+				URI: pinnedURI,
+			},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+		posts: []bluesky.Post{{
+			URI:    pinnedURI,
+			Author: bluesky.Author{DID: "did:plc:example", Handle: "bsky.app"},
+			Record: bluesky.PostRecord{
+				Text:      "adult content",
+				CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+			},
+			Labels: []bluesky.Label{{Val: "porn", Src: moderation.BlueskyModerationDID}},
+		}},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if view.PinnedPostMaybe != nil {
+		t.Fatal("PinnedPostMaybe = non-nil, want nil when pinned post is filtered")
 	}
 }

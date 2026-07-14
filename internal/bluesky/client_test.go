@@ -405,6 +405,49 @@ func TestClient_GetProfiles(t *testing.T) {
 	}
 }
 
+func TestClient_GetProfile_ParsesPinnedPost(t *testing.T) {
+	t.Parallel()
+
+	const pinnedURI = "at://did:plc:example/app.bsky.feed.post/pinned123"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/xrpc/app.bsky.actor.getProfile" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.actor.getProfile", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("actor"); got != "bsky.app" {
+			t.Fatalf("actor = %q, want bsky.app", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"did": "did:plc:example",
+			"handle": "bsky.app",
+			"displayName": "Bluesky",
+			"pinnedPost": {
+				"uri": "` + pinnedURI + `",
+				"cid": "bafyreicid"
+			}
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	profile, err := client.GetProfile(context.Background(), "bsky.app")
+	if err != nil {
+		t.Fatalf("GetProfile() err = %v", err)
+	}
+	if profile.PinnedPost == nil {
+		t.Fatal("PinnedPost = nil, want strong ref")
+	}
+	if profile.PinnedPost.URI != pinnedURI {
+		t.Fatalf("PinnedPost.URI = %q, want %s", profile.PinnedPost.URI, pinnedURI)
+	}
+	if profile.PinnedPost.CID != "bafyreicid" {
+		t.Fatalf("PinnedPost.CID = %q, want bafyreicid", profile.PinnedPost.CID)
+	}
+}
+
 func TestClient_GetPostThread(t *testing.T) {
 	t.Parallel()
 

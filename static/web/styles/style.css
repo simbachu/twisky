@@ -137,6 +137,13 @@ main {
   max-height: 6em;
 }
 
+.profile-pinned-label {
+  font-size: 0.85em;
+  color: dimgrey;
+  margin: 0 0 0.25rem;
+  margin-inline-start: var(--post-indent);
+}
+
 .post {
   border: var(--post-border);
 
