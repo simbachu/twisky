@@ -10,6 +10,8 @@
   /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
   --post-byline-avatar-margin: 0.5rem;
   --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
+
+  --post-border: grey 1px solid;
 }
 
 time {
@@ -136,7 +138,7 @@ main {
 }
 
 .post {
-  border: grey 1px solid;
+  border: var(--post-border);
 
   /* children that are not header */
   & > :not(header) {
@@ -421,6 +423,23 @@ main {
   }
 }
 
+#feed-list {
+  border: var(--post-border);
+
+  > .feed-item {
+    border-block-end: var(--post-border);
+
+    &:has(+ .feed-sentinel),
+    &:last-child {
+      border-block-end: none;
+    }
+
+    > div > .post:not(.inset-post) {
+      border: none;
+    }
+  }
+}
+
 .feed-item {
   position: relative;
 
@@ -479,7 +498,17 @@ main {
   margin-block-end: 0.5rem;
   margin-inline-start: var(--post-indent);
   padding-inline-start: 1rem;
+  border: var(--post-border);
+  border-block-end: none;
   border-inline-start: 1px solid lightgrey;
+
+  .post {
+    border: none;
+  }
+}
+
+.post-page-ancestors + .post.post-page {
+  border-block-start: none;
 }
 
 .post-replies {
@@ -487,6 +516,10 @@ main {
   margin-inline-start: var(--post-indent);
   padding-inline-start: 1rem;
   border-inline-start: 1px solid lightgrey;
+
+  .post:not(.inset-post) {
+    border: none;
+  }
 
   .post-replies {
     margin-block-start: 0.75rem;
