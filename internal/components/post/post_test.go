@@ -80,6 +80,40 @@ func TestPost_OmitsTimestampWhenMissing(t *testing.T) {
 	}
 }
 
+func TestPost_RendersActionPillGroups(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		ReplyCount:   2,
+		RepostCount:  3,
+		LikeCount:    5,
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`aria-label="Engagement actions"`,
+		`aria-label="Reply, 2"`,
+		`aria-label="Repost, 3"`,
+		`aria-label="Like, 5"`,
+		`aria-label="Bookmark"`,
+		`aria-label="Share"`,
+		`aria-label="More options"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Count(html, `role="group"`) != 4 {
+		t.Fatalf("html has %d role=group, want 4", strings.Count(html, `role="group"`))
+	}
+}
+
 func TestPost_RendersImageCountClass(t *testing.T) {
 	t.Parallel()
 

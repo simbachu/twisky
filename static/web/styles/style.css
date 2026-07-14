@@ -2,6 +2,14 @@
 :root {
   --content-width: 50rem;
   --content-padding-inline: 1rem;
+
+
+  --post-indent: 3rem; /* margin-inline-start for non-header in posts */
+  
+  /* post byline avatar */
+  /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
+  --post-byline-avatar-margin: 0.5rem;
+  --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
 }
 
 time {
@@ -45,13 +53,6 @@ nav ul {
       &:hover {
         background-color: rgba(0, 0, 0, 0.02);
       }
-    }
-  }
-
-  li {
-    button {
-      min-width: 3rem;
-      margin-inline-end: 1rem;
     }
   }
 }
@@ -124,9 +125,8 @@ main {
   }
 
   .byline-avatar img {
-    max-height: 3em;
-    transform: scale(1.2);
-    margin: 0.5em;
+    max-width: var(--post-byline-avatar-max-width);
+    margin: var(--post-byline-avatar-margin);
   }
 }
 
@@ -136,9 +136,12 @@ main {
 }
 
 .post {
-  --post-indent: 2rem;
-
   border: grey 1px solid;
+
+  /* children that are not header */
+  & > :not(header) {
+    margin-inline-start: var(--post-indent);
+  }
 
   & > header {
     margin-block-end: 0.5rem;
@@ -147,7 +150,6 @@ main {
       font-size: 0.85em;
       color: dimgrey;
       margin: 0 0 0.15rem;
-      margin-inline-start: var(--post-indent);
 
       a {
         color: dimgrey;
@@ -368,6 +370,50 @@ main {
   details .post-video,
   details .post-link-preview {
     margin-top: 0.75rem;
+  }
+
+  & > footer {
+    margin-block-end: 0.5rem;
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+
+      ul {
+        display: inline-flex;
+        align-items: stretch;
+        border-radius: 999rem;
+        background-color: rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+
+        li {
+          display: flex;
+
+          &:not(:last-child) {
+            border-inline-end: 1px solid rgba(0, 0, 0, 0.1);
+          }
+        }
+      }
+    }
+
+    & button {
+      border: none;
+      background-color: transparent;
+      min-width: 3rem;
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+
+      & span {
+        margin-inline: 0.5rem;
+        color: dimgrey;
+      }
+
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    }
   }
 
   &:hover {

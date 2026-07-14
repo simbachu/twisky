@@ -26,18 +26,38 @@ func PostArticle(view feedquery.PostView, now time.Time, class string, extra ...
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
-		Footer(
-			Nav(
-				Ul(
-					Li(ui.ActionButton(ui.IconReply, "Reply", view.ReplyCount)),
-					Li(ui.ActionButton(ui.IconRepost, "Repost", view.RepostCount)),
-					Li(ui.ActionButton(ui.IconLike, "Like", view.LikeCount)),
-				),
-			),
-		),
+		postFooter(view),
 	}
 	children = append(children, extra...)
 	return Article(g.Attr("class", class), g.Attr("id", "post-"+url.PathEscape(view.ID)), g.Group(children))
+}
+
+func postFooter(view feedquery.PostView) g.Node {
+	return Footer(
+		Nav(
+			g.Attr("aria-label", "Post actions"),
+			actionGroup("Engagement actions",
+				ui.ActionButton(ui.IconReply, "Reply", view.ReplyCount),
+				ui.ActionButton(ui.IconRepost, "Repost", view.RepostCount),
+				ui.ActionButton(ui.IconLike, "Like", view.LikeCount),
+			),
+			actionGroup("Bookmark", ui.ActionButton(ui.IconBookmark, "Bookmark", 0)),
+			actionGroup("Share", ui.ActionButton(ui.IconShare, "Share", 0)),
+			actionGroup("More options", ui.ActionButton(ui.IconMore, "More options", 0)),
+		),
+	)
+}
+
+func actionGroup(label string, buttons ...g.Node) g.Node {
+	items := make([]g.Node, len(buttons))
+	for i, btn := range buttons {
+		items[i] = Li(btn)
+	}
+	return Ul(
+		g.Attr("aria-label", label),
+		g.Attr("role", "group"),
+		g.Group(items),
+	)
 }
 
 func quotedInset(maybe *feedquery.PostView, now time.Time) g.Node {
