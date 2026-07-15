@@ -13,6 +13,8 @@ const (
 	IconShare    IconName = "share"
 	IconBookmark IconName = "bookmark"
 	IconMore     IconName = "more"
+	IconFollow   IconName = "follow"
+	IconSearch   IconName = "search"
 )
 
 var iconGlyphs = map[IconName]string{
@@ -22,6 +24,8 @@ var iconGlyphs = map[IconName]string{
 	IconShare:    "↗",
 	IconBookmark: "🔖",
 	IconMore:     "⋯",
+	IconFollow:   "Follow",
+	IconSearch:   "🔍",
 }
 
 // Icon renders an icon by name. Emoji placeholder.

@@ -8,19 +8,21 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// FormatFuzzyNumber abbreviates large counts with K or M suffixes.
-// Currently threshold is 10K.
+const (
+	fuzzyNumberKThreshold = 10_000
+	fuzzyNumberMThreshold = 1_000_000
+)
+
+// FormatFuzzyNumber abbreviates large counts: exact below 10K, then K (thousands), then M (millions).
 func FormatFuzzyNumber(n int) string {
-	suffix := ""
-	value := n
-	if n >= 1_000_000 {
-		value = n / 1_000_000
-		suffix = "M"
-	} else if n >= 1_0000 {
-		value = n / 1_0000
-		suffix = "K"
+	switch {
+	case n >= fuzzyNumberMThreshold:
+		return fmt.Sprintf("%dM", n/fuzzyNumberMThreshold)
+	case n >= fuzzyNumberKThreshold:
+		return fmt.Sprintf("%dK", n/1_000)
+	default:
+		return strconv.Itoa(n)
 	}
-	return fmt.Sprintf("%d%s", value, suffix)
 }
 
 // FuzzyNumber renders an abbreviated count, with the exact value in title.

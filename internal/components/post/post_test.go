@@ -43,6 +43,9 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 	if strings.Count(html, `role="group"`) != 4 {
 		t.Fatalf("html has %d role=group, want 4", strings.Count(html, `role="group"`))
 	}
+	if strings.Count(html, `class="iface-segmented"`) != 4 {
+		t.Fatalf("html has %d iface-segmented, want 4", strings.Count(html, `class="iface-segmented"`))
+	}
 }
 
 func TestPost_RendersImageCountClass(t *testing.T) {

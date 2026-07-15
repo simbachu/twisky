@@ -15,11 +15,12 @@ func TestFormatFuzzyNumber(t *testing.T) {
 		want  string
 	}{
 		{name: "zero", input: 0, want: "0"},
-		{name: "under thousand", input: 999, want: "999"},
-		{name: "exactly thousand", input: 1000, want: "1000"},
-		{name: "over thousand", input: 1500, want: "1K"},
-		{name: "exactly million", input: 1_000_000, want: "1000K"},
-		{name: "over million", input: 34_102_326, want: "34M"},
+		{name: "below 10K threshold", input: 9_999, want: "9999"},
+		{name: "at 10K threshold", input: 10_000, want: "10K"},
+		{name: "K suffix uses thousands", input: 15_000, want: "15K"},
+		{name: "just below 1M", input: 999_999, want: "999K"},
+		{name: "at 1M threshold", input: 1_000_000, want: "1M"},
+		{name: "M suffix uses millions", input: 34_102_326, want: "34M"},
 	}
 
 	for _, tc := range tests {

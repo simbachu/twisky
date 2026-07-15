@@ -14,6 +14,7 @@ import (
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
 	"github.com/simbachu/twisky/internal/query/profile"
+	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
 )
 
@@ -31,7 +32,7 @@ func main() {
 		post.NewHandler(blueskyClient, prefs),
 	)
 
-	server := twiskyhttp.NewServer(queries)
+	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil))
 
 	addr := envOr("TWISKY_ADDR", ":8080")
 	log.Printf("listening on %s", addr)

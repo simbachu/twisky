@@ -36,27 +36,15 @@ func postFooter(view feedquery.PostView) g.Node {
 	return Footer(
 		Nav(
 			g.Attr("aria-label", "Post actions"),
-			actionGroup("Engagement actions",
-				ui.ActionButton(ui.IconReply, "Reply", view.ReplyCount),
-				ui.ActionButton(ui.IconRepost, "Repost", view.RepostCount),
-				ui.ActionButton(ui.IconLike, "Like", view.LikeCount),
+			ui.SegmentedGroup("Engagement actions",
+				ui.PostEngagement(ui.IconReply, "Reply", view.ReplyCount),
+				ui.PostEngagement(ui.IconRepost, "Repost", view.RepostCount),
+				ui.PostEngagement(ui.IconLike, "Like", view.LikeCount),
 			),
-			actionGroup("Bookmark", ui.ActionButton(ui.IconBookmark, "Bookmark", 0)),
-			actionGroup("Share", ui.ActionButton(ui.IconShare, "Share", 0)),
-			actionGroup("More options", ui.ActionButton(ui.IconMore, "More options", 0)),
+			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
+			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
+			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
 		),
-	)
-}
-
-func actionGroup(label string, buttons ...g.Node) g.Node {
-	items := make([]g.Node, len(buttons))
-	for i, btn := range buttons {
-		items[i] = Li(btn)
-	}
-	return Ul(
-		g.Attr("aria-label", label),
-		g.Attr("role", "group"),
-		g.Group(items),
 	)
 }
 

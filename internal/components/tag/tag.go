@@ -6,12 +6,13 @@ import (
 
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	"github.com/simbachu/twisky/internal/components/page"
+	"github.com/simbachu/twisky/internal/components/ui"
 	tagquery "github.com/simbachu/twisky/internal/query/tag"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-func Tag(view tagquery.TagView, now time.Time) g.Node {
+func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo) g.Node {
 	title := "#" + view.Tag
 	feedURL := "/tagged/" + url.PathEscape(view.Tag)
 
@@ -28,6 +29,7 @@ func Tag(view tagquery.TagView, now time.Time) g.Node {
 	return page.Page(
 		"Viewing tag: "+title,
 		"Viewing posts tagged with "+title,
+		suggested,
 		children...,
 	)
 }

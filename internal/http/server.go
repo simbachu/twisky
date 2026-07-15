@@ -14,21 +14,43 @@ import (
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
+	"github.com/simbachu/twisky/internal/components/ui"
 	"github.com/simbachu/twisky/internal/intent"
 	"github.com/simbachu/twisky/internal/query"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/query/profile"
+	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
 	"github.com/simbachu/twisky/internal/response"
 	"github.com/simbachu/twisky/static"
 )
 
 type Server struct {
-	queries *query.Dispatcher
+	queries     *query.Dispatcher
+	suggestions *suggestions.Handler
 }
 
-func NewServer(queries *query.Dispatcher) *Server {
-	return &Server{queries: queries}
+func NewServer(queries *query.Dispatcher, suggestionsHandler *suggestions.Handler) *Server {
+	return &Server{queries: queries, suggestions: suggestionsHandler}
+}
+
+func (s *Server) suggestedAccounts(ctx context.Context) []ui.AuthorInfo {
+	if s.suggestions == nil {
+		return nil
+	}
+	accounts := s.suggestions.SuggestedAccounts(ctx)
+	if len(accounts) == 0 {
+		return nil
+	}
+	authors := make([]ui.AuthorInfo, len(accounts))
+	for i, account := range accounts {
+		authors[i] = ui.AuthorInfo{
+			Handle:      account.Handle,
+			DisplayName: account.DisplayName,
+			Avatar:      account.Avatar,
+		}
+	}
+	return authors
 }
 
 func (s *Server) Handler() http.Handler {
@@ -67,7 +89,7 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tagpage.Tag(v, time.Now().UTC()).Render(w)
+		_ = tagpage.Tag(v, time.Now().UTC(), s.suggestedAccounts(r.Context())).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:
@@ -95,7 +117,7 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_ = profilepage.Profile(v, time.Now().UTC()).Render(w)
+			_ = profilepage.Profile(v, time.Now().UTC(), s.suggestedAccounts(r.Context())).Render(w)
 		case response.ErrorResponse:
 			http.Error(w, v.Message, v.Status)
 		default:
@@ -128,7 +150,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			_ = postpage.PostPageAncestors(v, time.Now().UTC()).Render(w)
 			return
 		}
-		_ = postpage.PostPage(v, time.Now().UTC()).Render(w)
+		_ = postpage.PostPage(v, time.Now().UTC(), s.suggestedAccounts(r.Context())).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:

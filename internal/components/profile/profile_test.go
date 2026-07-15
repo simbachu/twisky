@@ -26,7 +26,7 @@ func TestProfile_RendersPinnedPost(t *testing.T) {
 			CreatedAt:         time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
 		},
 		Tab: profilequery.TabPosts,
-	}, time.Date(2026, 1, 15, 13, 0, 0, 0, time.UTC)).Render(&buf); err != nil {
+	}, time.Date(2026, 1, 15, 13, 0, 0, 0, time.UTC), nil).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -55,7 +55,7 @@ func TestProfile_OmitsPinnedPostWhenNil(t *testing.T) {
 		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

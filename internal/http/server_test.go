@@ -13,19 +13,20 @@ import (
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
 	"github.com/simbachu/twisky/internal/query/profile"
+	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
 )
 
 type stubReader struct {
-	profile     *bluesky.Profile
-	feed        *bluesky.AuthorFeedResponse
-	searchResp  *bluesky.SearchPostsResponse
-	thread      bluesky.ThreadNode
-	profiles    []bluesky.Profile
-	err         error
-	feedErr     error
-	searchErr   error
-	threadErr   error
+	profile    *bluesky.Profile
+	feed       *bluesky.AuthorFeedResponse
+	searchResp *bluesky.SearchPostsResponse
+	thread     bluesky.ThreadNode
+	profiles   []bluesky.Profile
+	err        error
+	feedErr    error
+	searchErr  error
+	threadErr  error
 }
 
 func (s stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
@@ -67,7 +68,7 @@ func newTestServer(reader stubReader) http.Handler {
 		tag.NewHandler(reader, nil),
 		post.NewHandler(reader, nil),
 	)
-	return twiskyhttp.NewServer(queries).Handler()
+	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil)).Handler()
 }
 
 func TestHandleSlug_OK(t *testing.T) {

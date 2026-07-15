@@ -22,7 +22,7 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 			Text:              "linked post",
 		},
 		HasAncestors: true,
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestPostPage_OmitsAncestorsWithoutThreadContext(t *testing.T) {
 			AuthorHandle:      "bsky.app",
 			AuthorDisplayName: "Bluesky",
 		},
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -172,7 +172,7 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 				},
 			},
 		},
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

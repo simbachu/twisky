@@ -3,6 +3,7 @@ package page
 import (
 	"fmt"
 
+	"github.com/simbachu/twisky/internal/components/ui"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -27,25 +28,44 @@ func externalLink(label, href string) g.Node {
 	)
 }
 
-func ProtocolAttribution() g.Node {
+func protocolAttribution() g.Node {
 	return P(
-		g.Text("Implements the "),
-		externalLink("ATProto protocol", ATProtoRepoURL),
-		g.Text(" and the "),
-		externalLink("Bluesky API", BlueskyAPIRepoURL),
-		g.Text(" by "),
-		externalLink("@bluesky.social", BlueskySocialURL),
+		Small(
+			g.Text("Implements the "),
+			externalLink("ATProto protocol", ATProtoRepoURL),
+			g.Text(" and the "),
+			externalLink("Bluesky API", BlueskyAPIRepoURL),
+			g.Text(" by "),
+			externalLink("@bluesky.social", BlueskySocialURL),
+		),
 	)
 }
 
-func VersionInfo() g.Node {
+func versionInfo() g.Node {
 	return P(
 		externalLink(AppName, TwiskyRepoURL),
 		g.Text(fmt.Sprintf(" Version: %s", Version)),
 	)
 }
 
-func Page(title string, description string, children ...g.Node) g.Node {
+func pageFooter(suggested []ui.AuthorInfo) g.Node {
+	return Footer(
+		Aside(
+			ui.SearchBar(),
+		),
+		Aside(
+			Header(H3(g.Text("You might like:"))),
+			ui.AccountList(suggested),
+		),
+		Aside(
+			protocolAttribution(),
+			versionInfo(),
+			P(g.Text(fmt.Sprintf("© %d %s", AppCopyrightYear, AppName))),
+		),
+	)
+}
+
+func Page(title string, description string, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 	return HTML(
 		Doctype(
 			Head(
@@ -85,13 +105,7 @@ func Page(title string, description string, children ...g.Node) g.Node {
 				H1(g.Text(AppName)),
 			),
 			Main(children...),
-			Footer(
-				Section(
-					ProtocolAttribution(),
-					VersionInfo(),
-					P(g.Text(fmt.Sprintf("© %d %s", AppCopyrightYear, AppName))),
-				),
-			),
+			pageFooter(suggested),
 		),
 	)
 }

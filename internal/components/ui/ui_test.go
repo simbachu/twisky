@@ -12,7 +12,7 @@ func TestActionButton_OmitsCountWhenZero(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.ActionButton(ui.IconReply, "Replies", 0).Render(&buf); err != nil {
+	if err := ui.ActionButton(ui.PostEngagement(ui.IconReply, "Replies", 0)).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -35,7 +35,7 @@ func TestActionButton_OmitsCountWhenNegative(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.ActionButton(ui.IconShare, "Share", -1).Render(&buf); err != nil {
+	if err := ui.ActionButton(ui.PostEngagement(ui.IconShare, "Share", -1)).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -52,7 +52,7 @@ func TestActionButton_RendersCountWhenPositive(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.ActionButton(ui.IconLike, "Likes", 42).Render(&buf); err != nil {
+	if err := ui.ActionButton(ui.PostEngagement(ui.IconLike, "Likes", 42)).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -62,5 +62,40 @@ func TestActionButton_RendersCountWhenPositive(t *testing.T) {
 	}
 	if !strings.Contains(html, `<span aria-hidden="true">42</span>`) {
 		t.Fatalf("html = %q, want visually hidden count span", html)
+	}
+}
+
+func TestActionButton_RendersDisabled(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	cfg := ui.PostEngagement(ui.IconLike, "Like", 0)
+	cfg.Disabled = true
+	if err := ui.ActionButton(cfg).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `disabled`) {
+		t.Fatalf("html = %q, want disabled attribute", html)
+	}
+	if !strings.Contains(html, `aria-disabled="true"`) {
+		t.Fatalf("html = %q, want aria-disabled", html)
+	}
+}
+
+func TestActionButton_RendersHasPopup(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	cfg := ui.PostEngagement(ui.IconMore, "More options", 0)
+	cfg.HasPopup = true
+	if err := ui.ActionButton(cfg).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `aria-haspopup="true"`) {
+		t.Fatalf("html = %q, want aria-haspopup", html)
 	}
 }

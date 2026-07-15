@@ -12,6 +12,11 @@
   --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
 
   --post-border: grey 1px solid;
+
+  --iface-radius: 999rem;
+  --iface-bg: rgba(0, 0, 0, 0.06);
+  --iface-divider: rgba(0, 0, 0, 0.1);
+  --iface-hover-bg: rgba(0, 0, 0, 0.05);
 }
 
 time {
@@ -103,6 +108,21 @@ main {
   display: block;
 }
 
+.author-name {
+  color: black;
+  font-size: 1.2em;
+  font-weight: bolder;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.author-handle {
+  font-size: 0.9em;
+  font-weight: lighter;
+}
+
 .byline {
   display: flex;
   align-items: center;
@@ -115,17 +135,6 @@ main {
     text-decoration: none;
   }
   
-  .author-name {
-    color: black;
-    font-size: 1.2em;
-    font-weight: bolder;
-  }
-  
-  .author-handle {
-    font-size: 0.9em;
-    font-weight: lighter;
-  }
-
   .byline-avatar img {
     max-width: var(--post-byline-avatar-max-width);
     margin: var(--post-byline-avatar-margin);
@@ -135,6 +144,145 @@ main {
 .profile-header .byline-avatar img {
   z-index: 99;
   max-height: 6em;
+}
+
+.iface-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--iface-radius);
+  background-color: var(--iface-bg);
+  overflow: hidden;
+
+  > li {
+    display: flex;
+
+    &:not(:last-child) {
+      border-inline-end: 1px solid var(--iface-divider);
+    }
+  }
+
+  button {
+    border: none;
+    background-color: transparent;
+    min-width: 3rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+
+    span {
+      margin-inline: 0.5rem;
+      color: dimgrey;
+    }
+
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      span {
+        color: black;
+      }
+      background-color: var(--iface-hover-bg);
+    }
+  }
+}
+
+nav ul.iface-segmented {
+  display: inline-flex;
+}
+
+.iface-pill {
+  border: none;
+  border-radius: var(--iface-radius);
+  background-color: var(--iface-bg);
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85em;
+  cursor: pointer;
+
+  &:hover:not(:disabled):not([aria-disabled="true"]) {
+    background-color: var(--iface-hover-bg);
+  }
+}
+
+.iface-joined {
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--iface-radius);
+  background-color: var(--iface-bg);
+  overflow: hidden;
+
+  &:focus-within {
+    outline: 2px solid black;
+    outline-offset: 2px;
+  }
+
+  input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  button {
+    border: none;
+    border-inline-start: 1px solid var(--iface-divider);
+    background-color: transparent;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: var(--iface-hover-bg);
+    }
+  }
+}
+
+body > footer aside .iface-joined {
+  margin-inline: 0.75rem;
+}
+
+.account-list {
+  ul {
+    display: flex;
+    flex-direction: column;
+
+    .account-list-item {
+      padding: 0.5em 0.75em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    }
+  }
+}
+
+.mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  color: dimgrey;
+  text-decoration: none;
+  font-size: 0.9em;
+
+  .byline-avatar img {
+    max-width: 2.5rem;
+    max-height: 2.5rem;
+  }
+}
+
+.mini-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
 }
 
 .profile-pinned-label {
@@ -389,39 +537,6 @@ main {
       flex-wrap: wrap;
       gap: 0.5rem;
       align-items: center;
-
-      ul {
-        display: inline-flex;
-        align-items: stretch;
-        border-radius: 999rem;
-        background-color: rgba(0, 0, 0, 0.06);
-        overflow: hidden;
-
-        li {
-          display: flex;
-
-          &:not(:last-child) {
-            border-inline-end: 1px solid rgba(0, 0, 0, 0.1);
-          }
-        }
-      }
-    }
-
-    & button {
-      border: none;
-      background-color: transparent;
-      min-width: 3rem;
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-
-      & span {
-        margin-inline: 0.5rem;
-        color: dimgrey;
-      }
-
-      &:hover:not(:disabled):not([aria-disabled="true"]) {
-        background-color: rgba(0, 0, 0, 0.05);
-      }
     }
   }
 

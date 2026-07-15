@@ -5,15 +5,17 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/components/page"
+	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-func PostPage(view feedquery.PostPageView, now time.Time) g.Node {
+func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo) g.Node {
 	return page.Page(
 		"Post by "+view.Post.AuthorDisplayName,
 		"Viewing a post by "+view.Post.AuthorDisplayName,
+		suggested,
 		g.Group{
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
 			postPageRoot(view.Post, view.Replies, now),
