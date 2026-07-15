@@ -34,7 +34,7 @@ func TestProfile_RendersPinnedPost(t *testing.T) {
 	for _, want := range []string{
 		`class="profile-pinned"`,
 		`class="profile-pinned-label"`,
-		`class="feed-item"`,
+		`class="clickable-inset"`,
 		`Pinned`,
 		`class="post inset-post"`,
 		`pinned hello`,

@@ -122,14 +122,17 @@ func TestPost_RendersQuotedPostInset(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="post inset-post"`) {
-		t.Fatalf("html = %q, want post inset-post class", html)
-	}
-	if !strings.Contains(html, "original post") {
-		t.Fatalf("html = %q, want quoted post text", html)
-	}
-	if !strings.Contains(html, "my take") {
-		t.Fatalf("html = %q, want main post text", html)
+	for _, want := range []string{
+		`class="clickable-inset"`,
+		`href="/quoted.example/post/quoted"`,
+		`aria-label="View quoted post"`,
+		`class="post inset-post"`,
+		"original post",
+		"my take",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 

@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"net/url"
 	"time"
 
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
@@ -76,17 +75,9 @@ func maybePinnedPost(maybe *feedquery.PostView, now time.Time) g.Node {
 }
 
 func pinnedPost(view feedquery.PostView, now time.Time) g.Node {
-	href := "/" + view.AuthorHandle + "/post/" + url.PathEscape(view.ID)
 	return Section(
 		g.Attr("class", "profile-pinned"),
 		P(g.Attr("class", "profile-pinned-label"), g.Text("Pinned")),
-		Div(
-			g.Attr("class", "feed-item"),
-			A(
-				g.Attr("href", href),
-				g.Attr("aria-label", "View post"),
-			),
-			Div(postcomponent.InsetPost(&view, now)),
-		),
+		postcomponent.ClickableInset(&view, now, "View post"),
 	)
 }

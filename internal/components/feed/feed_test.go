@@ -159,3 +159,37 @@ func TestFeedItems_OmitsFilteredPosts(t *testing.T) {
 		t.Fatalf("html = %q, want one feed item", html)
 	}
 }
+
+func TestFeedItems_QuotedPostLinksToQuotedPost(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:           "quoted",
+		AuthorHandle: "quoted.example",
+		Text:         "original post",
+	}
+	var buf bytes.Buffer
+	if err := feed.FeedItems(feedquery.FeedView{
+		Posts: []feedquery.PostView{{
+			ID:              "qrt",
+			AuthorHandle:    "dev.example",
+			Text:            "my take",
+			QuotedPostMaybe: &quoted,
+		}},
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="feed-item"`,
+		`href="/dev.example/post/qrt"`,
+		`class="clickable-inset"`,
+		`href="/quoted.example/post/quoted"`,
+		`aria-label="View quoted post"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}

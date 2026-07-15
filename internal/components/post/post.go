@@ -52,7 +52,23 @@ func quotedInset(maybe *feedquery.PostView, now time.Time) g.Node {
 	if maybe == nil {
 		return nil
 	}
-	return InsetPost(maybe, now)
+	return ClickableInset(maybe, now, "View quoted post")
+}
+
+// ClickableInset wraps an inset post with an overlay link to the post page.
+func ClickableInset(view *feedquery.PostView, now time.Time, ariaLabel string) g.Node {
+	if view == nil || view.Moderation.Filtered {
+		return nil
+	}
+	href := "/" + view.AuthorHandle + "/post/" + url.PathEscape(view.ID)
+	return Div(
+		g.Attr("class", "clickable-inset"),
+		A(
+			g.Attr("href", href),
+			g.Attr("aria-label", ariaLabel),
+		),
+		Div(InsetPost(view, now)),
+	)
 }
 
 // Condensed post view with Author, Icon, Text and images

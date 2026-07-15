@@ -540,7 +540,7 @@ body > footer aside .iface-joined {
     }
   }
 
-  &:hover {
+  &:not(.post-page):hover {
     background-color: rgba(0, 0, 0, 0.05);
   }
 }
@@ -559,15 +559,16 @@ body > footer aside .iface-joined {
     > div > .post:not(.inset-post) {
       border: none;
     }
+
+    &:hover .post {
+      background-color: transparent;
+    }
   }
 }
 
-.feed-item {
+.feed-item,
+.clickable-inset {
   position: relative;
-
-  &:hover .post {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
 
   > a {
     position: absolute;
@@ -586,6 +587,21 @@ body > footer aside .iface-joined {
       pointer-events: auto;
     }
   }
+}
+
+/* Nested quote overlays: beat .feed-item > div a { position: relative } */
+.feed-item .clickable-inset {
+  pointer-events: auto;
+}
+
+.feed-item .clickable-inset > a {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.feed-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .feed-sentinel {
