@@ -15,6 +15,7 @@ import (
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
+	"github.com/simbachu/twisky/internal/version"
 )
 
 type stubReader struct {
@@ -69,6 +70,26 @@ func newTestServer(reader stubReader) http.Handler {
 		post.NewHandler(reader, nil),
 	)
 	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil)).Handler()
+}
+
+func TestHandleHealthz_OK(t *testing.T) {
+	t.Parallel()
+
+	prev := version.BuildID
+	t.Cleanup(func() { version.BuildID = prev })
+	version.BuildID = "9c8a405abcdef"
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	newTestServer(stubReader{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if body != "ok 9c8a405" {
+		t.Fatalf("body = %q, want %q", body, "ok 9c8a405")
+	}
 }
 
 func TestHandleSlug_OK(t *testing.T) {

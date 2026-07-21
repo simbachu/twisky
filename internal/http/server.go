@@ -22,6 +22,7 @@ import (
 	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
 	"github.com/simbachu/twisky/internal/response"
+	"github.com/simbachu/twisky/internal/version"
 	"github.com/simbachu/twisky/static"
 )
 
@@ -61,11 +62,17 @@ func (s *Server) Handler() http.Handler {
 
 	r := chi.NewRouter()
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
+	r.Get("/healthz", s.handleHealthz)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
 	r.Get("/{slug}", s.handleProfile(intent.ProfileTabPosts))
 	return r
+}
+
+func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = fmt.Fprintf(w, "ok %s", version.ShortID())
 }
 
 func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {

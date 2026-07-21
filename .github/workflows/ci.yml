@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+  deploy:
+    name: Build image and deploy to VPS
+    needs: [test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    environment: twisky_staging
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/twisky/server:main
+            ghcr.io/${{ github.repository_owner }}/twisky/server:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy on VPS
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PUBLIC_BASE_URL: ${{ vars.DEPLOY_PUBLIC_BASE_URL }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          # The ephemeral GITHUB_TOKEN cannot pull this private package from the VPS
+          # (it is not auto-linked to the repo). Use a dedicated read:packages PAT.
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DEPLOY_HOST}" || -z "${DEPLOY_USER}" ]]; then
+            echo "Set environment variables DEPLOY_HOST and DEPLOY_USER in twisky_staging." >&2
+            exit 1
+          fi
+
+          if [[ -z "${DEPLOY_PUBLIC_BASE_URL}" ]]; then
+            echo "Set environment variable DEPLOY_PUBLIC_BASE_URL in twisky_staging." >&2
+            exit 1
+          fi
+
+          if [[ -z "${SSH_PRIVATE_KEY}" || -z "${SSH_KNOWN_HOSTS}" ]]; then
+            echo "Set environment secrets DEPLOY_SSH_PRIVATE_KEY and DEPLOY_SSH_KNOWN_HOSTS in twisky_staging." >&2
+            exit 1
+          fi
+
+          if [[ -z "${GHCR_TOKEN}" ]]; then
+            echo "Set repository secret GHCR_PULL_TOKEN (a read:packages PAT)." >&2
+            exit 1
+          fi
+
+          install -m 700 -d "${HOME}/.ssh"
+          echo "${SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          chmod 600 "${HOME}/.ssh/deploy_key"
+          echo "${SSH_KNOWN_HOSTS}" >> "${HOME}/.ssh/known_hosts"
+          chmod 644 "${HOME}/.ssh/known_hosts"
+
+          ssh_target="${DEPLOY_USER}@${DEPLOY_HOST}"
+          ssh_opts=(
+            -i "${HOME}/.ssh/deploy_key"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+          )
+
+          ssh "${ssh_opts[@]}" "${ssh_target}" "test -d /opt/twisky && test -w /opt/twisky" || {
+            echo "/opt/twisky is missing or not writable by ${DEPLOY_USER}." >&2
+            echo "On the VPS as root: sudo mkdir -p /opt/twisky && sudo chown ${DEPLOY_USER}:${DEPLOY_USER} /opt/twisky" >&2
+            exit 1
+          }
+
+          scp "${ssh_opts[@]}" \
+            docker/docker-compose.deploy.yml \
+            "${ssh_target}:/opt/twisky/docker-compose.deploy.yml"
+          scp "${ssh_opts[@]}" \
+            scripts/vps-deploy.sh \
+            "${ssh_target}:/opt/twisky/vps-deploy.sh"
+          ssh "${ssh_opts[@]}" "${ssh_target}" "chmod +x /opt/twisky/vps-deploy.sh"
+
+          # Do not pass GHCR_TOKEN on the ssh command line: shell quoting can corrupt
+          # PAT characters before they reach the VPS. Base64 survives remote sh -c.
+          ghcr_token_b64="$(printf '%s' "${GHCR_TOKEN}" | base64 -w 0)"
+          ghcr_user_q="$(printf '%q' "${GHCR_USER}")"
+          deploy_public_base_url_q="$(printf '%q' "${DEPLOY_PUBLIC_BASE_URL}")"
+          ssh "${ssh_opts[@]}" "${ssh_target}" \
+            "GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d) GHCR_USER=${ghcr_user_q} DEPLOY_PUBLIC_BASE_URL=${deploy_public_base_url_q} bash /opt/twisky/vps-deploy.sh"
+
+      - name: Verify public /healthz serves this commit
+        env:
+          DEPLOY_PUBLIC_BASE_URL: ${{ vars.DEPLOY_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          base_url="${DEPLOY_PUBLIC_BASE_URL}"
+          base_url="${base_url%/}"
+          # healthz returns "ok <first 7 chars of the build id>"; the image is
+          # built with GIT_SHA=${{ github.sha }}, so this confirms the new build
+          # is the one actually serving public traffic through the shared edge.
+          expected="${GITHUB_SHA:0:7}"
+          echo "Probing ${base_url}/healthz for build ${expected}"
+          for attempt in $(seq 1 30); do
+            body="$(curl -fsS --max-time 5 "${base_url}/healthz" || true)"
+            if [[ "${body}" == *"${expected}"* ]]; then
+              echo "Public /healthz reports build ${expected}: ${body}"
+              exit 0
+            fi
+            echo "Attempt ${attempt}: got '${body:-<no response>}', retrying in 4s..."
+            sleep 4
+          done
+          echo "Public /healthz did not report build ${expected} within timeout" >&2
+          exit 1
