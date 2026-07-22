@@ -222,7 +222,7 @@ func TestPostPage_RendersSocialMetaFromPostText(t *testing.T) {
 
 	html := buf.String()
 	for _, want := range []string{
-		`property="og:title" content="hello from the feed"`,
+		`property="og:title" content="Bluesky (@bsky.app)"`,
 		`property="og:description" content="hello from the feed"`,
 		`property="og:type" content="article"`,
 		`property="og:url" content="https://twisky.test/bsky.app/post/abc"`,
@@ -282,7 +282,7 @@ func TestPostPage_UsesModerationFallbackForFilteredPost(t *testing.T) {
 
 	html := buf.String()
 	for _, want := range []string{
-		`property="og:title" content="Post by Bluesky"`,
+		`property="og:title" content="Bluesky (@bsky.app)"`,
 		`property="og:description" content="Post hidden by moderation on Twisky"`,
 	} {
 		if !strings.Contains(html, want) {

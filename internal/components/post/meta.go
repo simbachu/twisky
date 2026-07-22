@@ -10,18 +10,14 @@ import (
 
 func postPageMeta(view feedquery.PostPageView, publicBaseURL string) page.PageMeta {
 	post := view.Post
-	title := page.TruncateDescription(post.Text, 80)
+	byline := postAuthorByline(post)
 	description := page.TruncateDescription(post.Text, 200)
 	largeImageCard := false
 	imageURL := ""
 
 	if post.Moderation.Filtered {
-		title = "Post by " + post.AuthorDisplayName
 		description = "Post hidden by moderation on Twisky"
 	} else {
-		if title == "" {
-			title = "Post by " + post.AuthorDisplayName
-		}
 		if description == "" {
 			description = fmt.Sprintf("Post by %s on Twisky", post.AuthorDisplayName)
 		}
@@ -29,13 +25,17 @@ func postPageMeta(view feedquery.PostPageView, publicBaseURL string) page.PageMe
 	}
 
 	return page.PageMeta{
-		Title:          title,
+		Title:          byline,
 		Description:    description,
 		CanonicalURL:   page.AbsoluteURL(publicBaseURL, "/"+post.AuthorHandle+"/post/"+url.PathEscape(post.ID)),
 		ImageURL:       imageURL,
 		OGType:         "article",
 		LargeImageCard: largeImageCard,
 	}
+}
+
+func postAuthorByline(post feedquery.PostView) string {
+	return fmt.Sprintf("%s (@%s)", post.AuthorDisplayName, post.AuthorHandle)
 }
 
 func postPreviewImage(post feedquery.PostView) (imageURL string, largeImage bool) {
