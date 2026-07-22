@@ -13,7 +13,7 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo) g.Node {
+func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
 	author := ui.AuthorInfo{
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
@@ -45,8 +45,7 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 	children = append(children, feedcomponent.Feed(view.Feed, now, feedURL))
 
 	return page.Page(
-		"Viewing profile: "+view.DisplayName,
-		"Viewing the profile of "+view.DisplayName,
+		profilePageMeta(view, publicBaseURL),
 		suggested,
 		children...,
 	)

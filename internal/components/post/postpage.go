@@ -11,10 +11,9 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo) g.Node {
+func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
 	return page.Page(
-		"Post by "+view.Post.AuthorDisplayName,
-		"Viewing a post by "+view.Post.AuthorDisplayName,
+		postPageMeta(view, publicBaseURL),
 		suggested,
 		g.Group{
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),

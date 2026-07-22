@@ -12,7 +12,7 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo) g.Node {
+func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
 	title := "#" + view.Tag
 	feedURL := "/tagged/" + url.PathEscape(view.Tag)
 
@@ -27,8 +27,7 @@ func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo) g.Node
 	children = append(children, feedcomponent.Feed(view.Feed, now, feedURL))
 
 	return page.Page(
-		"Viewing tag: "+title,
-		"Viewing posts tagged with "+title,
+		tagPageMeta(view, publicBaseURL),
 		suggested,
 		children...,
 	)

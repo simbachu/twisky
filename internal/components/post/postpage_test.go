@@ -22,7 +22,7 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 			Text:              "linked post",
 		},
 		HasAncestors: true,
-	}, time.Now().UTC(), nil).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestPostPage_OmitsAncestorsWithoutThreadContext(t *testing.T) {
 			AuthorHandle:      "bsky.app",
 			AuthorDisplayName: "Bluesky",
 		},
-	}, time.Now().UTC(), nil).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -172,7 +172,7 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 				},
 			},
 		},
-	}, time.Now().UTC(), nil).Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -202,5 +202,94 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 	}
 	if strings.Contains(html, `href="/dev.example/post/reply2"`) {
 		t.Fatalf("html = %q, want no link wrapper around nested reply article", html)
+	}
+}
+
+func TestPostPage_RendersSocialMetaFromPostText(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "bsky.app",
+			AuthorDisplayName: "Bluesky",
+			Text:              "hello from the feed",
+		},
+	}, time.Now().UTC(), nil, "https://twisky.test").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="og:title" content="hello from the feed"`,
+		`property="og:description" content="hello from the feed"`,
+		`property="og:type" content="article"`,
+		`property="og:url" content="https://twisky.test/bsky.app/post/abc"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPostPage_PrefersPostImageOverLinkPreview(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "bsky.app",
+			AuthorDisplayName: "Bluesky",
+			Text:              "with media",
+			Images: []feedquery.ImageView{{
+				Fullsize: "https://cdn.example/post.jpg",
+			}},
+			LinkPreviewMaybe: &feedquery.LinkPreviewView{
+				Thumb: "https://cdn.example/link.jpg",
+			},
+			AuthorAvatar: "https://cdn.example/avatar.jpg",
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `property="og:image" content="https://cdn.example/post.jpg"`) {
+		t.Fatalf("html = %q, want post image in og:image", html)
+	}
+	if !strings.Contains(html, `name="twitter:card" content="summary_large_image"`) {
+		t.Fatalf("html = %q, want summary_large_image twitter card", html)
+	}
+}
+
+func TestPostPage_UsesModerationFallbackForFilteredPost(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "bsky.app",
+			AuthorDisplayName: "Bluesky",
+			Text:              "hidden content",
+			Moderation:        feedquery.ModerationView{Filtered: true},
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="og:title" content="Post by Bluesky"`,
+		`property="og:description" content="Post hidden by moderation on Twisky"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `property="og:image"`) {
+		t.Fatalf("html = %q, want no og:image for filtered post", html)
 	}
 }

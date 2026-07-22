@@ -69,7 +69,7 @@ func newTestServer(reader stubReader) http.Handler {
 		tag.NewHandler(reader, nil),
 		post.NewHandler(reader, nil),
 	)
-	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil)).Handler()
+	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil), "https://twisky.test").Handler()
 }
 
 func TestHandleHealthz_OK(t *testing.T) {
@@ -124,6 +124,12 @@ func TestHandleSlug_OK(t *testing.T) {
 	}
 	if !strings.Contains(body, "hello world") {
 		t.Fatalf("body = %q, want to contain hello world", body)
+	}
+	if !strings.Contains(body, `property="og:title" content="Bluesky (@bsky.app)"`) {
+		t.Fatalf("body = %q, want og:title", body)
+	}
+	if !strings.Contains(body, `property="og:url" content="https://twisky.test/bsky.app"`) {
+		t.Fatalf("body = %q, want og:url", body)
 	}
 }
 

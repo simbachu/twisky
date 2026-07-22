@@ -32,7 +32,7 @@ func main() {
 		post.NewHandler(blueskyClient, prefs),
 	)
 
-	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil))
+	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil), envOr("TWISKY_PUBLIC_BASE_URL", ""))
 
 	addr := envOr("TWISKY_ADDR", ":8080")
 	log.Printf("listening on %s", addr)

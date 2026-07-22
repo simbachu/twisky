@@ -65,40 +65,45 @@ func pageFooter(suggested []ui.AuthorInfo) g.Node {
 	)
 }
 
-func Page(title string, description string, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
+func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
+	headNodes := []g.Node{
+		TitleEl(g.Text(meta.Title)),
+		Meta(
+			g.Attr("name", "description"),
+			g.Attr("content", meta.Description),
+		),
+	}
+	headNodes = append(headNodes, socialMetaNodes(meta)...)
+	headNodes = append(headNodes,
+		Link(
+			g.Attr("rel", "stylesheet"),
+			g.Attr("href", "/static/styles/style.css"),
+		),
+		Script(
+			g.Attr("src", "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"),
+			g.Attr("integrity", "sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"),
+			g.Attr("crossorigin", "anonymous"),
+		),
+		Script(
+			g.Attr("src", "https://cdn.jsdelivr.net/npm/hls.js@1.6.2/dist/hls.min.js"),
+			g.Attr("integrity", "sha384-QHoMEQEjeievZsHu5ejPFm+o1o93XoWIEziW/+oc9LLMGsPNAbp1pN4PHhI/KIzW"),
+			g.Attr("crossorigin", "anonymous"),
+			g.Attr("defer", ""),
+		),
+		Script(g.Attr("src", "/static/scripts/post-video.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/post-page-ancestors.js"), g.Attr("defer", "")),
+		Link(
+			g.Attr("id", "page-favicon"),
+			g.Attr("rel", "icon"),
+			g.Attr("type", "image/png"),
+			g.Attr("href", "/static/icons/favicon.png"),
+		),
+		Script(g.Attr("src", "/static/scripts/favicon-notify.js")),
+	)
+
 	return HTML(
 		Doctype(
-			Head(
-				TitleEl(g.Text(title)),
-				Meta(
-					g.Attr("name", "description"),
-					g.Attr("content", description),
-				),
-				Link(
-					g.Attr("rel", "stylesheet"),
-					g.Attr("href", "/static/styles/style.css"),
-				),
-				Script(
-					g.Attr("src", "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"),
-					g.Attr("integrity", "sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"),
-					g.Attr("crossorigin", "anonymous"),
-				),
-				Script(
-					g.Attr("src", "https://cdn.jsdelivr.net/npm/hls.js@1.6.2/dist/hls.min.js"),
-					g.Attr("integrity", "sha384-QHoMEQEjeievZsHu5ejPFm+o1o93XoWIEziW/+oc9LLMGsPNAbp1pN4PHhI/KIzW"),
-					g.Attr("crossorigin", "anonymous"),
-					g.Attr("defer", ""),
-				),
-				Script(g.Attr("src", "/static/scripts/post-video.js"), g.Attr("defer", "")),
-				Script(g.Attr("src", "/static/scripts/post-page-ancestors.js"), g.Attr("defer", "")),
-				Link(
-					g.Attr("id", "page-favicon"),
-					g.Attr("rel", "icon"),
-					g.Attr("type", "image/png"),
-					g.Attr("href", "/static/icons/favicon.png"),
-				),
-				Script(g.Attr("src", "/static/scripts/favicon-notify.js")),
-			),
+			Head(g.Group(headNodes)),
 		),
 		Body(
 			Header(
