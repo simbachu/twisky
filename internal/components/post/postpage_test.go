@@ -8,6 +8,7 @@ import (
 
 	"github.com/simbachu/twisky/internal/components/post"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
+	"github.com/simbachu/twisky/internal/richtext"
 )
 
 func TestPostPage_RendersAncestorsSlot(t *testing.T) {
@@ -208,13 +209,19 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 func TestPostPage_RendersSocialMetaFromPostText(t *testing.T) {
 	t.Parallel()
 
+	published := time.Date(2026, 7, 22, 10, 30, 0, 0, time.UTC)
 	var buf bytes.Buffer
 	if err := post.PostPage(feedquery.PostPageView{
 		Post: feedquery.PostView{
 			ID:                "abc",
 			AuthorHandle:      "bsky.app",
 			AuthorDisplayName: "Bluesky",
-			Text:              "hello from the feed",
+			Text:              "hello from the feed #bluesky",
+			CreatedAt:         published,
+			TextSegments: []richtext.Segment{
+				{Kind: richtext.Plain, Text: "hello from the feed "},
+				{Kind: richtext.Tag, Text: "#bluesky", Tag: "bluesky"},
+			},
 		},
 	}, time.Now().UTC(), nil, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
@@ -223,9 +230,13 @@ func TestPostPage_RendersSocialMetaFromPostText(t *testing.T) {
 	html := buf.String()
 	for _, want := range []string{
 		`property="og:title" content="Bluesky (@bsky.app)"`,
-		`property="og:description" content="hello from the feed"`,
+		`property="og:description" content="hello from the feed #bluesky"`,
 		`property="og:type" content="article"`,
 		`property="og:url" content="https://twisky.test/bsky.app/post/abc"`,
+		`property="article:published_time" content="2026-07-22T10:30:00Z"`,
+		`property="article:author" content="https://twisky.test/bsky.app"`,
+		`property="article:tag" content="bluesky"`,
+		`name="twitter:creator" content="@bsky.app"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -245,6 +256,9 @@ func TestPostPage_PrefersPostImageOverLinkPreview(t *testing.T) {
 			Text:              "with media",
 			Images: []feedquery.ImageView{{
 				Fullsize: "https://cdn.example/post.jpg",
+				Alt:      "a landscape",
+				Width:    1200,
+				Height:   675,
 			}},
 			LinkPreviewMaybe: &feedquery.LinkPreviewView{
 				Thumb: "https://cdn.example/link.jpg",
@@ -256,11 +270,16 @@ func TestPostPage_PrefersPostImageOverLinkPreview(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `property="og:image" content="https://cdn.example/post.jpg"`) {
-		t.Fatalf("html = %q, want post image in og:image", html)
-	}
-	if !strings.Contains(html, `name="twitter:card" content="summary_large_image"`) {
-		t.Fatalf("html = %q, want summary_large_image twitter card", html)
+	for _, want := range []string{
+		`property="og:image" content="https://cdn.example/post.jpg"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`property="og:image:width" content="1200"`,
+		`property="og:image:height" content="675"`,
+		`property="og:image:alt" content="a landscape"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 
@@ -291,5 +310,154 @@ func TestPostPage_UsesModerationFallbackForFilteredPost(t *testing.T) {
 	}
 	if strings.Contains(html, `property="og:image"`) {
 		t.Fatalf("html = %q, want no og:image for filtered post", html)
+	}
+}
+
+func TestPostPage_RendersReplyContextInSocialMeta(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "alice.example",
+			AuthorDisplayName: "Alice",
+			Text:              "my take on this",
+			ReplyCount:        2,
+		},
+		HasAncestors: true,
+		ReplyParentMaybe: &feedquery.AuthorView{
+			Handle:      "bob.example",
+			DisplayName: "Bob",
+		},
+	}, time.Now().UTC(), nil, "https://twisky.test").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="og:title" content="Reply by Alice (@alice.example)"`,
+		`property="og:description" content="Replying to @bob.example · my take on this · 2 replies"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPostPage_RendersQuoteAndLinkContextInSocialMeta(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:                "quoted",
+		AuthorHandle:      "carol.example",
+		AuthorDisplayName: "Carol",
+		Text:              "hot take",
+	}
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "alice.example",
+			AuthorDisplayName: "Alice",
+			Text:              "short",
+			QuotedPostMaybe:   &quoted,
+			LinkPreviewMaybe: &feedquery.LinkPreviewView{
+				URI:   "https://example.com/article",
+				Title: "Example Site Title",
+			},
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	want := `property="og:description" content="short · Quoting @carol.example: hot take · Example Site Title"`
+	if !strings.Contains(html, want) {
+		t.Fatalf("html = %q, want %s", html, want)
+	}
+}
+
+func TestPostPage_UsesAvatarAsLargeImageCard(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "bsky.app",
+			AuthorDisplayName: "Bluesky",
+			Text:              "text only",
+			AuthorAvatar:      "https://cdn.example/avatar.jpg",
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="og:image" content="https://cdn.example/avatar.jpg"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`property="og:image:alt" content="Bluesky (@bsky.app) on Twisky"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPostPage_UsesQuotedImageWhenNoOwnMedia(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:           "quoted",
+		AuthorHandle: "carol.example",
+		Images: []feedquery.ImageView{{
+			Fullsize: "https://cdn.example/quoted.jpg",
+		}},
+	}
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "alice.example",
+			AuthorDisplayName: "Alice",
+			Text:              "quoting",
+			AuthorAvatar:      "https://cdn.example/avatar.jpg",
+			QuotedPostMaybe:   &quoted,
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `property="og:image" content="https://cdn.example/quoted.jpg"`) {
+		t.Fatalf("html = %q, want quoted image in og:image", html)
+	}
+}
+
+func TestPostPage_UsesThreadFallbackWhenParentUnavailable(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "alice.example",
+			AuthorDisplayName: "Alice",
+			Text:              "still here",
+		},
+		HasAncestors: true,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	want := `property="og:description" content="Reply in thread · still here"`
+	if !strings.Contains(html, want) {
+		t.Fatalf("html = %q, want %s", html, want)
+	}
+	if strings.Contains(html, `property="og:title" content="Reply by`) {
+		t.Fatalf("html = %q, want plain title when parent author unknown", html)
 	}
 }

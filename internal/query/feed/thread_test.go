@@ -56,6 +56,9 @@ func TestNewPostPageView_FullPageOmitsAncestors(t *testing.T) {
 	if len(view.Ancestors) != 0 {
 		t.Fatalf("len(view.Ancestors) = %d, want 0 on full page", len(view.Ancestors))
 	}
+	if view.ReplyParentMaybe == nil || view.ReplyParentMaybe.Handle != "bsky.app" {
+		t.Fatalf("ReplyParentMaybe = %#v, want immediate parent author", view.ReplyParentMaybe)
+	}
 	if len(view.Replies) != 2 {
 		t.Fatalf("len(view.Replies) = %d, want 2", len(view.Replies))
 	}
@@ -169,6 +172,9 @@ func TestNewPostPageView_BlockedParent(t *testing.T) {
 	}
 	if len(view.Ancestors) != 0 {
 		t.Fatalf("len(view.Ancestors) = %d, want 0 on full page", len(view.Ancestors))
+	}
+	if view.ReplyParentMaybe != nil {
+		t.Fatalf("ReplyParentMaybe = %#v, want nil for blocked parent", view.ReplyParentMaybe)
 	}
 
 	fragment := feedquery.NewPostPageView(bluesky.ThreadViewPost{

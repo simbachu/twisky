@@ -89,6 +89,10 @@ func TestProfile_RendersSocialMetaTags(t *testing.T) {
 		`property="og:image" content="https://cdn.example/avatar.jpg"`,
 		`property="og:type" content="profile"`,
 		`property="og:url" content="https://twisky.test/simbachu.com"`,
+		`property="profile:username" content="simbachu.com"`,
+		`name="twitter:creator" content="@simbachu.com"`,
+		`property="og:image:alt" content="Spectral (@simbachu.com)"`,
+		`name="twitter:card" content="summary"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -101,12 +105,12 @@ func TestProfile_UsesStatsWhenDescriptionMissing(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := profile.Profile(profilequery.ProfileView{
-		Handle:    "bsky.app",
+		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
-		Followers: 100,
-		Following: 50,
-		Posts:     25,
-		Tab:       profilequery.TabPosts,
+		Followers:   100,
+		Following:   50,
+		Posts:       25,
+		Tab:         profilequery.TabPosts,
 	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}

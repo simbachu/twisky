@@ -7,9 +7,9 @@ import (
 )
 
 type ThreadNodeView struct {
-	Post         PostView
-	Unavailable  bool
-	Replies      []ThreadNodeView
+	Post        PostView
+	Unavailable bool
+	Replies     []ThreadNodeView
 }
 
 type AncestorNodeView struct {
@@ -20,10 +20,11 @@ type AncestorNodeView struct {
 const PostPagePartAncestors = "ancestors"
 
 type PostPageView struct {
-	Post         PostView
-	Ancestors    []AncestorNodeView
-	Replies      []ThreadNodeView
-	HasAncestors bool
+	Post             PostView
+	Ancestors        []AncestorNodeView
+	Replies          []ThreadNodeView
+	HasAncestors     bool
+	ReplyParentMaybe *AuthorView
 }
 
 func (PostPageView) IsResponse() {}
@@ -36,10 +37,28 @@ func NewPostPageView(root bluesky.ThreadViewPost, part string) PostPageView {
 	}
 	ancestors := CollectAncestorNodes(root)
 	return PostPageView{
-		Post:         NewPostView(root.Post),
-		HasAncestors: len(ancestors) > 0,
-		Replies:      NewThreadNodeViews(root.Replies),
+		Post:             NewPostView(root.Post),
+		HasAncestors:     len(ancestors) > 0,
+		ReplyParentMaybe: replyParentAuthor(ancestors),
+		Replies:          NewThreadNodeViews(root.Replies),
 	}
+}
+
+// replyParentAuthor returns the immediate parent author from furthest-first ancestors.
+func replyParentAuthor(ancestors []AncestorNodeView) *AuthorView {
+	if len(ancestors) == 0 {
+		return nil
+	}
+	immediate := ancestors[len(ancestors)-1]
+	if immediate.Unavailable {
+		return nil
+	}
+	author := AuthorView{
+		Handle:      immediate.Post.AuthorHandle,
+		DisplayName: immediate.Post.AuthorDisplayName,
+		Avatar:      immediate.Post.AuthorAvatar,
+	}
+	return &author
 }
 
 func CollectAncestorNodes(root bluesky.ThreadViewPost) []AncestorNodeView {

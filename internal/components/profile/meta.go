@@ -19,12 +19,15 @@ func profilePageMeta(view profilequery.ProfileView, publicBaseURL string) page.P
 		)
 	}
 
+	byline := fmt.Sprintf("%s (@%s)", view.DisplayName, view.Handle)
 	return page.PageMeta{
-		Title:          fmt.Sprintf("%s (@%s)", view.DisplayName, view.Handle),
+		Title:          byline,
 		Description:    description,
 		CanonicalURL:   page.AbsoluteURL(publicBaseURL, "/"+view.Handle),
 		ImageURL:       view.Avatar,
 		OGType:         "profile",
 		LargeImageCard: false,
+		AuthorHandle:   view.Handle,
+		ImageAlt:       byline,
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/simbachu/twisky/internal/components/page"
 )
@@ -126,5 +127,110 @@ func TestPage_UsesLargeImageTwitterCard(t *testing.T) {
 	html := buf.String()
 	if !strings.Contains(html, `name="twitter:card" content="summary_large_image"`) {
 		t.Fatalf("html = %q, want summary_large_image twitter card", html)
+	}
+}
+
+func TestPage_RendersArticleAndImageStructuredMeta(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	meta := page.PageMeta{
+		Title:          "Bluesky (@bsky.app)",
+		Description:    "hello from the feed",
+		CanonicalURL:   "https://twisky.test/bsky.app/post/abc",
+		ImageURL:       "https://cdn.example/post.jpg",
+		OGType:         "article",
+		PublishedTime:  time.Date(2026, 7, 22, 10, 30, 0, 0, time.UTC),
+		AuthorURL:      "https://twisky.test/bsky.app",
+		AuthorHandle:   "bsky.app",
+		Tags:           []string{"bluesky", "art"},
+		ImageAlt:       "Bluesky (@bsky.app) on Twisky",
+		ImageWidth:     1200,
+		ImageHeight:    675,
+		LargeImageCard: true,
+	}
+	if err := page.Page(meta, nil).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="og:locale" content="en_US"`,
+		`property="article:published_time" content="2026-07-22T10:30:00Z"`,
+		`property="article:author" content="https://twisky.test/bsky.app"`,
+		`property="article:tag" content="bluesky"`,
+		`property="article:tag" content="art"`,
+		`name="twitter:creator" content="@bsky.app"`,
+		`property="og:image:width" content="1200"`,
+		`property="og:image:height" content="675"`,
+		`property="og:image:alt" content="Bluesky (@bsky.app) on Twisky"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `property="profile:username"`) {
+		t.Fatalf("html = %q, want no profile:username on article pages", html)
+	}
+}
+
+func TestPage_RendersProfileUsername(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	meta := page.PageMeta{
+		Title:        "Spectral (@simbachu.com)",
+		Description:  "gamer, mother, husband",
+		ImageURL:     "https://cdn.example/avatar.jpg",
+		OGType:       "profile",
+		AuthorHandle: "simbachu.com",
+		ImageAlt:     "Spectral (@simbachu.com)",
+	}
+	if err := page.Page(meta, nil).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`property="profile:username" content="simbachu.com"`,
+		`name="twitter:creator" content="@simbachu.com"`,
+		`property="og:image:alt" content="Spectral (@simbachu.com)"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPage_OmitsOptionalArticleFieldsWhenUnset(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	meta := page.PageMeta{
+		Title:       "Tag",
+		Description: "Recent posts",
+		OGType:      "website",
+	}
+	if err := page.Page(meta, nil).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, unwanted := range []string{
+		`property="article:published_time"`,
+		`property="article:author"`,
+		`property="article:tag"`,
+		`name="twitter:creator"`,
+		`property="profile:username"`,
+		`property="og:image:width"`,
+		`property="og:image:height"`,
+		`property="og:image:alt"`,
+	} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("html = %q, want no %s", html, unwanted)
+		}
+	}
+	if !strings.Contains(html, `property="og:locale" content="en_US"`) {
+		t.Fatalf("html = %q, want og:locale", html)
 	}
 }
