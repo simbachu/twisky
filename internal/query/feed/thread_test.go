@@ -210,3 +210,56 @@ func TestNewPostPageView_NotFoundParent(t *testing.T) {
 		t.Fatalf("view.Ancestors = %#v, want one unavailable ancestor", view.Ancestors)
 	}
 }
+
+func TestThreadHasUnknown(t *testing.T) {
+	t.Parallel()
+
+	tree := []feedquery.ThreadNodeView{
+		{
+			Post: feedquery.PostView{ID: "reply1"},
+			Replies: []feedquery.ThreadNodeView{
+				{Post: feedquery.PostView{ID: "nested"}},
+			},
+		},
+		{Unavailable: true},
+	}
+
+	t.Run("all known", func(t *testing.T) {
+		t.Parallel()
+		known := map[string]bool{"reply1": true, "nested": true}
+		if feedquery.ThreadHasUnknown(tree, known) {
+			t.Fatal("ThreadHasUnknown() = true, want false when all IDs are known")
+		}
+	})
+
+	t.Run("nested unknown", func(t *testing.T) {
+		t.Parallel()
+		known := map[string]bool{"reply1": true}
+		if !feedquery.ThreadHasUnknown(tree, known) {
+			t.Fatal("ThreadHasUnknown() = false, want true when nested reply is unknown")
+		}
+	})
+
+	t.Run("partial known", func(t *testing.T) {
+		t.Parallel()
+		known := map[string]bool{"nested": true}
+		if !feedquery.ThreadHasUnknown(tree, known) {
+			t.Fatal("ThreadHasUnknown() = false, want true when top-level reply is unknown")
+		}
+	})
+
+	t.Run("empty known with replies", func(t *testing.T) {
+		t.Parallel()
+		if !feedquery.ThreadHasUnknown(tree, map[string]bool{}) {
+			t.Fatal("ThreadHasUnknown() = false, want true when known is empty")
+		}
+	})
+
+	t.Run("unavailable only", func(t *testing.T) {
+		t.Parallel()
+		nodes := []feedquery.ThreadNodeView{{Unavailable: true}}
+		if feedquery.ThreadHasUnknown(nodes, map[string]bool{}) {
+			t.Fatal("ThreadHasUnknown() = true, want false when only unavailable nodes exist")
+		}
+	})
+}

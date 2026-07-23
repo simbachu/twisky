@@ -22,7 +22,7 @@ func TestCountsRefreshFragment_OmitsUnchangedSpans(t *testing.T) {
 		Like:   intPtr(1042),
 		Repost: intPtr(3),
 		Reply:  intPtr(1),
-	}).Render(&buf); err != nil {
+	}, time.Now()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -34,14 +34,21 @@ func TestCountsRefreshFragment_OmitsUnchangedSpans(t *testing.T) {
 func TestCountsRefreshFragment_IncludesOnlyChangedSpan(t *testing.T) {
 	t.Parallel()
 
-	view := feedquery.PostView{ID: "root", LikeCount: 1042, RepostCount: 3, ReplyCount: 1}
+	view := feedquery.PostView{
+		ID:           "root",
+		AuthorHandle: "bsky.app",
+		LikeCount:    1042,
+		RepostCount:  3,
+		ReplyCount:   1,
+		CreatedAt:    time.Now().Add(-time.Minute),
+	}
 
 	var buf bytes.Buffer
 	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
 		Like:   intPtr(1041),
 		Repost: intPtr(3),
 		Reply:  intPtr(1),
-	}).Render(&buf); err != nil {
+	}, time.Now()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -55,15 +62,18 @@ func TestCountsRefreshFragment_IncludesOnlyChangedSpan(t *testing.T) {
 	if !strings.Contains(html, `id="counts-announcer-root"`) {
 		t.Fatalf("html = %q, want the announcer updated when something changed", html)
 	}
+	if !strings.Contains(html, `id="counts-poller-root"`) || !strings.Contains(html, `data-replies-cooldown-ms`) {
+		t.Fatalf("html = %q, want poller cooldown refreshed when counts change", html)
+	}
 }
 
 func TestCountsRefreshFragment_TreatsMissingPreviousAsChanged(t *testing.T) {
 	t.Parallel()
 
-	view := feedquery.PostView{ID: "root", LikeCount: 0, RepostCount: 0, ReplyCount: 0}
+	view := feedquery.PostView{ID: "root", AuthorHandle: "bsky.app", LikeCount: 0, RepostCount: 0, ReplyCount: 0}
 
 	var buf bytes.Buffer
-	if err := post.CountsRefreshFragment(view, post.PreviousCounts{}).Render(&buf); err != nil {
+	if err := post.CountsRefreshFragment(view, post.PreviousCounts{}, time.Now()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -73,6 +83,7 @@ func TestCountsRefreshFragment_TreatsMissingPreviousAsChanged(t *testing.T) {
 		`id="repost-count-root"`,
 		`id="reply-count-root"`,
 		`id="counts-announcer-root"`,
+		`id="counts-poller-root"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s when no previous value was reported", html, want)
@@ -90,7 +101,7 @@ func TestCountsRefreshFragment_NoChangeAcrossFuzzyBoundary(t *testing.T) {
 	var buf bytes.Buffer
 	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
 		Like: intPtr(11001),
-	}).Render(&buf); err != nil {
+	}, time.Now()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -103,12 +114,12 @@ func TestCountsRefreshFragment_ChangeAcrossFuzzyBoundary(t *testing.T) {
 	t.Parallel()
 
 	// 9999 -> 10001 crosses the 10K fuzzy threshold ("9999" -> "10K").
-	view := feedquery.PostView{ID: "root", LikeCount: 10001}
+	view := feedquery.PostView{ID: "root", AuthorHandle: "bsky.app", LikeCount: 10001}
 
 	var buf bytes.Buffer
 	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
 		Like: intPtr(9999),
-	}).Render(&buf); err != nil {
+	}, time.Now()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -145,6 +156,9 @@ func TestCountsToggleFragment_RendersButtonSpansAndPollerState(t *testing.T) {
 		`id="counts-poller-root"`,
 		`data-live="true"`,
 		`hx-swap-oob="true"`,
+		`data-replies-href="/bsky.app/post/root?replies=1"`,
+		`data-replies-cooldown-ms`,
+		`data-burst-interval-ms="5000"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -166,7 +180,33 @@ func TestCountsToggleFragment_PausedOmitsSchedulerData(t *testing.T) {
 	if !strings.Contains(html, `aria-pressed="false"`) || !strings.Contains(html, `data-live="false"`) {
 		t.Fatalf("html = %q, want a paused toggle and poller state", html)
 	}
-	if strings.Contains(html, "data-href") {
-		t.Fatalf("html = %q, want no scheduler data-href while paused", html)
+	if strings.Contains(html, "data-href") || strings.Contains(html, "data-replies-href") {
+		t.Fatalf("html = %q, want no scheduler data while paused", html)
+	}
+}
+
+func TestCountsPollerData_LiveIncludesRepliesAndBurstAttrs(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{
+		ID:           "root",
+		AuthorHandle: "bsky.app",
+		CreatedAt:    time.Now(),
+	}
+
+	var buf bytes.Buffer
+	if err := post.CountsToggleFragment(view, time.Now(), true).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`data-replies-href="/bsky.app/post/root?replies=1"`,
+		`data-replies-cooldown-ms="20000"`,
+		`data-burst-interval-ms="5000"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }

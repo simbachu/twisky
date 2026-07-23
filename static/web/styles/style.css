@@ -679,3 +679,7 @@ body > footer aside .iface-joined {
 .post-page > .post-replies {
   margin-block-start: 1rem;
 }
+
+.post-page > .post-replies:empty {
+  display: none;
+}

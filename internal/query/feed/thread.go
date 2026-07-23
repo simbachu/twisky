@@ -20,6 +20,7 @@ type AncestorNodeView struct {
 const (
 	PostPagePartAncestors = "ancestors"
 	PostPagePartCounts    = "counts"
+	PostPagePartReplies   = "replies"
 )
 
 type PostPageView struct {
@@ -159,4 +160,15 @@ func collectPostsFromThreadNodes(nodes []ThreadNodeView) []PostView {
 		posts = append(posts, collectPostsFromThreadNodes(node.Replies)...)
 	}
 	return posts
+}
+
+// ThreadHasUnknown reports whether any available reply in the tree has an ID
+// that is not present in known. Unavailable nodes are ignored.
+func ThreadHasUnknown(nodes []ThreadNodeView, known map[string]bool) bool {
+	for _, post := range collectPostsFromThreadNodes(nodes) {
+		if !known[post.ID] {
+			return true
+		}
+	}
+	return false
 }

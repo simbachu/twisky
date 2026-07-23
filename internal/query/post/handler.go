@@ -20,6 +20,11 @@ import (
 // concurrent pollers of the same post.
 const countsCacheTTL = 5 * time.Second
 
+// threadCacheTTL bounds how long a replies-fragment GetPostThread fetch is
+// reused. Longer than counts because the call is heavier and already gated by
+// reply-count changes on the client.
+const threadCacheTTL = 20 * time.Second
+
 type Reader interface {
 	GetProfile(ctx context.Context, actor string) (*bluesky.Profile, error)
 	GetPostThread(ctx context.Context, postURI string) (bluesky.ThreadNode, error)
@@ -31,13 +36,19 @@ type Handler struct {
 	reader      Reader
 	prefs       moderation.PrefsProvider
 	countsCache *countsCache
+	threadCache *threadCache
 }
 
 func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
 	if prefs == nil {
 		prefs = moderation.DefaultPrefsProvider{}
 	}
-	return &Handler{reader: reader, prefs: prefs, countsCache: newCountsCache(countsCacheTTL)}
+	return &Handler{
+		reader:      reader,
+		prefs:       prefs,
+		countsCache: newCountsCache(countsCacheTTL),
+		threadCache: newThreadCache(threadCacheTTL),
+	}
 }
 
 func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Response {
@@ -62,6 +73,9 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 	if i.Part == feedquery.PostPagePartCounts {
 		return h.handleCounts(ctx, i.Slug, postID, profile.DID)
 	}
+	if i.Part == feedquery.PostPagePartReplies {
+		return h.handleReplies(ctx, i.Slug, postID, profile.DID)
+	}
 
 	threadNode, err := h.reader.GetPostThread(ctx, atproto.PostURI(profile.DID, postID))
 	if err != nil {
@@ -71,15 +85,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
-	root, ok := threadNode.(bluesky.ThreadViewPost)
-	if !ok {
-		return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
-	}
-
-	view := feedquery.NewPostPageView(root, i.Part)
-	view = feedquery.ResolveMentionHandlesInThread(ctx, h.reader, view)
-	view = feedquery.ApplyModerationToPostPage(ctx, h.prefs, view)
-	return view
+	return h.postPageFromThread(ctx, threadNode, i.Part)
 }
 
 // handleCounts serves the cheap counts-only fragment via GetPosts instead of
@@ -100,6 +106,37 @@ func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) re
 	}
 
 	return feedquery.PostPageView{Post: feedquery.NewPostView(bskyPost)}
+}
+
+// handleReplies serves the replies fragment via GetPostThread, coalescing
+// concurrent requests for the same post through threadCache.
+func (h *Handler) handleReplies(ctx context.Context, slug, postID, did string) response.Response {
+	uri := atproto.PostURI(did, postID)
+	key := slug + "/" + postID
+
+	threadNode, err := h.threadCache.Get(ctx, key, func(ctx context.Context) (bluesky.ThreadNode, error) {
+		return h.reader.GetPostThread(ctx, uri)
+	})
+	if err != nil {
+		if errors.Is(err, bluesky.ErrNotFound) {
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
+		}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	}
+
+	return h.postPageFromThread(ctx, threadNode, feedquery.PostPagePartReplies)
+}
+
+func (h *Handler) postPageFromThread(ctx context.Context, threadNode bluesky.ThreadNode, part string) response.Response {
+	root, ok := threadNode.(bluesky.ThreadViewPost)
+	if !ok {
+		return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
+	}
+
+	view := feedquery.NewPostPageView(root, part)
+	view = feedquery.ResolveMentionHandlesInThread(ctx, h.reader, view)
+	view = feedquery.ApplyModerationToPostPage(ctx, h.prefs, view)
+	return view
 }
 
 func (h *Handler) fetchPostForCounts(ctx context.Context, uri string) (bluesky.Post, error) {

@@ -782,3 +782,118 @@ func TestHandleTagged_CursorFragment(t *testing.T) {
 		t.Fatalf("body = %q, want tag page two", body)
 	}
 }
+
+func TestHandlePost_RepliesFragment_EmptyWhenAllKnown(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+			Replies: []bluesky.ThreadNode{
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/reply1",
+						Author: bluesky.Author{Handle: "dev.example"},
+						Record: bluesky.PostRecord{Text: "reply one"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?replies=1&known=reply1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if body := rec.Body.String(); body != "" {
+		t.Fatalf("body = %q, want empty when all replies are known", body)
+	}
+}
+
+func TestHandlePost_RepliesFragment_SwapsWhenUnknown(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+			Replies: []bluesky.ThreadNode{
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/reply1",
+						Author: bluesky.Author{Handle: "dev.example"},
+						Record: bluesky.PostRecord{Text: "reply one"},
+					},
+				},
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/reply2",
+						Author: bluesky.Author{Handle: "dev.example"},
+						Record: bluesky.PostRecord{Text: "reply two"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?replies=1&known=reply1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="post-replies-root"`,
+		`hx-swap-oob="true"`,
+		`id="post-reply2"`,
+		"reply two",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+}
+
+func TestHandlePost_FullPage_IncludesEmptyRepliesContainer(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post", CreatedAt: time.Now()},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="post-replies-root"`) {
+		t.Fatalf("body = %q, want empty replies container", body)
+	}
+	if !strings.Contains(body, `data-replies-href="/bsky.app/post/root?replies=1"`) {
+		t.Fatalf("body = %q, want live poller replies href", body)
+	}
+}

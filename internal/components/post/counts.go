@@ -94,11 +94,15 @@ func countsPollerData(view feedquery.PostView, now time.Time, live, oob bool) g.
 		attrs = append(attrs, g.Attr("hx-swap-oob", "true"))
 	}
 	if live {
-		interval := countsPollInterval(now.Sub(view.CreatedAt))
+		age := now.Sub(view.CreatedAt)
+		interval := countsPollInterval(age)
 		attrs = append(attrs,
 			g.Attr("data-href", postHref(view)+"?counts=1"),
 			g.Attr("data-interval-ms", strconv.Itoa(int(interval.Milliseconds()))),
 			g.Attr("data-max-interval-ms", "300000"),
+			g.Attr("data-replies-href", postHref(view)+"?replies=1"),
+			g.Attr("data-replies-cooldown-ms", strconv.Itoa(int(repliesFetchCooldown(age).Milliseconds()))),
+			g.Attr("data-burst-interval-ms", strconv.Itoa(int(burstCountsPollInterval().Milliseconds()))),
 		)
 	}
 	return Span(attrs...)
@@ -129,8 +133,9 @@ func countChanged(previous *int, count int) bool {
 // CountsRefreshFragment renders out-of-band updates for a post's engagement
 // counts, for the periodic (no live param) counts poll. Only spans whose
 // fuzzy-formatted value actually changed are included, plus an accessible
-// announcer update if anything changed at all.
-func CountsRefreshFragment(view feedquery.PostView, previous PreviousCounts) g.Node {
+// announcer update if anything changed at all. When anything changes, the
+// poller element is also refreshed so age-based reply cooldown stays current.
+func CountsRefreshFragment(view feedquery.PostView, previous PreviousCounts, now time.Time) g.Node {
 	ids := newCountIDs(view.ID)
 	var nodes []g.Node
 	var announced []string
@@ -157,6 +162,8 @@ func CountsRefreshFragment(view feedquery.PostView, previous PreviousCounts) g.N
 			g.Attr("aria-atomic", "true"),
 			g.Text(strings.Join(announced, ", ")),
 		))
+		// Only live clients poll counts; refresh cooldown while live.
+		nodes = append(nodes, countsPollerData(view, now, true, true))
 	}
 
 	return g.Group(nodes)

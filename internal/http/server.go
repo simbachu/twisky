@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -163,8 +164,10 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			if live, ok := liveToggleParam(r); ok {
 				_ = postpage.CountsToggleFragment(v.Post, now, live).Render(w)
 			} else {
-				_ = postpage.CountsRefreshFragment(v.Post, previousCounts(r)).Render(w)
+				_ = postpage.CountsRefreshFragment(v.Post, previousCounts(r), now).Render(w)
 			}
+		case feedquery.PostPagePartReplies:
+			_ = postpage.RepliesRefreshFragment(v, parseKnownParam(r), now).Render(w)
 		default:
 			v.ExplicitLive = wantsLive(r)
 			_ = postpage.PostPage(v, now, s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
@@ -188,6 +191,9 @@ func postPagePart(r *http.Request) string {
 	}
 	if q.Get("counts") == "1" {
 		return feedquery.PostPagePartCounts
+	}
+	if q.Get("replies") == "1" {
+		return feedquery.PostPagePartReplies
 	}
 	return ""
 }
@@ -229,6 +235,23 @@ func parseCountParam(raw string) *int {
 		return nil
 	}
 	return &n
+}
+
+// parseKnownParam reads the comma-separated reply post IDs the client already
+// has rendered, for the replies live-refresh fragment.
+func parseKnownParam(r *http.Request) map[string]bool {
+	raw := strings.TrimSpace(r.URL.Query().Get("known"))
+	if raw == "" {
+		return map[string]bool{}
+	}
+	known := make(map[string]bool)
+	for _, id := range strings.Split(raw, ",") {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			known[id] = true
+		}
+	}
+	return known
 }
 
 func renderFeedFragment(

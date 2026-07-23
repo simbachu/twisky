@@ -29,6 +29,9 @@ type stubReader struct {
 	postsDelay    time.Duration
 	getPostsCalls int32
 
+	threadDelay        time.Duration
+	getPostThreadCalls int32
+
 	mu           sync.Mutex
 	capturedURIs [][]string
 }
@@ -38,7 +41,11 @@ func (s *stubReader) GetProfile(context.Context, string) (*bluesky.Profile, erro
 }
 
 func (s *stubReader) GetPostThread(_ context.Context, postURI string) (bluesky.ThreadNode, error) {
+	atomic.AddInt32(&s.getPostThreadCalls, 1)
 	s.capturedURI = postURI
+	if s.threadDelay > 0 {
+		time.Sleep(s.threadDelay)
+	}
 	if s.threadErr != nil {
 		return nil, s.threadErr
 	}
@@ -370,5 +377,93 @@ func TestHandler_Handle_CountsFragment_CoalescesConcurrentRequests(t *testing.T)
 
 	if got := atomic.LoadInt32(&reader.getPostsCalls); got != 1 {
 		t.Fatalf("GetPosts calls = %d, want 1 (concurrent requests should coalesce)", got)
+	}
+}
+
+func TestHandler_Handle_RepliesFragment_UsesGetPostThread(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+			Replies: []bluesky.ThreadNode{
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:example/app.bsky.feed.post/reply1",
+						Author: bluesky.Author{Handle: "dev.example"},
+						Record: bluesky.PostRecord{Text: "reply one"},
+					},
+				},
+			},
+		},
+		postsErr: errors.New("replies fragment must not call GetPosts"),
+	}
+
+	handler := post.NewHandler(reader, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "root",
+		Part: feedquery.PostPagePartReplies,
+	})
+
+	view, ok := resp.(feedquery.PostPageView)
+	if !ok {
+		t.Fatalf("response type = %T, want PostPageView", resp)
+	}
+	if view.Post.ID != "root" {
+		t.Fatalf("view.Post.ID = %q, want root", view.Post.ID)
+	}
+	if len(view.Replies) != 1 || view.Replies[0].Post.ID != "reply1" {
+		t.Fatalf("view.Replies = %#v, want reply1", view.Replies)
+	}
+	if reader.capturedURI != "at://did:plc:example/app.bsky.feed.post/root" {
+		t.Fatalf("capturedURI = %q, want GetPostThread for the root", reader.capturedURI)
+	}
+	if atomic.LoadInt32(&reader.getPostsCalls) != 0 {
+		t.Fatalf("GetPosts calls = %d, want 0", reader.getPostsCalls)
+	}
+}
+
+func TestHandler_Handle_RepliesFragment_CoalescesConcurrentRequests(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+		},
+		threadDelay: 20 * time.Millisecond,
+	}
+	handler := post.NewHandler(reader, nil)
+
+	const concurrency = 10
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			resp := handler.Handle(context.Background(), intent.ViewPost{
+				Slug: "bsky.app",
+				ID:   "root",
+				Part: feedquery.PostPagePartReplies,
+			})
+			if _, ok := resp.(feedquery.PostPageView); !ok {
+				t.Errorf("response type = %T, want PostPageView", resp)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt32(&reader.getPostThreadCalls); got != 1 {
+		t.Fatalf("GetPostThread calls = %d, want 1 (concurrent requests should coalesce)", got)
 	}
 }

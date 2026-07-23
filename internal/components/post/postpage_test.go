@@ -259,7 +259,7 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 	}
 
 	rootArticleIdx := strings.Index(html, `class="post post-page"`)
-	repliesIdx := strings.Index(html, `class="post-replies"`)
+	repliesIdx := strings.Index(html, `id="post-replies-root"`)
 	if rootArticleIdx < 0 || repliesIdx < 0 || repliesIdx < rootArticleIdx {
 		t.Fatalf("html = %q, want post-replies inside root article", html)
 	}
@@ -279,6 +279,97 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 	}
 	if strings.Contains(html, `href="/dev.example/post/reply2"`) {
 		t.Fatalf("html = %q, want no link wrapper around nested reply article", html)
+	}
+}
+
+func TestPostPage_RendersEmptyRepliesContainer(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "lonely post",
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `id="post-replies-root"`) {
+		t.Fatalf("html = %q, want empty replies container for live OOB swap target", html)
+	}
+}
+
+func TestRepliesRefreshFragment_EmptyWhenAllKnown(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostPageView{
+		Post: feedquery.PostView{ID: "root", AuthorHandle: "bsky.app"},
+		Replies: []feedquery.ThreadNodeView{
+			{Post: feedquery.PostView{ID: "reply1", AuthorHandle: "dev.example", Text: "reply one"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := post.RepliesRefreshFragment(view, map[string]bool{"reply1": true}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	if got := buf.String(); got != "" {
+		t.Fatalf("html = %q, want empty when all replies are known", got)
+	}
+}
+
+func TestRepliesRefreshFragment_FullListOOBWhenUnknown(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostPageView{
+		Post: feedquery.PostView{ID: "root", AuthorHandle: "bsky.app"},
+		Replies: []feedquery.ThreadNodeView{
+			{Post: feedquery.PostView{ID: "reply1", AuthorHandle: "dev.example", Text: "reply one"}},
+			{Post: feedquery.PostView{ID: "reply2", AuthorHandle: "dev.example", Text: "reply two"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := post.RepliesRefreshFragment(view, map[string]bool{"reply1": true}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`id="post-replies-root"`,
+		`hx-swap-oob="true"`,
+		`id="post-reply1"`,
+		`id="post-reply2"`,
+		"reply one",
+		"reply two",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestRepliesRefreshFragment_FirstReplyIntoEmptyKnown(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostPageView{
+		Post: feedquery.PostView{ID: "root", AuthorHandle: "bsky.app"},
+		Replies: []feedquery.ThreadNodeView{
+			{Post: feedquery.PostView{ID: "reply1", AuthorHandle: "dev.example", Text: "first reply"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := post.RepliesRefreshFragment(view, map[string]bool{}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `id="post-replies-root"`) || !strings.Contains(html, "first reply") {
+		t.Fatalf("html = %q, want first reply into previously empty container", html)
 	}
 }
 
