@@ -51,6 +51,82 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 	}
 }
 
+func TestPostPage_RootPostRendersLiveCountsFeatures(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "brand new post",
+			CreatedAt:    time.Now().UTC(),
+			LikeCount:    5,
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`id="like-count-root"`,
+		`class="fuzzy-number"`,
+		`id="counts-poller-root"`,
+		`data-counts-poll`,
+		`id="counts-announcer-root"`,
+		`class="visually-hidden"`,
+		`aria-label="Pause live counts"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestPostPage_RootPostAutoStartsLiveOnlyWhenFresh(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			CreatedAt:    time.Now().Add(-time.Hour).UTC(),
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `aria-label="Show live counts"`) {
+		t.Fatalf("html = %q, want an old post to default to paused", html)
+	}
+	if strings.Contains(html, `data-href`) {
+		t.Fatalf("html = %q, want no scheduler data-href while paused", html)
+	}
+}
+
+func TestPostPage_ExplicitLiveStartsOldPostLive(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			CreatedAt:    time.Now().Add(-time.Hour).UTC(),
+		},
+		ExplicitLive: true,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `aria-label="Pause live counts"`) {
+		t.Fatalf("html = %q, want ?live=1 to start an old post live", html)
+	}
+}
+
 func TestPostPage_OmitsAncestorsWithoutThreadContext(t *testing.T) {
 	t.Parallel()
 

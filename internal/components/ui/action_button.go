@@ -15,11 +15,22 @@ type ActionButtonConfig struct {
 	Count    int
 	Disabled bool
 	HasPopup bool
+	// CountID, when set, forces the count span to always render (even at
+	// zero) with this id and fuzzy-number formatting, so it can be targeted
+	// by an htmx out-of-band swap when live counts polling is enabled.
+	CountID string
 }
 
 // PostEngagement builds config for post footer action buttons.
 func PostEngagement(icon IconName, label string, count int) ActionButtonConfig {
 	return ActionButtonConfig{Icon: icon, Label: label, Count: count}
+}
+
+// PostEngagementPollable builds config for a post footer action button whose
+// count span carries a stable id and fuzzy-number formatting, for posts with
+// live counts polling enabled.
+func PostEngagementPollable(icon IconName, label string, count int, id string) ActionButtonConfig {
+	return ActionButtonConfig{Icon: icon, Label: label, Count: count, CountID: id}
 }
 
 // ActionButton renders a button with an icon, aria-label, and optional count.
@@ -45,7 +56,10 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 	if cfg.HasPopup {
 		attrs = append(attrs, g.Attr("aria-haspopup", "true"))
 	}
-	if cfg.Count > 0 {
+	switch {
+	case cfg.CountID != "":
+		attrs = append(attrs, FuzzyCountSpan(cfg.CountID, cfg.Count, false))
+	case cfg.Count > 0:
 		attrs = append(attrs, Span(
 			g.Attr("aria-hidden", "true"),
 			g.Text(strconv.Itoa(cfg.Count)),

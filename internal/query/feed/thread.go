@@ -17,7 +17,10 @@ type AncestorNodeView struct {
 	Unavailable bool
 }
 
-const PostPagePartAncestors = "ancestors"
+const (
+	PostPagePartAncestors = "ancestors"
+	PostPagePartCounts    = "counts"
+)
 
 type PostPageView struct {
 	Post             PostView
@@ -25,6 +28,10 @@ type PostPageView struct {
 	Replies          []ThreadNodeView
 	HasAncestors     bool
 	ReplyParentMaybe *AuthorView
+	// ExplicitLive is set by the HTTP layer from the ?live=1 query param on
+	// full page loads, so a shared link can restart live counts polling even
+	// for a post that wouldn't otherwise auto-start it.
+	ExplicitLive bool
 }
 
 func (PostPageView) IsResponse() {}

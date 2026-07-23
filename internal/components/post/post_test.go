@@ -48,6 +48,33 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 	}
 }
 
+func TestPost_OmitsLiveCountsFeatures(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		LikeCount:    5,
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, unwanted := range []string{
+		`data-counts-poll`,
+		`aria-label="Show live counts"`,
+		`aria-label="Pause live counts"`,
+		`class="visually-hidden"`,
+		"fuzzy-number",
+	} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("html = %q, want no %s in feed usage", html, unwanted)
+		}
+	}
+}
+
 func TestPost_RendersImageCountClass(t *testing.T) {
 	t.Parallel()
 

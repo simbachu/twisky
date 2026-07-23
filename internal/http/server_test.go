@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/simbachu/twisky/internal/bluesky"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
@@ -24,10 +25,12 @@ type stubReader struct {
 	searchResp *bluesky.SearchPostsResponse
 	thread     bluesky.ThreadNode
 	profiles   []bluesky.Profile
+	posts      []bluesky.Post
 	err        error
 	feedErr    error
 	searchErr  error
 	threadErr  error
+	postsErr   error
 }
 
 func (s stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
@@ -53,7 +56,10 @@ func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, e
 }
 
 func (s stubReader) GetPosts(context.Context, []string) ([]bluesky.Post, error) {
-	return nil, nil
+	if s.postsErr != nil {
+		return nil, s.postsErr
+	}
+	return s.posts, nil
 }
 
 func (s stubReader) GetPostThread(context.Context, string) (bluesky.ThreadNode, error) {
@@ -527,6 +533,223 @@ func TestHandleSlug_RefreshFragment(t *testing.T) {
 	}
 	if strings.Contains(body, "top post") {
 		t.Fatalf("body = %q, want top post omitted from prepend fragment", body)
+	}
+}
+
+func TestHandlePost_CountsFragment_InitialPollIncludesAllSpans(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{{
+			URI:         "at://did:plc:example/app.bsky.feed.post/root",
+			Author:      bluesky.Author{Handle: "bsky.app"},
+			Record:      bluesky.PostRecord{Text: "root post"},
+			LikeCount:   42,
+			RepostCount: 3,
+			ReplyCount:  1,
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/html; charset=utf-8", got)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="like-count-root"`,
+		`id="reply-count-root"`,
+		`id="repost-count-root"`,
+		`hx-swap-oob="true"`,
+		`id="counts-announcer-root"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+}
+
+func TestHandlePost_CountsFragment_OmitsUnchangedSpans(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{{
+			URI:         "at://did:plc:example/app.bsky.feed.post/root",
+			Author:      bluesky.Author{Handle: "bsky.app"},
+			Record:      bluesky.PostRecord{Text: "root post"},
+			LikeCount:   42,
+			RepostCount: 3,
+			ReplyCount:  1,
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1&like=42&reply=1&repost=3", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if body := rec.Body.String(); body != "" {
+		t.Fatalf("body = %q, want empty response when nothing changed", body)
+	}
+}
+
+func TestHandlePost_CountsFragment_IncludesOnlyChangedSpan(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{{
+			URI:         "at://did:plc:example/app.bsky.feed.post/root",
+			Author:      bluesky.Author{Handle: "bsky.app"},
+			Record:      bluesky.PostRecord{Text: "root post"},
+			LikeCount:   42,
+			RepostCount: 3,
+			ReplyCount:  1,
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1&like=41&reply=1&repost=3", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="like-count-root"`) {
+		t.Fatalf("body = %q, want the changed like span", body)
+	}
+	if strings.Contains(body, `id="reply-count-root"`) || strings.Contains(body, `id="repost-count-root"`) {
+		t.Fatalf("body = %q, want unchanged reply/repost spans omitted", body)
+	}
+}
+
+func TestHandlePost_CountsFragment_LiveToggleOn(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{{
+			URI:    "at://did:plc:example/app.bsky.feed.post/root",
+			Author: bluesky.Author{Handle: "bsky.app"},
+			Record: bluesky.PostRecord{Text: "root post"},
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1&live=1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`aria-pressed="true"`,
+		`aria-label="Pause live counts"`,
+		`data-live="true"`,
+		`data-counts-poll`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+}
+
+func TestHandlePost_CountsFragment_LiveToggleOff(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{{
+			URI:    "at://did:plc:example/app.bsky.feed.post/root",
+			Author: bluesky.Author{Handle: "bsky.app"},
+			Record: bluesky.PostRecord{Text: "root post"},
+		}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1&live=0", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`aria-pressed="false"`,
+		`aria-label="Show live counts"`,
+		`data-live="false"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+	if strings.Contains(body, "data-href") {
+		t.Fatalf("body = %q, want no scheduler data-href once paused", body)
+	}
+}
+
+func TestHandlePost_FullPage_ExplicitLiveQueryParamStartsOldPostLive(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post", CreatedAt: time.Now().Add(-48 * time.Hour)},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?live=1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `aria-pressed="true"`) {
+		t.Fatalf("body = %q, want the toggle pre-armed live via ?live=1", body)
+	}
+}
+
+func TestHandlePost_FullPage_OldPostDefaultsToPaused(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post", CreatedAt: time.Now().Add(-48 * time.Hour)},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `aria-pressed="false"`) {
+		t.Fatalf("body = %q, want the toggle paused by default for an old post", body)
 	}
 }
 

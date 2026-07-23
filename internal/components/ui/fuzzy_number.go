@@ -33,3 +33,20 @@ func FuzzyNumber(n int) g.Node {
 		g.Text(FormatFuzzyNumber(n)),
 	)
 }
+
+// FuzzyCountSpan renders an abbreviated, aria-hidden count with a stable id so
+// it can be targeted by an htmx out-of-band swap. When oob is true, the span
+// carries hx-swap-oob so it replaces the element with the same id in place.
+func FuzzyCountSpan(id string, n int, oob bool) g.Node {
+	attrs := []g.Node{
+		g.Attr("id", id),
+		g.Attr("class", "fuzzy-number"),
+		g.Attr("aria-hidden", "true"),
+		g.Attr("title", strconv.Itoa(n)),
+	}
+	if oob {
+		attrs = append(attrs, g.Attr("hx-swap-oob", "true"))
+	}
+	attrs = append(attrs, g.Text(FormatFuzzyNumber(n)))
+	return Span(attrs...)
+}

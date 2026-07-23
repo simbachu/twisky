@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -154,11 +155,20 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if postPagePart(r) == feedquery.PostPagePartAncestors {
-			_ = postpage.PostPageAncestors(v, time.Now().UTC()).Render(w)
-			return
+		now := time.Now().UTC()
+		switch postPagePart(r) {
+		case feedquery.PostPagePartAncestors:
+			_ = postpage.PostPageAncestors(v, now).Render(w)
+		case feedquery.PostPagePartCounts:
+			if live, ok := liveToggleParam(r); ok {
+				_ = postpage.CountsToggleFragment(v.Post, now, live).Render(w)
+			} else {
+				_ = postpage.CountsRefreshFragment(v.Post, previousCounts(r)).Render(w)
+			}
+		default:
+			v.ExplicitLive = wantsLive(r)
+			_ = postpage.PostPage(v, now, s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
 		}
-		_ = postpage.PostPage(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:
@@ -172,10 +182,53 @@ func feedFragmentParams(r *http.Request) (cursor, since, refresh string) {
 }
 
 func postPagePart(r *http.Request) string {
-	if r.URL.Query().Get("ancestors") == "1" {
+	q := r.URL.Query()
+	if q.Get("ancestors") == "1" {
 		return feedquery.PostPagePartAncestors
 	}
+	if q.Get("counts") == "1" {
+		return feedquery.PostPagePartCounts
+	}
 	return ""
+}
+
+func wantsLive(r *http.Request) bool {
+	return r.URL.Query().Get("live") == "1"
+}
+
+// liveToggleParam reports the requested live state and whether the request
+// was a play/pause toggle at all (absent for a periodic refresh poll).
+func liveToggleParam(r *http.Request) (live bool, present bool) {
+	switch r.URL.Query().Get("live") {
+	case "1":
+		return true, true
+	case "0":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+// previousCounts reads the like/reply/repost counts a client currently has
+// displayed, as reported back on a periodic counts poll.
+func previousCounts(r *http.Request) postpage.PreviousCounts {
+	q := r.URL.Query()
+	return postpage.PreviousCounts{
+		Reply:  parseCountParam(q.Get("reply")),
+		Repost: parseCountParam(q.Get("repost")),
+		Like:   parseCountParam(q.Get("like")),
+	}
+}
+
+func parseCountParam(raw string) *int {
+	if raw == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return nil
+	}
+	return &n
 }
 
 func renderFeedFragment(

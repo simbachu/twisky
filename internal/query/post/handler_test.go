@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/intent"
@@ -14,12 +17,20 @@ import (
 )
 
 type stubReader struct {
-	profile    *bluesky.Profile
-	thread     bluesky.ThreadNode
-	profiles   []bluesky.Profile
-	err        error
-	threadErr  error
+	profile     *bluesky.Profile
+	thread      bluesky.ThreadNode
+	profiles    []bluesky.Profile
+	err         error
+	threadErr   error
 	capturedURI string
+
+	posts         []bluesky.Post
+	postsErr      error
+	postsDelay    time.Duration
+	getPostsCalls int32
+
+	mu           sync.Mutex
+	capturedURIs [][]string
 }
 
 func (s *stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
@@ -36,6 +47,20 @@ func (s *stubReader) GetPostThread(_ context.Context, postURI string) (bluesky.T
 
 func (s *stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, error) {
 	return s.profiles, nil
+}
+
+func (s *stubReader) GetPosts(_ context.Context, uris []string) ([]bluesky.Post, error) {
+	atomic.AddInt32(&s.getPostsCalls, 1)
+	s.mu.Lock()
+	s.capturedURIs = append(s.capturedURIs, uris)
+	s.mu.Unlock()
+	if s.postsDelay > 0 {
+		time.Sleep(s.postsDelay)
+	}
+	if s.postsErr != nil {
+		return nil, s.postsErr
+	}
+	return s.posts, nil
 }
 
 func TestHandler_Handle_OK(t *testing.T) {
@@ -224,5 +249,126 @@ func TestHandler_Handle_RootNotThreadViewPost(t *testing.T) {
 	}
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
+	}
+}
+
+func TestHandler_Handle_CountsFragment_UsesGetPostsNotThread(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{
+			{
+				URI:         "at://did:plc:example/app.bsky.feed.post/root",
+				Author:      bluesky.Author{Handle: "bsky.app"},
+				Record:      bluesky.PostRecord{Text: "root post"},
+				LikeCount:   42,
+				RepostCount: 3,
+				ReplyCount:  1,
+			},
+		},
+		// If the handler falls back to GetPostThread this stays unset and the
+		// thread-based assertions below would fail instead.
+		threadErr: errors.New("counts fragment must not call GetPostThread"),
+	}
+
+	handler := post.NewHandler(reader, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "root",
+		Part: feedquery.PostPagePartCounts,
+	})
+
+	view, ok := resp.(feedquery.PostPageView)
+	if !ok {
+		t.Fatalf("response type = %T, want PostPageView", resp)
+	}
+	if view.Post.LikeCount != 42 || view.Post.RepostCount != 3 || view.Post.ReplyCount != 1 {
+		t.Fatalf("view.Post = %#v, want fresh counts from GetPosts", view.Post)
+	}
+	if reader.capturedURI != "" {
+		t.Fatalf("capturedURI = %q, want GetPostThread never called", reader.capturedURI)
+	}
+	if len(reader.capturedURIs) != 1 || reader.capturedURIs[0][0] != "at://did:plc:example/app.bsky.feed.post/root" {
+		t.Fatalf("capturedURIs = %#v, want single call with the post URI", reader.capturedURIs)
+	}
+}
+
+func TestHandler_Handle_CountsFragment_NotFound(t *testing.T) {
+	t.Parallel()
+
+	handler := post.NewHandler(&stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts:   nil,
+	}, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "missing",
+		Part: feedquery.PostPagePartCounts,
+	})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
+	}
+}
+
+func TestHandler_Handle_CountsFragment_UpstreamError(t *testing.T) {
+	t.Parallel()
+
+	handler := post.NewHandler(&stubReader{
+		profile:  &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		postsErr: errors.New("network failure"),
+	}, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "root",
+		Part: feedquery.PostPagePartCounts,
+	})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+}
+
+func TestHandler_Handle_CountsFragment_CoalescesConcurrentRequests(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		posts: []bluesky.Post{
+			{URI: "at://did:plc:example/app.bsky.feed.post/root", Author: bluesky.Author{Handle: "bsky.app"}},
+		},
+		postsDelay: 20 * time.Millisecond,
+	}
+	handler := post.NewHandler(reader, nil)
+
+	const concurrency = 10
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			resp := handler.Handle(context.Background(), intent.ViewPost{
+				Slug: "bsky.app",
+				ID:   "root",
+				Part: feedquery.PostPagePartCounts,
+			})
+			if _, ok := resp.(feedquery.PostPageView); !ok {
+				t.Errorf("response type = %T, want PostPageView", resp)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt32(&reader.getPostsCalls); got != 1 {
+		t.Fatalf("GetPosts calls = %d, want 1 (concurrent requests should coalesce)", got)
 	}
 }

@@ -13,20 +13,27 @@ import (
 )
 
 func Post(view feedquery.PostView, now time.Time) g.Node {
-	return PostArticle(view, now, "post")
+	return PostArticle(view, now, "post", false, false)
 }
 
-func PostArticle(view feedquery.PostView, now time.Time, class string, extra ...g.Node) g.Node {
+// PostArticle renders a post. pollCounts enables the live-counts toggle and
+// poller (only used for the focused post on its own page); live is the
+// initial polling state when pollCounts is true.
+func PostArticle(view feedquery.PostView, now time.Time, class string, pollCounts, live bool, extra ...g.Node) g.Node {
 	if view.Moderation.Filtered {
 		return nil
 	}
 
 	repostedBy, replyParent, replyParentID := postHeaderMeta(view)
+	footer := postFooter(view)
+	if pollCounts {
+		footer = postFooterLive(view, now, live)
+	}
 	children := []g.Node{
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
-		postFooter(view),
+		footer,
 	}
 	children = append(children, extra...)
 	return Article(g.Attr("class", class), g.Attr("id", "post-"+url.PathEscape(view.ID)), g.Group(children))
@@ -45,6 +52,35 @@ func postFooter(view feedquery.PostView) g.Node {
 			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
 		),
+	)
+}
+
+// postFooterLive is the footer variant for the focused post on its own page:
+// engagement counts are pollable (fuzzy-formatted, stable ids) and a
+// play/pause control plus hidden poller/announcer elements drive live
+// updates.
+func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
+	ids := newCountIDs(view.ID)
+	return Footer(
+		Nav(
+			g.Attr("aria-label", "Post actions"),
+			ui.SegmentedGroup("Engagement actions",
+				ui.PostEngagementPollable(ui.IconReply, "Reply", view.ReplyCount, ids.reply),
+				ui.PostEngagementPollable(ui.IconRepost, "Repost", view.RepostCount, ids.repost),
+				ui.PostEngagementPollable(ui.IconLike, "Like", view.LikeCount, ids.like),
+			),
+			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
+			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
+			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
+			Ul(
+				g.Attr("class", "iface-segmented"),
+				g.Attr("aria-label", "Live counts"),
+				g.Attr("role", "group"),
+				Li(countsLiveToggle(view, live)),
+			),
+		),
+		countsPollerData(view, now, live, false),
+		countsAnnouncer(view.ID),
 	)
 }
 

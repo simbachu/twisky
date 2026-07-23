@@ -17,7 +17,7 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 		suggested,
 		g.Group{
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
-			postPageRoot(view.Post, view.Replies, now),
+			postPageRoot(view.Post, view.Replies, now, view.ExplicitLive),
 		},
 	)
 }
@@ -62,7 +62,7 @@ func furthestFirstAncestors(ancestors []feedquery.AncestorNodeView) []feedquery.
 	return reversed
 }
 
-func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, now time.Time) g.Node {
+func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, now time.Time, explicitLive bool) g.Node {
 	if view.Moderation.Filtered {
 		return P(g.Text("Post hidden by moderation"))
 	}
@@ -70,7 +70,8 @@ func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, n
 	if len(replies) > 0 {
 		extra = append(extra, repliesList(replies, now))
 	}
-	return PostArticle(view, now, "post post-page", extra...)
+	live := explicitLive || autoStartLive(now.Sub(view.CreatedAt))
+	return PostArticle(view, now, "post post-page", true, live, extra...)
 }
 
 func repliesList(replies []feedquery.ThreadNodeView, now time.Time) g.Node {
