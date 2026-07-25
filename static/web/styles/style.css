@@ -118,23 +118,11 @@ main {
     margin-inline: var(--content-padding-inline);
     margin-block-start: 3rem;
     margin-block-end: 0.5rem;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
 
     & h2 {
       font-size: 1.2em;
       font-weight: 600;
       margin: 0;
-    }
-
-    /* Put the buttons to the end of the header */
-    &:not(#post-page-header) nav {
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-end;
-      gap: 0.5rem;
     }
   }
 }
@@ -189,9 +177,21 @@ main {
   }
 }
 
-.profile-header .byline-avatar img {
-  z-index: 99;
-  max-height: 6em;
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  h1,
+  h2 {
+    margin: 0;
+  }
+
+  .byline-avatar img {
+    z-index: 99;
+    max-height: 6em;
+  }
 }
 
 .iface-segmented {
