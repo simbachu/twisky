@@ -856,31 +856,54 @@ body > footer aside .iface-joined {
   .post-replies {
     margin-block-start: 0.75rem;
   }
+
+  &.reply-view-linear {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    border-inline-start: none;
+
+    .post-replies {
+      margin-inline-start: 0;
+      padding-inline-start: 0;
+      border-inline-start: none;
+    }
+
+    > li {
+      border-block-end: 1px solid lightgrey;
+      padding-block: 0.75rem;
+      margin-block-end: 0;
+
+      &:last-child {
+        margin-block-end: 0;
+      }
+    }
+  }
 }
 
-.post-page > .post-replies {
-  margin-block-start: 1rem;
+html[data-reply-view="linear"] {
+  .post-replies {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    border-inline-start: none;
+
+    .post-replies {
+      margin-inline-start: 0;
+      padding-inline-start: 0;
+      border-inline-start: none;
+    }
+  }
+
+  .post-page > .post-replies > li {
+    border-block-end: 1px solid lightgrey;
+    padding-block: 0.75rem;
+    margin-block-end: 0;
+
+    &:last-child {
+      margin-block-end: 0;
+    }
+  }
 }
 
-.post-page > .post-replies:empty {
+.post.post-page > .post-replies:empty {
   display: none;
-}
-
-.post-replies.reply-view-linear .post-replies,
-html[data-reply-view="linear"] .post-replies .post-replies {
-  margin-inline-start: 0;
-  padding-inline-start: 0;
-  border-inline-start: none;
-}
-
-.post-page > .post-replies.reply-view-linear > li,
-html[data-reply-view="linear"] .post-page > .post-replies > li {
-  border: 1px solid lightgrey;
-  padding-block: 0.75rem;
-  margin-block-end: 0.75rem;
-}
-
-.post-page > .post-replies.reply-view-linear > li:last-child,
-html[data-reply-view="linear"] .post-page > .post-replies > li:last-child {
-  margin-block-end: 0;
 }
