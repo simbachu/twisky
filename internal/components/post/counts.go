@@ -23,23 +23,31 @@ type PreviousCounts struct {
 }
 
 type countIDs struct {
-	reply     string
-	repost    string
-	like      string
-	toggle    string
-	poller    string
-	announcer string
+	reply        string
+	repost       string
+	like         string
+	replyStats   string
+	repostStats  string
+	likeStats    string
+	statsDetails string
+	toggle       string
+	poller       string
+	announcer    string
 }
 
 func newCountIDs(postID string) countIDs {
 	esc := url.PathEscape(postID)
 	return countIDs{
-		reply:     "reply-count-" + esc,
-		repost:    "repost-count-" + esc,
-		like:      "like-count-" + esc,
-		toggle:    "counts-live-toggle-" + esc,
-		poller:    "counts-poller-" + esc,
-		announcer: "counts-announcer-" + esc,
+		reply:        "reply-count-" + esc,
+		repost:       "repost-count-" + esc,
+		like:         "like-count-" + esc,
+		replyStats:   "reply-stats-" + esc,
+		repostStats:  "repost-stats-" + esc,
+		likeStats:    "like-stats-" + esc,
+		statsDetails: "engagement-stats-" + esc,
+		toggle:       "counts-live-toggle-" + esc,
+		poller:       "counts-poller-" + esc,
+		announcer:    "counts-announcer-" + esc,
 	}
 }
 
@@ -130,30 +138,78 @@ func countChanged(previous *int, count int) bool {
 	return ui.FormatFuzzyNumber(*previous) != ui.FormatFuzzyNumber(count)
 }
 
+func groupedCountChanged(previous *int, count int) bool {
+	if previous == nil {
+		return true
+	}
+	return ui.FormatGroupedNumber(*previous) != ui.FormatGroupedNumber(count)
+}
+
+// engagementStats renders the expanded grouped engagement counts for the
+// focused post page. Exact values live-update only while the details is open.
+func engagementStats(view feedquery.PostView) g.Node {
+	ids := newCountIDs(view.ID)
+	return Details(
+		g.Attr("class", "post-engagement-stats"),
+		g.Attr("id", ids.statsDetails),
+		g.Attr("open", ""),
+		g.Attr("data-stats-href", postHref(view)+"?counts=1"),
+		Summary(g.Text("Engagement")),
+		Dl(
+			engagementStatRow("Replies", ids.replyStats, view.ReplyCount),
+			engagementStatRow("Reposts", ids.repostStats, view.RepostCount),
+			engagementStatRow("Likes", ids.likeStats, view.LikeCount),
+		),
+	)
+}
+
+func engagementStatRow(label, id string, count int) g.Node {
+	return Div(
+		Dt(g.Text(label)),
+		ui.GroupedStatCount(id, count, false),
+	)
+}
+
 // CountsRefreshFragment renders out-of-band updates for a post's engagement
-// counts, for the periodic (no live param) counts poll. Only spans whose
-// fuzzy-formatted value actually changed are included, plus an accessible
-// announcer update if anything changed at all. When anything changes, the
-// poller element is also refreshed so age-based reply cooldown stays current.
-func CountsRefreshFragment(view feedquery.PostView, previous PreviousCounts, now time.Time) g.Node {
+// counts, for the periodic (no live param) counts poll. Fuzzy button spans
+// update when their abbreviated display changes. Grouped stats update only
+// when includeStats is true (details open) and the grouped display changes.
+// An announcer and poller refresh accompany fuzzy display changes only.
+func CountsRefreshFragment(view feedquery.PostView, previous PreviousCounts, now time.Time, includeStats bool) g.Node {
 	ids := newCountIDs(view.ID)
 	var nodes []g.Node
 	var announced []string
+	var fuzzyChanged bool
 
 	if countChanged(previous.Reply, view.ReplyCount) {
+		fuzzyChanged = true
 		nodes = append(nodes, ui.FuzzyCountSpan(ids.reply, view.ReplyCount, true))
 		announced = append(announced, countAnnouncement(view.ReplyCount, "reply", "replies"))
 	}
 	if countChanged(previous.Repost, view.RepostCount) {
+		fuzzyChanged = true
 		nodes = append(nodes, ui.FuzzyCountSpan(ids.repost, view.RepostCount, true))
 		announced = append(announced, countAnnouncement(view.RepostCount, "repost", "reposts"))
 	}
 	if countChanged(previous.Like, view.LikeCount) {
+		fuzzyChanged = true
 		nodes = append(nodes, ui.FuzzyCountSpan(ids.like, view.LikeCount, true))
 		announced = append(announced, countAnnouncement(view.LikeCount, "like", "likes"))
 	}
 
-	if len(announced) > 0 {
+	if includeStats {
+		if groupedCountChanged(previous.Reply, view.ReplyCount) {
+			nodes = append(nodes, ui.GroupedStatCount(ids.replyStats, view.ReplyCount, true))
+		}
+		if groupedCountChanged(previous.Repost, view.RepostCount) {
+			nodes = append(nodes, ui.GroupedStatCount(ids.repostStats, view.RepostCount, true))
+		}
+		if groupedCountChanged(previous.Like, view.LikeCount) {
+			nodes = append(nodes, ui.GroupedStatCount(ids.likeStats, view.LikeCount, true))
+		}
+	}
+
+	if fuzzyChanged {
 		nodes = append(nodes, Div(
 			g.Attr("id", ids.announcer),
 			g.Attr("hx-swap-oob", "true"),

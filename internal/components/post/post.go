@@ -56,12 +56,12 @@ func postFooter(view feedquery.PostView) g.Node {
 }
 
 // postFooterLive is the footer variant for the focused post on its own page:
-// engagement counts are pollable (fuzzy-formatted, stable ids) and a
-// play/pause control plus hidden poller/announcer elements drive live
-// updates.
+// an expanded grouped stats block, pollable fuzzy action buttons, and a
+// play/pause control plus hidden poller/announcer elements for live updates.
 func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 	ids := newCountIDs(view.ID)
 	return Footer(
+		engagementStats(view),
 		Nav(
 			g.Attr("aria-label", "Post actions"),
 			ui.SegmentedGroup("Engagement actions",

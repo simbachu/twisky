@@ -60,8 +60,8 @@ func TestActionButton_RendersCountWhenPositive(t *testing.T) {
 	if !strings.Contains(html, `aria-label="Likes, 42"`) {
 		t.Fatalf("html = %q, want aria-label with count", html)
 	}
-	if !strings.Contains(html, `<span aria-hidden="true">42</span>`) {
-		t.Fatalf("html = %q, want visually hidden count span", html)
+	if !strings.Contains(html, `class="fuzzy-number"`) || !strings.Contains(html, `aria-hidden="true"`) || !strings.Contains(html, ">42<") {
+		t.Fatalf("html = %q, want fuzzy visually hidden count span", html)
 	}
 }
 

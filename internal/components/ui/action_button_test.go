@@ -25,7 +25,7 @@ func TestActionButton_OmitsCountSpanWhenZeroAndNoCountID(t *testing.T) {
 	}
 }
 
-func TestActionButton_RendersExactCountWhenNonPollable(t *testing.T) {
+func TestActionButton_RendersFuzzyCountWhenNonPollable(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
@@ -38,10 +38,27 @@ func TestActionButton_RendersExactCountWhenNonPollable(t *testing.T) {
 		t.Fatalf("html = %q, want count in aria-label", html)
 	}
 	if !strings.Contains(html, ">5<") {
-		t.Fatalf("html = %q, want exact integer text", html)
+		t.Fatalf("html = %q, want fuzzy count text", html)
 	}
-	if strings.Contains(html, "fuzzy-number") {
-		t.Fatalf("html = %q, want no fuzzy-number class for non-pollable count", html)
+	if !strings.Contains(html, `class="fuzzy-number"`) {
+		t.Fatalf("html = %q, want fuzzy-number class", html)
+	}
+}
+
+func TestActionButton_RendersFuzzyAbbreviationWhenNonPollable(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.ActionButton(ui.PostEngagement(ui.IconLike, "Like", 10_000)).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `aria-label="Like, 10K"`) {
+		t.Fatalf("html = %q, want fuzzy count in aria-label", html)
+	}
+	if !strings.Contains(html, ">10K<") {
+		t.Fatalf("html = %q, want fuzzy count text", html)
 	}
 }
 
@@ -78,7 +95,7 @@ func TestActionButton_RendersPollableSpanWithFuzzyFormatting(t *testing.T) {
 		`id="like-count-abc"`,
 		`title="15000"`,
 		">15K<",
-		`aria-label="Like, 15000"`,
+		`aria-label="Like, 15K"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)

@@ -11,6 +11,19 @@ function postIdFromPollerId(el) {
   return el.id.replace(/^counts-poller-/, "");
 }
 
+function postIdFromStatsDetails(details) {
+  return details.id.replace(/^engagement-stats-/, "");
+}
+
+function statsDetailsEl(postId) {
+  return document.getElementById(`engagement-stats-${postId}`);
+}
+
+function statsOpen(postId) {
+  const details = statsDetailsEl(postId);
+  return details && details.open;
+}
+
 function getState(postId) {
   return pollerState.get(postId);
 }
@@ -43,8 +56,7 @@ function repliesCooldown(el) {
   return parseInt(el.dataset.repliesCooldownMs, 10) || DEFAULT_REPLIES_COOLDOWN_MS;
 }
 
-function currentCountParams(el) {
-  const postId = postIdFromPollerId(el);
+function currentCountParamsForPost(postId) {
   const params = new URLSearchParams();
   ["like", "reply", "repost"].forEach((metric) => {
     const span = document.getElementById(`${metric}-count-${postId}`);
@@ -52,6 +64,9 @@ function currentCountParams(el) {
       params.set(metric, span.title);
     }
   });
+  if (statsOpen(postId)) {
+    params.set("stats", "1");
+  }
   return params;
 }
 
@@ -70,10 +85,20 @@ function readCounts(el) {
 function requestURL(el) {
   const href = el.dataset.href;
   if (!href) return null;
-  const params = currentCountParams(el);
+  const postId = postIdFromPollerId(el);
+  const params = currentCountParamsForPost(postId);
   if ([...params].length === 0) return href;
   const sep = href.includes("?") ? "&" : "?";
   return `${href}${sep}${params.toString()}`;
+}
+
+function fetchStatsUpdate(details) {
+  const href = details.dataset.statsHref;
+  if (!href || !details.open) return;
+  const postId = postIdFromStatsDetails(details);
+  const params = currentCountParamsForPost(postId);
+  const sep = href.includes("?") ? "&" : "?";
+  htmx.ajax("GET", `${href}${sep}${params.toString()}`, { swap: "none" });
 }
 
 function scheduleTick(el, delayMs) {
@@ -240,6 +265,14 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
 document.body.addEventListener("htmx:oobAfterSwap", (event) => {
   initPollersWithin(event.detail.target);
 });
+
+document.addEventListener("toggle", (event) => {
+  const details = event.target;
+  if (!(details instanceof HTMLDetailsElement)) return;
+  if (!details.classList.contains("post-engagement-stats")) return;
+  if (!details.open) return;
+  fetchStatsUpdate(details);
+}, true);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;

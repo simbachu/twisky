@@ -25,6 +25,17 @@ func FormatFuzzyNumber(n int) string {
 	}
 }
 
+// FuzzyCountText renders a non-pollable abbreviated count with the exact
+// value in title.
+func FuzzyCountText(n int) g.Node {
+	return Span(
+		g.Attr("class", "fuzzy-number"),
+		g.Attr("aria-hidden", "true"),
+		g.Attr("title", strconv.Itoa(n)),
+		g.Text(FormatFuzzyNumber(n)),
+	)
+}
+
 // FuzzyNumber renders an abbreviated count, with the exact value in title.
 func FuzzyNumber(n int) g.Node {
 	return Span(

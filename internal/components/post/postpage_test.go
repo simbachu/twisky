@@ -71,6 +71,10 @@ func TestPostPage_RootPostRendersLiveCountsFeatures(t *testing.T) {
 	for _, want := range []string{
 		`id="like-count-root"`,
 		`class="fuzzy-number"`,
+		`id="engagement-stats-root"`,
+		`class="post-engagement-stats"`,
+		`open=""`,
+		`id="like-stats-root"`,
 		`id="counts-poller-root"`,
 		`data-counts-poll`,
 		`id="counts-announcer-root"`,

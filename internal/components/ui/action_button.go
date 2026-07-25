@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -60,17 +59,14 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 	case cfg.CountID != "":
 		attrs = append(attrs, FuzzyCountSpan(cfg.CountID, cfg.Count, false))
 	case cfg.Count > 0:
-		attrs = append(attrs, Span(
-			g.Attr("aria-hidden", "true"),
-			g.Text(strconv.Itoa(cfg.Count)),
-		))
+		attrs = append(attrs, FuzzyCountText(cfg.Count))
 	}
 	return Button(g.Group(attrs))
 }
 
 func actionLabel(label string, count int) string {
 	if count > 0 {
-		return fmt.Sprintf("%s, %d", label, count)
+		return fmt.Sprintf("%s, %s", label, FormatFuzzyNumber(count))
 	}
 	return label
 }

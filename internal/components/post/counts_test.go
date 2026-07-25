@@ -22,7 +22,7 @@ func TestCountsRefreshFragment_OmitsUnchangedSpans(t *testing.T) {
 		Like:   intPtr(1042),
 		Repost: intPtr(3),
 		Reply:  intPtr(1),
-	}, time.Now()).Render(&buf); err != nil {
+	}, time.Now(), false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -48,7 +48,7 @@ func TestCountsRefreshFragment_IncludesOnlyChangedSpan(t *testing.T) {
 		Like:   intPtr(1041),
 		Repost: intPtr(3),
 		Reply:  intPtr(1),
-	}, time.Now()).Render(&buf); err != nil {
+	}, time.Now(), false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestCountsRefreshFragment_TreatsMissingPreviousAsChanged(t *testing.T) {
 	view := feedquery.PostView{ID: "root", AuthorHandle: "bsky.app", LikeCount: 0, RepostCount: 0, ReplyCount: 0}
 
 	var buf bytes.Buffer
-	if err := post.CountsRefreshFragment(view, post.PreviousCounts{}, time.Now()).Render(&buf); err != nil {
+	if err := post.CountsRefreshFragment(view, post.PreviousCounts{}, time.Now(), false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -96,17 +96,64 @@ func TestCountsRefreshFragment_NoChangeAcrossFuzzyBoundary(t *testing.T) {
 
 	// 11001 -> 11500 both fuzzy-format to "11K" (n/1000), so no swap should
 	// occur even though the exact counts differ.
-	view := feedquery.PostView{ID: "root", LikeCount: 11500}
+	view := feedquery.PostView{ID: "root", LikeCount: 11500, ReplyCount: 0, RepostCount: 0}
 
 	var buf bytes.Buffer
 	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
-		Like: intPtr(11001),
-	}, time.Now()).Render(&buf); err != nil {
+		Like:   intPtr(11001),
+		Reply:  intPtr(0),
+		Repost: intPtr(0),
+	}, time.Now(), false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	if got := buf.String(); strings.Contains(got, `id="like-count-root"`) {
 		t.Fatalf("html = %q, want no swap when the fuzzy value is unchanged", got)
+	}
+}
+
+func TestCountsRefreshFragment_UpdatesGroupedStatsWhenOpen(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{ID: "root", LikeCount: 11500, ReplyCount: 0, RepostCount: 0}
+
+	var buf bytes.Buffer
+	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
+		Like:   intPtr(11001),
+		Reply:  intPtr(0),
+		Repost: intPtr(0),
+	}, time.Now(), true).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if strings.Contains(html, `id="like-count-root"`) {
+		t.Fatalf("html = %q, want no fuzzy swap within the same bucket", html)
+	}
+	if !strings.Contains(html, `id="like-stats-root"`) || !strings.Contains(html, "11\u2009500") {
+		t.Fatalf("html = %q, want grouped stats swap while details is open", html)
+	}
+	if strings.Contains(html, `id="counts-announcer-root"`) {
+		t.Fatalf("html = %q, want no announcer when only grouped stats changed", html)
+	}
+}
+
+func TestCountsRefreshFragment_OmitsGroupedStatsWhenClosed(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{ID: "root", LikeCount: 11500, ReplyCount: 0, RepostCount: 0}
+
+	var buf bytes.Buffer
+	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
+		Like:   intPtr(11001),
+		Reply:  intPtr(0),
+		Repost: intPtr(0),
+	}, time.Now(), false).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	if got := buf.String(); got != "" {
+		t.Fatalf("html = %q, want empty response when stats are closed and fuzzy unchanged", got)
 	}
 }
 
@@ -119,7 +166,7 @@ func TestCountsRefreshFragment_ChangeAcrossFuzzyBoundary(t *testing.T) {
 	var buf bytes.Buffer
 	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
 		Like: intPtr(9999),
-	}, time.Now()).Render(&buf); err != nil {
+	}, time.Now(), false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

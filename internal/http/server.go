@@ -164,7 +164,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			if live, ok := liveToggleParam(r); ok {
 				_ = postpage.CountsToggleFragment(v.Post, now, live).Render(w)
 			} else {
-				_ = postpage.CountsRefreshFragment(v.Post, previousCounts(r), now).Render(w)
+				_ = postpage.CountsRefreshFragment(v.Post, previousCounts(r), now, wantsStats(r)).Render(w)
 			}
 		case feedquery.PostPagePartReplies:
 			_ = postpage.RepliesRefreshFragment(v, parseKnownParam(r), now).Render(w)
@@ -200,6 +200,10 @@ func postPagePart(r *http.Request) string {
 
 func wantsLive(r *http.Request) bool {
 	return r.URL.Query().Get("live") == "1"
+}
+
+func wantsStats(r *http.Request) bool {
+	return r.URL.Query().Get("stats") == "1"
 }
 
 // liveToggleParam reports the requested live state and whether the request

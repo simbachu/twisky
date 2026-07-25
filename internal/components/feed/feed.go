@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/components/post"
+	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -66,7 +67,7 @@ func NewPostsBanner(count int, feedURL, sinceID string) g.Node {
 	}
 	label := "Show 1 new post"
 	if count != 1 {
-		label = fmt.Sprintf("Show %d new posts", count)
+		label = fmt.Sprintf("Show %s new posts", ui.FormatGroupedNumber(count))
 	}
 	return Button(
 		g.Attr("type", "button"),

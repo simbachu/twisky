@@ -67,11 +67,14 @@ func TestPost_OmitsLiveCountsFeatures(t *testing.T) {
 		`aria-label="Show live counts"`,
 		`aria-label="Pause live counts"`,
 		`class="visually-hidden"`,
-		"fuzzy-number",
+		`post-engagement-stats`,
 	} {
 		if strings.Contains(html, unwanted) {
 			t.Fatalf("html = %q, want no %s in feed usage", html, unwanted)
 		}
+	}
+	if !strings.Contains(html, `class="fuzzy-number"`) {
+		t.Fatalf("html = %q, want fuzzy counts in feed usage", html)
 	}
 }
 
