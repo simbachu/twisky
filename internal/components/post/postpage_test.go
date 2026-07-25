@@ -11,6 +11,93 @@ import (
 	"github.com/simbachu/twisky/internal/richtext"
 )
 
+func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "hello",
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`id="post-page-header"`,
+		`class="post-page-settings"`,
+		`<details`,
+		`<summary`,
+		`Reply settings`,
+		`name="reply-view"`,
+		`name="reply-sort-order"`,
+		`role="group"`,
+		`aria-label="Reply view"`,
+		`aria-label="Reply sort order"`,
+		`value="threaded"`,
+		`value="flat"`,
+		`value="hot"`,
+		`value="new"`,
+		`value="old"`,
+		`value="ratio"`,
+		`🔥`,
+		`↪️`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+
+	headerStart := strings.Index(html, `id="post-page-header"`)
+	if headerStart < 0 {
+		t.Fatalf("html = %q, want post-page-header", html)
+	}
+	headerEnd := strings.Index(html[headerStart:], "</header>")
+	if headerEnd < 0 {
+		t.Fatalf("html = %q, want closing header tag", html)
+	}
+	header := html[headerStart : headerStart+headerEnd]
+
+	if !strings.Contains(header, `<details class="post-page-settings"`) {
+		t.Fatalf("header = %q, want post-page-settings on details", header)
+	}
+	if strings.Contains(header, `<nav class="post-page-settings"`) {
+		t.Fatalf("header = %q, want post-page-settings on details not nav", header)
+	}
+
+	if strings.Count(header, `name="reply-view"`) != 2 {
+		t.Fatalf("header = %q, want two reply-view radios", header)
+	}
+	if strings.Count(header, `name="reply-sort-order"`) != 4 {
+		t.Fatalf("header = %q, want four reply-sort-order radios", header)
+	}
+	if strings.Count(header, `checked=""`) != 2 {
+		t.Fatalf("header = %q, want exactly two checked radios", header)
+	}
+	if !strings.Contains(header, `name="reply-view"`) || !strings.Contains(header, `value="threaded"`) {
+		t.Fatalf("header = %q, want threaded reply-view option", header)
+	}
+	threadedIdx := strings.Index(header, `id="reply-view-threaded"`)
+	if threadedIdx < 0 {
+		t.Fatalf("header = %q, want reply-view-threaded input id", header)
+	}
+	threadedSlice := header[threadedIdx:]
+	if !strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
+		t.Fatalf("header = %q, want threaded reply-view checked by default", header)
+	}
+	hotIdx := strings.Index(header, `id="reply-sort-order-hot"`)
+	if hotIdx < 0 {
+		t.Fatalf("header = %q, want reply-sort-order-hot input id", header)
+	}
+	hotSlice := header[hotIdx:]
+	if !strings.Contains(hotSlice[:strings.Index(hotSlice, ">")], `checked=""`) {
+		t.Fatalf("header = %q, want hot reply-sort-order checked by default", header)
+	}
+}
+
 func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 	t.Parallel()
 
@@ -84,6 +171,48 @@ func TestPostPage_RootPostRendersLiveCountsFeatures(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+}
+
+func TestPostPage_RendersFooterTimestamp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	createdAt := now.Add(-2 * time.Hour)
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "hello",
+			CreatedAt:    createdAt,
+		},
+	}, now, nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="post-page-timestamp"`) {
+		t.Fatalf("html = %q, want footer timestamp", html)
+	}
+	if !strings.Contains(html, "2026-07-25 12:56 UTC (2 hours ago)") {
+		t.Fatalf("html = %q, want expanded footer timestamp", html)
+	}
+
+	pageIdx := strings.Index(html, `class="post post-page"`)
+	if pageIdx < 0 {
+		t.Fatalf("html = %q, want post-page article", html)
+	}
+	pageHTML := html[pageIdx:]
+	headerStart := strings.Index(pageHTML, "<header>")
+	headerEnd := strings.Index(pageHTML, "</header>")
+	if headerStart < 0 || headerEnd < 0 {
+		t.Fatalf("html = %q, want post-page header", html)
+	}
+	header := pageHTML[headerStart:headerEnd]
+	if strings.Contains(header, "<time") {
+		t.Fatalf("header = %q, want no byline timestamp on post page", header)
 	}
 }
 

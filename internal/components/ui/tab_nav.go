@@ -24,7 +24,7 @@ func TabNav(label string, tabs []TabItem) g.Node {
 
 	return Nav(
 		g.Group(navAttrs),
-		Ul(
+		Menu(
 			g.Attr("role", "tablist"),
 			g.Group(g.Map(tabs, tabItem)),
 		),

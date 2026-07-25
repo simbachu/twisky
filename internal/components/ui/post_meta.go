@@ -32,25 +32,26 @@ func ReplyMeta(parent AuthorInfo, parentPostID string) g.Node {
 	)
 }
 
-func PostHeader(author AuthorInfo, createdAt, now time.Time, repostedBy, replyParent *AuthorInfo, replyParentPostID string) g.Node {
+func PostHeader(author AuthorInfo, createdAt, now time.Time, repostedBy, replyParent *AuthorInfo, replyParentPostID string, includeTimestamp bool) g.Node {
 	var children []g.Node
 	if repostedBy != nil {
 		children = append(children, RepostMeta(*repostedBy))
 	}
-	children = append(children, postBylineContent(author, createdAt, now))
+	children = append(children, postBylineContent(author, createdAt, now, includeTimestamp))
 	if replyParent != nil && replyParentPostID != "" {
 		children = append(children, ReplyMeta(*replyParent, replyParentPostID))
 	}
 	return Header(children...)
 }
 
-func postBylineContent(author AuthorInfo, createdAt, now time.Time) g.Node {
+func postBylineContent(author AuthorInfo, createdAt, now time.Time, includeTimestamp bool) g.Node {
+	authorSpan := []g.Node{AuthorLink(author)}
+	if includeTimestamp {
+		authorSpan = append(authorSpan, Timestamp(createdAt, now))
+	}
 	return Div(
 		g.Attr("class", "byline"),
 		Avatar(author),
-		Span(
-			AuthorLink(author),
-			Timestamp(createdAt, now),
-		),
+		Span(g.Group(authorSpan)),
 	)
 }

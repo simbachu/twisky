@@ -4,7 +4,7 @@
   --content-padding-inline: 1rem;
 
 
-  --post-indent: 3rem; /* margin-inline-start for non-header in posts */
+  --post-indent: 3rem; /* left margin column width; avatar lives here, everything else starts after it */
   
   /* post byline avatar */
   /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
@@ -37,13 +37,14 @@ time {
 }
 
 
-ul {
+ul,
+menu {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-nav ul {
+nav menu {
   display: flex;
 
   &[role="tablist"] {
@@ -107,9 +108,34 @@ main {
   width: min(var(--content-width), 100%);
   max-width: var(--content-width);
   padding-inline: var(--content-padding-inline);
+  margin-block-end: 3rem;
 
   @media (min-width: 768px) {
     flex: 0 1 var(--content-width);
+  }
+
+  & > header {
+    margin-inline: var(--content-padding-inline);
+    margin-block-start: 3rem;
+    margin-block-end: 0.5rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+
+    & h2 {
+      font-size: 1.2em;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    /* Put the buttons to the end of the header */
+    &:not(#post-page-header) nav {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
   }
 }
 
@@ -183,7 +209,8 @@ main {
     }
   }
 
-  button {
+  button,
+  > li > label {
     border: none;
     background-color: transparent;
     min-width: 3rem;
@@ -202,9 +229,35 @@ main {
       background-color: var(--iface-hover-bg);
     }
   }
+
+  > li > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &:has(input[type="radio"]:checked) {
+      background-color: rgba(0, 0, 0, 0.12);
+
+      span {
+        color: black;
+      }
+    }
+
+    &:has(input[type="radio"]:focus-visible) {
+      outline: 2px solid black;
+      outline-offset: -2px;
+    }
+  }
+
+  input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
-nav ul.iface-segmented {
+nav menu.iface-segmented {
   display: inline-flex;
 }
 
@@ -267,7 +320,7 @@ body > footer aside .iface-joined {
 }
 
 .account-list {
-  ul {
+  menu {
     display: flex;
     flex-direction: column;
 
@@ -314,6 +367,8 @@ body > footer aside .iface-joined {
   margin-inline-start: var(--post-indent);
 }
 
+
+
 .post {
   border: var(--post-border);
 
@@ -323,9 +378,14 @@ body > footer aside .iface-joined {
   }
 
   & > header {
+    display: grid;
+    grid-template-columns: var(--post-indent) 1fr;
+    column-gap: 0.5rem;
+    align-items: center;
     margin-block-end: 0.5rem;
 
     .post-meta {
+      grid-column: 2;
       font-size: 0.85em;
       color: dimgrey;
       margin: 0 0 0.15rem;
@@ -334,6 +394,19 @@ body > footer aside .iface-joined {
         color: dimgrey;
         text-decoration: none;
       }
+    }
+
+    .byline {
+      display: contents;
+    }
+
+    .byline-avatar {
+      grid-column: 1;
+      justify-self: center;
+    }
+
+    .byline > span {
+      grid-column: 2;
     }
   }
 
@@ -414,15 +487,6 @@ body > footer aside .iface-joined {
     }
   }
 
-  & > p,
-  .inset-post,
-  .post-link-preview,
-  .post-moderation-notice,
-  details,
-  .post-moderation-gate {
-    margin-inline-start: var(--post-indent);
-  }
-
   .post-link-preview {
     display: flex;
     gap: 0.75rem;
@@ -499,14 +563,12 @@ body > footer aside .iface-joined {
     }
 
     .post-moderation-notice,
-    details,
     .post-moderation-gate {
       margin-inline-start: 0;
     }
   }
 
   .post-moderation-notice,
-  details summary,
   .post-moderation-gate:not(details) {
     border: 1px solid dimgrey;
     border-radius: 0.5rem;
@@ -520,7 +582,6 @@ body > footer aside .iface-joined {
     font-size: 0.9em;
   }
 
-  details summary,
   .post-moderation-gate:not(details) {
     display: flex;
     flex-direction: column;
@@ -557,6 +618,12 @@ body > footer aside .iface-joined {
     .post-engagement-stats {
       margin-block-end: 0.75rem;
 
+      &[open] > summary {
+        border-block-end: 1px solid dimgrey;
+        padding-block-end: 0.5rem;
+        margin-block-end: 0.5rem;
+      }
+
       summary {
         cursor: pointer;
         font-size: 0.875rem;
@@ -591,6 +658,13 @@ body > footer aside .iface-joined {
         font-weight: 600;
         font-variant-numeric: tabular-nums;
       }
+    }
+
+    .post-page-timestamp {
+      display: block;
+      margin-block-start: 0.5rem;
+      font-size: 0.875rem;
+      color: dimgrey;
     }
 
     nav {
@@ -686,6 +760,65 @@ body > footer aside .iface-joined {
 
     &:hover {
       background-color: rgba(0, 0, 0, 0.05);
+    }
+  }
+}
+
+#post-page-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+
+  > h2 {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  > .post-page-settings {
+    grid-column: 2;
+    grid-row: 1;
+
+    > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--iface-radius);
+      background-color: var(--iface-bg);
+      font-size: 0.85em;
+
+      &:hover {
+        background-color: var(--iface-hover-bg);
+      }
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+    }
+
+    > nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: flex-start;
+    }
+
+    &[open] {
+      grid-column: 1 / -1;
+      grid-row: 2;
+
+      > summary {
+        position: absolute;
+        top: 0;
+        right: 0;
+      }
+
+      > nav {
+        margin-block-start: 0.5rem;
+      }
     }
   }
 }

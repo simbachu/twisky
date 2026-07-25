@@ -66,6 +66,7 @@ func TestPostHeader_OmitsMetaWhenNil(t *testing.T) {
 		nil,
 		nil,
 		"",
+		true,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -96,6 +97,7 @@ func TestPostHeader_RendersRepostAndReplyMeta(t *testing.T) {
 		&repostedBy,
 		&replyParent,
 		"parent-id",
+		true,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -106,5 +108,58 @@ func TestPostHeader_RendersRepostAndReplyMeta(t *testing.T) {
 	}
 	if !strings.Contains(html, "⤷ Reply to @parent.example") {
 		t.Fatalf("html = %q, want reply meta", html)
+	}
+}
+
+func TestPostHeader_OmitsTimestampWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	createdAt := now.Add(-2 * time.Hour)
+
+	var buf bytes.Buffer
+	if err := ui.PostHeader(
+		ui.AuthorInfo{Handle: "dev.example", DisplayName: "Dev"},
+		createdAt,
+		now,
+		nil,
+		nil,
+		"",
+		false,
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if strings.Contains(html, "<time") {
+		t.Fatalf("html = %q, want no timestamp in header", html)
+	}
+}
+
+func TestPostHeader_RendersTimestampWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	createdAt := now.Add(-2 * time.Hour)
+
+	var buf bytes.Buffer
+	if err := ui.PostHeader(
+		ui.AuthorInfo{Handle: "dev.example", DisplayName: "Dev"},
+		createdAt,
+		now,
+		nil,
+		nil,
+		"",
+		true,
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, "<time") {
+		t.Fatalf("html = %q, want timestamp in header", html)
+	}
+	if !strings.Contains(html, "2h") {
+		t.Fatalf("html = %q, want compact relative timestamp", html)
 	}
 }

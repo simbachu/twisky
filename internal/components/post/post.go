@@ -30,7 +30,7 @@ func PostArticle(view feedquery.PostView, now time.Time, class string, pollCount
 		footer = postFooterLive(view, now, live)
 	}
 	children := []g.Node{
-		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID),
+		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID, !pollCounts),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
 		footer,
@@ -61,7 +61,8 @@ func postFooter(view feedquery.PostView) g.Node {
 func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 	ids := newCountIDs(view.ID)
 	return Footer(
-		engagementStats(view),
+		engagementStats(view,
+			ui.PostPageTimestamp(view.CreatedAt, now)),
 		Nav(
 			g.Attr("aria-label", "Post actions"),
 			ui.SegmentedGroup("Engagement actions",
@@ -72,7 +73,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
-			Ul(
+			Menu(
 				g.Attr("class", "iface-segmented"),
 				g.Attr("aria-label", "Live counts"),
 				g.Attr("role", "group"),
@@ -113,7 +114,7 @@ func InsetPost(view *feedquery.PostView, now time.Time) g.Node {
 		return nil
 	}
 	return Article(g.Attr("class", "post inset-post"), g.Attr("id", "inset-post-"+url.PathEscape(view.ID)),
-		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, ""),
+		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, "", true),
 		moderationNotice(view.Moderation),
 		moderationBody(*view, now),
 	)

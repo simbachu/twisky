@@ -147,14 +147,14 @@ func groupedCountChanged(previous *int, count int) bool {
 
 // engagementStats renders the expanded grouped engagement counts for the
 // focused post page. Exact values live-update only while the details is open.
-func engagementStats(view feedquery.PostView) g.Node {
+func engagementStats(view feedquery.PostView, summaryNodes ...g.Node) g.Node {
 	ids := newCountIDs(view.ID)
 	return Details(
 		g.Attr("class", "post-engagement-stats"),
 		g.Attr("id", ids.statsDetails),
 		g.Attr("open", ""),
 		g.Attr("data-stats-href", postHref(view)+"?counts=1"),
-		Summary(g.Text("Engagement")),
+		Summary(g.Group(summaryNodes)...),
 		Dl(
 			engagementStatRow("Replies", ids.replyStats, view.ReplyCount),
 			engagementStatRow("Reposts", ids.repostStats, view.RepostCount),

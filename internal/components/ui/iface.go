@@ -11,7 +11,7 @@ func SegmentedGroup(label string, buttons ...ActionButtonConfig) g.Node {
 	for i, cfg := range buttons {
 		items[i] = Li(ActionButton(cfg))
 	}
-	return Ul(
+	return Menu(
 		g.Attr("class", "iface-segmented"),
 		g.Attr("aria-label", label),
 		g.Attr("role", "group"),

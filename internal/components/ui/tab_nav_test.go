@@ -23,6 +23,9 @@ func TestTabNav_RendersTablistStructure(t *testing.T) {
 	if !strings.Contains(html, "<nav") {
 		t.Fatalf("html = %q, want nav element", html)
 	}
+	if !strings.Contains(html, "<menu") {
+		t.Fatalf("html = %q, want menu element", html)
+	}
 	if !strings.Contains(html, `role="tablist"`) {
 		t.Fatalf("html = %q, want tablist role", html)
 	}

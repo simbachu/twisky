@@ -40,7 +40,7 @@ func AccountList(accounts []AuthorInfo) g.Node {
 	return Nav(
 		g.Attr("class", "account-list"),
 		g.Attr("aria-label", "Suggested accounts"),
-		Ul(g.Group(g.Map(accounts, accountListItem))),
+		Menu(g.Group(g.Map(accounts, accountListItem))),
 	)
 }
 

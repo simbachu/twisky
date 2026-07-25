@@ -48,6 +48,29 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 	}
 }
 
+func TestPost_OmitsPostPageFooterTimestamp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		CreatedAt:    now.Add(-2 * time.Hour),
+	}, now).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if strings.Contains(html, `class="post-page-timestamp"`) {
+		t.Fatalf("html = %q, want no post-page footer timestamp", html)
+	}
+	if !strings.Contains(html, "<time") {
+		t.Fatalf("html = %q, want byline timestamp on feed post", html)
+	}
+}
+
 func TestPost_OmitsLiveCountsFeatures(t *testing.T) {
 	t.Parallel()
 

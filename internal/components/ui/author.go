@@ -66,5 +66,5 @@ func AuthorLink(author AuthorInfo) g.Node {
 }
 
 func PostByline(author AuthorInfo, createdAt, now time.Time) g.Node {
-	return postBylineContent(author, createdAt, now)
+	return postBylineContent(author, createdAt, now, true)
 }

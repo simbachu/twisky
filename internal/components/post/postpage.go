@@ -11,11 +11,111 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+type ReplyView string
+
+const (
+	ReplyViewThreaded ReplyView = "threaded"
+	ReplyViewFlat     ReplyView = "flat"
+)
+
+type ReplySortOrder string
+
+const (
+	ReplySortOrderHot   ReplySortOrder = "hot"
+	ReplySortOrderNew   ReplySortOrder = "new"
+	ReplySortOrderOld   ReplySortOrder = "old"
+	ReplySortOrderRatio ReplySortOrder = "ratio" // More replies than likes ratio, "Controversial"
+)
+
+const (
+	ReplyViewThreadedIcon   = "↪️"
+	ReplyViewFlatIcon       = "⬇️"
+	ReplySortOrderHotIcon   = "🔥"
+	ReplySortOrderNewIcon   = "🆕"
+	ReplySortOrderOldIcon   = "⏮️"
+	ReplySortOrderRatioIcon = "🚮"
+)
+
+type PostPageSettings struct {
+	ReplyView      ReplyView      `default:"threaded"`
+	ReplySortOrder ReplySortOrder `default:"hot"`
+	Live           bool           `default:"false"`
+}
+
+type postPageSettingOption struct {
+	value string
+	icon  string
+	label string
+}
+
+var replyViewOptions = []postPageSettingOption{
+	{string(ReplyViewThreaded), ReplyViewThreadedIcon, "Threaded"},
+	{string(ReplyViewFlat), ReplyViewFlatIcon, "Flat"},
+}
+
+var replySortOptions = []postPageSettingOption{
+	{string(ReplySortOrderHot), ReplySortOrderHotIcon, "Hot"},
+	{string(ReplySortOrderNew), ReplySortOrderNewIcon, "New"},
+	{string(ReplySortOrderOld), ReplySortOrderOldIcon, "Old"},
+	{string(ReplySortOrderRatio), ReplySortOrderRatioIcon, "Controversial"},
+}
+
+func postPageSettingRadio(name, inputID string, checked bool, opt postPageSettingOption) g.Node {
+	return Label(
+		g.Attr("for", inputID),
+		g.Attr("title", opt.label),
+		Input(
+			g.Attr("type", "radio"),
+			g.Attr("id", inputID),
+			g.Attr("name", name),
+			g.Attr("value", opt.value),
+			g.If(checked, g.Attr("checked", "")),
+		),
+		Span(g.Text(opt.icon)),
+	)
+}
+
+func postPageSettingGroup(name, ariaLabel string, current string, options []postPageSettingOption) g.Node {
+	return Menu(
+		g.Attr("class", "iface-segmented"),
+		g.Attr("role", "group"),
+		g.Attr("aria-label", ariaLabel),
+		g.Group(g.Map(options, func(opt postPageSettingOption) g.Node {
+			return Li(postPageSettingRadio(name, name+"-"+opt.value, current == opt.value, opt))
+		})),
+	)
+}
+
+func postPageSettingsHeader(settings PostPageSettings) g.Node {
+	return Header(
+		g.Attr("id", "post-page-header"),
+		H2(g.Text("Viewing post")),
+		Details(
+			g.Attr("class", "post-page-settings"),
+			Summary(g.Text("Reply settings")),
+			Nav(
+				postPageSettingGroup("reply-view", "Reply view", string(settings.ReplyView), replyViewOptions),
+				postPageSettingGroup("reply-sort-order", "Reply sort order", string(settings.ReplySortOrder), replySortOptions),
+			),
+		),
+	)
+}
+
 func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
+	settings := PostPageSettings{
+		ReplyView:      ReplyViewThreaded,
+		ReplySortOrder: ReplySortOrderHot,
+		Live:           false,
+	}
 	return page.Page(
 		postPageMeta(view, publicBaseURL),
 		suggested,
 		g.Group{
+			// Apply default settings, don't pass anything yet.
+			// TODO: Pass the settings to the backend and apply them.
+		},
+		g.Group{
+			postPageSettingsHeader(settings),
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
 			postPageRoot(view.Post, view.Replies, now, view.ExplicitLive),
 		},
