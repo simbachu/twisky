@@ -3,6 +3,7 @@ package moderation
 type Label struct {
 	Val string
 	Src string
+	URI string
 }
 
 type Options struct {

@@ -158,6 +158,42 @@ func TestApplyModeration_SetsFilterTextForContentPorn(t *testing.T) {
 	}
 }
 
+func TestApplyModeration_ProfileScopedAuthorLabel_BlursAvatarWithoutNotice(t *testing.T) {
+	t.Parallel()
+
+	feed := feedquery.NewFeedView([]bluesky.Post{{
+		URI: "at://did:plc:author/app.bsky.feed.post/safe-text",
+		Author: bluesky.Author{
+			DID:    "did:plc:author",
+			Handle: "author.example",
+			Labels: []bluesky.Label{{
+				Val: "porn",
+				Src: moderation.BlueskyModerationDID,
+				URI: "at://did:plc:author/app.bsky.actor.profile/self",
+			}},
+		},
+		Record: bluesky.PostRecord{
+			Text:      "hello world",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+	}}, "")
+
+	moderated := feedquery.ApplyModeration(context.Background(), moderation.DefaultPrefsProvider{}, feed, moderation.UIContextContentList)
+	if len(moderated.Posts) != 1 {
+		t.Fatalf("len(posts) = %d, want 1 for profile-scoped label", len(moderated.Posts))
+	}
+	post := moderated.Posts[0]
+	if post.Moderation.Filtered {
+		t.Fatal("Filtered = true, want false for profile-scoped label")
+	}
+	if !post.Moderation.BlurAvatar {
+		t.Fatal("BlurAvatar = false, want true for profile-scoped label")
+	}
+	if post.Moderation.AlertText != "" {
+		t.Fatalf("AlertText = %q, want empty for profile-scoped label", post.Moderation.AlertText)
+	}
+}
+
 func mustRecordEmbed(t *testing.T, post bluesky.Post) []byte {
 	t.Helper()
 	raw := `{

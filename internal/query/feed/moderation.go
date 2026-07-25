@@ -79,9 +79,9 @@ func applyModerationToPostView(ctx context.Context, provider moderation.PrefsPro
 		}
 	}
 
-	listUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), uiContext)
-	mediaUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextContentMedia)
-	avatarUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextAvatar)
+	listUI := moderation.EvaluatePostView(ctx, provider, view.postURI, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), uiContext)
+	mediaUI := moderation.EvaluatePostView(ctx, provider, view.postURI, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextContentMedia)
+	avatarUI := moderation.EvaluatePostView(ctx, provider, view.postURI, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextAvatar)
 
 	view.Moderation = ModerationView{
 		Filtered:   listUI.Filter,
@@ -109,6 +109,7 @@ func quotedSubject(view *PostView) *moderation.PostSubject {
 
 func postSubjectFromView(view PostView) moderation.PostSubject {
 	subject := moderation.PostSubject{
+		PostURI:      view.postURI,
 		AuthorDID:    view.authorDID,
 		Labels:       view.labels,
 		AuthorLabels: view.authorLabels,

@@ -1176,4 +1176,7 @@ func TestPost_AllLabels_IncludesViewAndSelfLabels(t *testing.T) {
 	if labels[1].Val != "nudity" || labels[1].Src != "did:plc:author" {
 		t.Fatalf("labels[1] = %#v, want nudity self-label", labels[1])
 	}
+	if labels[1].URI != "at://did:plc:author/app.bsky.feed.post/abc" {
+		t.Fatalf("labels[1].URI = %q, want post URI on self-label", labels[1].URI)
+	}
 }

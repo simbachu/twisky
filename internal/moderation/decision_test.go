@@ -140,6 +140,69 @@ func TestModeratePost_HideOnContent_ProvidesFilterMessage(t *testing.T) {
 	}
 }
 
+func TestModeratePost_ProfilePorn_BlursAvatarWithoutContentNotice(t *testing.T) {
+	t.Parallel()
+
+	decision := moderation.ModeratePost(moderation.PostSubject{
+		AuthorDID: "did:plc:author",
+		AuthorLabels: []moderation.Label{{
+			Val: "porn",
+			Src: moderation.BlueskyModerationDID,
+			URI: "at://did:plc:author/app.bsky.actor.profile/self",
+		}},
+	}, moderation.Options{Prefs: moderation.DefaultPrefs()})
+
+	listUI := decision.UI(moderation.UIContextContentList)
+	avatarUI := decision.UI(moderation.UIContextAvatar)
+
+	if listUI.Filter {
+		t.Fatal("Filter = true, want false for profile-scoped porn")
+	}
+	if listUI.Alert {
+		t.Fatal("Alert = true, want false for profile-scoped porn on content list")
+	}
+	if !avatarUI.BlurAvatar {
+		t.Fatal("BlurAvatar = false, want true for profile-scoped porn")
+	}
+}
+
+func TestModeratePost_ProfileHide_DoesNotFilterPost(t *testing.T) {
+	t.Parallel()
+
+	decision := moderation.ModeratePost(moderation.PostSubject{
+		AuthorDID: "did:plc:author",
+		AuthorLabels: []moderation.Label{{
+			Val: "!hide",
+			Src: moderation.BlueskyModerationDID,
+			URI: "at://did:plc:author/app.bsky.actor.profile/self",
+		}},
+	}, moderation.Options{Prefs: moderation.DefaultPrefs()})
+
+	listUI := decision.UI(moderation.UIContextContentList)
+	if listUI.Filter {
+		t.Fatal("Filter = true, want false for profile-scoped !hide on post content")
+	}
+}
+
+func TestModeratePost_IgnoresMismatchedContentLabelURI(t *testing.T) {
+	t.Parallel()
+
+	decision := moderation.ModeratePost(moderation.PostSubject{
+		AuthorDID: "did:plc:author",
+		PostURI:   "at://did:plc:author/app.bsky.feed.post/abc",
+		Labels: []moderation.Label{{
+			Val: "porn",
+			Src: moderation.BlueskyModerationDID,
+			URI: "at://did:plc:other/app.bsky.feed.post/other",
+		}},
+	}, moderation.Options{Prefs: moderation.DefaultPrefs()})
+
+	listUI := decision.UI(moderation.UIContextContentList)
+	if listUI.Filter || listUI.Blur || listUI.Alert {
+		t.Fatalf("listUI = %#v, want no action for mismatched content label URI", listUI)
+	}
+}
+
 func moderate(t *testing.T, label moderation.Label, context moderation.UIContext) moderation.UIResult {
 	t.Helper()
 

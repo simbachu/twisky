@@ -115,7 +115,7 @@ func (p Post) AllLabels() []Label {
 		return labels
 	}
 	for _, value := range p.Record.SelfLabelValues() {
-		labels = append(labels, Label{Val: value, Src: p.Author.DID})
+		labels = append(labels, Label{Val: value, Src: p.Author.DID, URI: p.URI})
 	}
 	return labels
 }

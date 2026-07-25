@@ -8,8 +8,9 @@ import (
 
 func PostSubjectFromBluesky(post bluesky.Post) PostSubject {
 	subject := PostSubject{
-		AuthorDID: post.Author.DID,
-		Labels:    labelsFromBluesky(post.AllLabels()),
+		AuthorDID:    post.Author.DID,
+		PostURI:      post.URI,
+		Labels:       labelsFromBluesky(post.AllLabels()),
 		AuthorLabels: labelsFromBluesky(post.Author.Labels),
 	}
 	if post.Embed != nil {
@@ -27,7 +28,7 @@ func labelsFromBluesky(labels []bluesky.Label) []Label {
 	}
 	out := make([]Label, 0, len(labels))
 	for _, label := range labels {
-		out = append(out, Label{Val: label.Val, Src: label.Src})
+		out = append(out, Label{Val: label.Val, Src: label.Src, URI: label.URI})
 	}
 	return out
 }
@@ -40,8 +41,9 @@ func EvaluatePost(ctx context.Context, provider PrefsProvider, post bluesky.Post
 	return decision.UI(uiContext)
 }
 
-func EvaluatePostView(ctx context.Context, provider PrefsProvider, authorDID string, labels, authorLabels []Label, quoted *PostSubject, uiContext UIContext) UIResult {
+func EvaluatePostView(ctx context.Context, provider PrefsProvider, postURI, authorDID string, labels, authorLabels []Label, quoted *PostSubject, uiContext UIContext) UIResult {
 	subject := PostSubject{
+		PostURI:      postURI,
 		AuthorDID:    authorDID,
 		Labels:       labels,
 		AuthorLabels: authorLabels,

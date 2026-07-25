@@ -2,6 +2,7 @@ package moderation
 
 type PostSubject struct {
 	AuthorDID    string
+	PostURI      string
 	Labels       []Label
 	AuthorLabels []Label
 	Quoted       *PostSubject
@@ -11,10 +12,18 @@ func ModeratePost(subject PostSubject, opts Options) Decision {
 	decision := &Decision{authorDID: subject.AuthorDID}
 
 	for _, label := range subject.Labels {
+		if !LabelAppliesToPost(label, subject.PostURI, subject.AuthorDID) {
+			continue
+		}
 		decision.addLabel(LabelTargetContent, label, opts)
 	}
 	for _, label := range subject.AuthorLabels {
-		decision.addLabel(LabelTargetAccount, label, opts)
+		switch {
+		case IsProfileLabel(label):
+			decision.addLabel(LabelTargetProfile, label, opts)
+		case IsAccountAuthorLabel(label):
+			decision.addLabel(LabelTargetAccount, label, opts)
+		}
 	}
 
 	if subject.Quoted != nil {

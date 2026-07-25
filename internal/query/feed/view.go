@@ -70,6 +70,7 @@ type PostView struct {
 	QuotedPostMaybe   *PostView
 	Moderation        ModerationView
 	replyParentURI    string
+	postURI           string
 	authorDID         string
 	labels            []moderation.Label
 	authorLabels      []moderation.Label
@@ -137,6 +138,7 @@ func NewPostView(post bluesky.Post) PostView {
 		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
 		CreatedAt:         post.Record.CreatedAt,
 		replyParentURI:    post.ReplyParentURI(),
+		postURI:           post.URI,
 		authorDID:         post.Author.DID,
 		labels:            moderationLabels(post.AllLabels()),
 		authorLabels:      moderationLabels(post.Author.Labels),
@@ -161,7 +163,7 @@ func moderationLabels(labels []bluesky.Label) []moderation.Label {
 	}
 	out := make([]moderation.Label, 0, len(labels))
 	for _, label := range labels {
-		out = append(out, moderation.Label{Val: label.Val, Src: label.Src})
+		out = append(out, moderation.Label{Val: label.Val, Src: label.Src, URI: label.URI})
 	}
 	return out
 }
