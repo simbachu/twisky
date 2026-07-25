@@ -865,3 +865,10 @@ body > footer aside .iface-joined {
 .post-page > .post-replies:empty {
   display: none;
 }
+
+.post-replies.reply-view-linear .post-replies,
+html[data-reply-view="linear"] .post-replies .post-replies {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+  border-inline-start: none;
+}

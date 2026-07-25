@@ -15,7 +15,7 @@ type ReplyView string
 
 const (
 	ReplyViewThreaded ReplyView = "threaded"
-	ReplyViewFlat     ReplyView = "flat"
+	ReplyViewLinear   ReplyView = "linear"
 )
 
 type ReplySortOrder string
@@ -28,8 +28,8 @@ const (
 )
 
 const (
-	ReplyViewThreadedIcon   = "↪️"
-	ReplyViewFlatIcon       = "⬇️"
+	ReplyViewThreadedIcon = "↪️"
+	ReplyViewLinearIcon   = "⬇️"
 	ReplySortOrderHotIcon   = "🔥"
 	ReplySortOrderNewIcon   = "🆕"
 	ReplySortOrderOldIcon   = "⏮️"
@@ -50,7 +50,7 @@ type postPageSettingOption struct {
 
 var replyViewOptions = []postPageSettingOption{
 	{string(ReplyViewThreaded), ReplyViewThreadedIcon, "Threaded"},
-	{string(ReplyViewFlat), ReplyViewFlatIcon, "Flat"},
+	{string(ReplyViewLinear), ReplyViewLinearIcon, "Linear"},
 }
 
 var replySortOptions = []postPageSettingOption{
@@ -94,7 +94,8 @@ func postPageSettingsHeader(settings PostPageSettings) g.Node {
 			g.Attr("class", "post-page-settings"),
 			Summary(g.Text("Reply settings")),
 			Nav(
-				postPageSettingGroup("reply-view", "Reply view", string(settings.ReplyView), replyViewOptions),
+				// Reply view checked state is client-side (cookie); see post-page-reply-view.js.
+				postPageSettingGroup("reply-view", "Reply view", "", replyViewOptions),
 				postPageSettingGroup("reply-sort-order", "Reply sort order", string(settings.ReplySortOrder), replySortOptions),
 			),
 		),
@@ -102,6 +103,8 @@ func postPageSettingsHeader(settings PostPageSettings) g.Node {
 }
 
 func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
+	// ReplyView is loaded from the user profile once auth exists; until then the
+	// client mirrors the same threaded|linear values via cookie.
 	settings := PostPageSettings{
 		ReplyView:      ReplyViewThreaded,
 		ReplySortOrder: ReplySortOrderHot,
@@ -110,10 +113,6 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 	return page.Page(
 		postPageMeta(view, publicBaseURL),
 		suggested,
-		g.Group{
-			// Apply default settings, don't pass anything yet.
-			// TODO: Pass the settings to the backend and apply them.
-		},
 		g.Group{
 			postPageSettingsHeader(settings),
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),

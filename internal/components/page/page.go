@@ -75,6 +75,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 	}
 	headNodes = append(headNodes, socialMetaNodes(meta)...)
 	headNodes = append(headNodes,
+		Script(g.Raw(`(function(){var m=document.cookie.match(/(?:^|; )twisky-reply-view=([^;]*)/);if(!m)return;var v=decodeURIComponent(m[1]);if(v==="linear")document.documentElement.dataset.replyView="linear";})();`)),
 		Link(
 			g.Attr("rel", "stylesheet"),
 			g.Attr("href", "/static/styles/style.css"),
@@ -93,6 +94,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 		Script(g.Attr("src", "/static/scripts/post-video.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-page-ancestors.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-counts-live.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/post-page-reply-view.js"), g.Attr("defer", "")),
 		Link(
 			g.Attr("id", "page-favicon"),
 			g.Attr("rel", "icon"),

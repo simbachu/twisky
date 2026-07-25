@@ -38,13 +38,14 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 		`aria-label="Reply view"`,
 		`aria-label="Reply sort order"`,
 		`value="threaded"`,
-		`value="flat"`,
+		`value="linear"`,
 		`value="hot"`,
 		`value="new"`,
 		`value="old"`,
 		`value="ratio"`,
 		`🔥`,
 		`↪️`,
+		`post-page-reply-view.js`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -74,19 +75,21 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 	if strings.Count(header, `name="reply-sort-order"`) != 4 {
 		t.Fatalf("header = %q, want four reply-sort-order radios", header)
 	}
-	if strings.Count(header, `checked=""`) != 2 {
-		t.Fatalf("header = %q, want exactly two checked radios", header)
+	if strings.Count(header, `checked=""`) != 1 {
+		t.Fatalf("header = %q, want exactly one checked radio (sort order only)", header)
 	}
 	if !strings.Contains(header, `name="reply-view"`) || !strings.Contains(header, `value="threaded"`) {
 		t.Fatalf("header = %q, want threaded reply-view option", header)
 	}
-	threadedIdx := strings.Index(header, `id="reply-view-threaded"`)
-	if threadedIdx < 0 {
+	if !strings.Contains(header, `id="reply-view-threaded"`) {
 		t.Fatalf("header = %q, want reply-view-threaded input id", header)
 	}
-	threadedSlice := header[threadedIdx:]
-	if !strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
-		t.Fatalf("header = %q, want threaded reply-view checked by default", header)
+	if strings.Contains(header, `id="reply-view-threaded"`) {
+		threadedIdx := strings.Index(header, `id="reply-view-threaded"`)
+		threadedSlice := header[threadedIdx:]
+		if strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
+			t.Fatalf("header = %q, want reply-view unchecked server-side (client cookie owns state)", header)
+		}
 	}
 	hotIdx := strings.Index(header, `id="reply-sort-order-hot"`)
 	if hotIdx < 0 {
