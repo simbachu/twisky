@@ -27,7 +27,7 @@ func postPageMeta(view feedquery.PostPageView, publicBaseURL string) page.PageMe
 	image := PreviewImage{}
 
 	if post.Moderation.Filtered {
-		description = "Post hidden by moderation on Twisky"
+		description = filteredPostMessage(post.Moderation) + " on Twisky"
 	} else {
 		if view.ReplyParentMaybe != nil {
 			title = "Reply by " + byline

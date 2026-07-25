@@ -81,13 +81,17 @@ func applyModerationToPostView(ctx context.Context, provider moderation.PrefsPro
 
 	listUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), uiContext)
 	mediaUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextContentMedia)
+	avatarUI := moderation.EvaluatePostView(ctx, provider, view.authorDID, view.labels, view.authorLabels, quotedSubject(view.QuotedPostMaybe), moderation.UIContextAvatar)
 
 	view.Moderation = ModerationView{
 		Filtered:   listUI.Filter,
+		FilterText: listUI.PrimaryFilterMessage(),
 		Blurred:    listUI.Blur,
 		NoOverride: listUI.NoOverride || mediaUI.NoOverride,
 		AlertText:  coalesceMessage(listUI, mediaUI),
 		BlurMedia:  mediaUI.BlurMedia,
+		BlurAvatar: avatarUI.BlurAvatar,
+		AvatarText: avatarUI.PrimaryMessage(),
 	}
 	if view.Moderation.AlertText == "" && (listUI.Alert || listUI.Inform) {
 		view.Moderation.AlertText = listUI.PrimaryMessage()

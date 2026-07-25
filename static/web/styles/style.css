@@ -120,6 +120,16 @@ main {
   display: block;
 }
 
+.byline-avatar-moderated {
+  display: inline-block;
+  width: var(--post-byline-avatar-max-width, 2.5rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.12);
+  border: 1px solid dimgrey;
+  flex-shrink: 0;
+}
+
 .author-name {
   color: black;
   font-size: 1.2em;

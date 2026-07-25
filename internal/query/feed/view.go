@@ -12,10 +12,13 @@ import (
 
 type ModerationView struct {
 	Filtered   bool
+	FilterText string
 	Blurred    bool
 	NoOverride bool
 	AlertText  string
 	BlurMedia  bool
+	BlurAvatar bool
+	AvatarText string
 }
 
 type ImageView struct {

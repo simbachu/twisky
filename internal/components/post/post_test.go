@@ -208,6 +208,37 @@ func TestPost_OmitsFilteredPost(t *testing.T) {
 	}
 }
 
+func TestPost_RendersBlurredAvatarForAccountModeration(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:                "abc123",
+		AuthorHandle:      "dev.example",
+		AuthorDisplayName: "Dev",
+		AuthorAvatar:      "https://example.com/avatar.jpg",
+		Text:              "visible post text",
+		Moderation: feedquery.ModerationView{
+			BlurAvatar: true,
+			AvatarText: "Adult content",
+			AlertText:  "Adult content",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="byline-avatar byline-avatar-moderated"`) {
+		t.Fatalf("html = %q, want moderated avatar placeholder", html)
+	}
+	if strings.Contains(html, "https://example.com/avatar.jpg") {
+		t.Fatalf("html = %q, want avatar image hidden", html)
+	}
+	if !strings.Contains(html, "visible post text") {
+		t.Fatalf("html = %q, want post text visible", html)
+	}
+}
+
 func TestPost_RendersMediaBlurWithReveal(t *testing.T) {
 	t.Parallel()
 

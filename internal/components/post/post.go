@@ -168,6 +168,8 @@ func authorInfo(view feedquery.PostView) ui.AuthorInfo {
 		Handle:      view.AuthorHandle,
 		DisplayName: view.AuthorDisplayName,
 		Avatar:      view.AuthorAvatar,
+		BlurAvatar:  view.Moderation.BlurAvatar,
+		AvatarText:  view.Moderation.AvatarText,
 	}
 }
 

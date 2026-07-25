@@ -11,9 +11,22 @@ type AuthorInfo struct {
 	Handle      string
 	DisplayName string
 	Avatar      string
+	BlurAvatar  bool
+	AvatarText  string
 }
 
 func Avatar(author AuthorInfo) g.Node {
+	if author.BlurAvatar {
+		message := author.AvatarText
+		if message == "" {
+			message = "Content warning"
+		}
+		return Span(
+			g.Attr("class", "byline-avatar byline-avatar-moderated"),
+			g.Attr("title", message),
+			g.Text(""),
+		)
+	}
 	if author.Avatar == "" {
 		return nil
 	}

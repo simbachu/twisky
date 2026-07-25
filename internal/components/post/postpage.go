@@ -59,7 +59,7 @@ func ancestorItem(node feedquery.AncestorNodeView, now time.Time) g.Node {
 		return P(g.Text("Post unavailable"))
 	}
 	if node.Post.Moderation.Filtered {
-		return P(g.Text("Post hidden by moderation"))
+		return P(g.Text(filteredPostMessage(node.Post.Moderation)))
 	}
 	return Post(node.Post, now)
 }
@@ -74,7 +74,7 @@ func furthestFirstAncestors(ancestors []feedquery.AncestorNodeView) []feedquery.
 
 func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, now time.Time, explicitLive bool) g.Node {
 	if view.Moderation.Filtered {
-		return P(g.Text("Post hidden by moderation"))
+		return P(g.Text(filteredPostMessage(view.Moderation)))
 	}
 	live := explicitLive || autoStartLive(now.Sub(view.CreatedAt))
 	// Always render a stable replies container so live refresh can OOB-swap
@@ -111,11 +111,18 @@ func replyItem(node feedquery.ThreadNodeView, now time.Time) g.Node {
 		return Li(P(g.Text("Post unavailable")))
 	}
 	if node.Post.Moderation.Filtered {
-		return Li(P(g.Text("Post hidden by moderation")))
+		return Li(P(g.Text(filteredPostMessage(node.Post.Moderation))))
 	}
 
 	return Li(
 		Post(node.Post, now),
 		g.If(len(node.Replies) > 0, repliesList(node.Replies, now, "", false)),
 	)
+}
+
+func filteredPostMessage(mod feedquery.ModerationView) string {
+	if mod.FilterText != "" {
+		return mod.FilterText
+	}
+	return "Post hidden by moderation"
 }

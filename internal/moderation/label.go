@@ -32,6 +32,7 @@ const (
 	UIContextContentList  UIContext = "contentList"
 	UIContextContentView  UIContext = "contentView"
 	UIContextContentMedia UIContext = "contentMedia"
+	UIContextAvatar       UIContext = "avatar"
 )
 
 type LabelDefinitionFlag string
@@ -223,6 +224,8 @@ func (b Behavior) action(context UIContext) BehaviorAction {
 		return b.ContentView
 	case UIContextContentMedia:
 		return b.ContentMedia
+	case UIContextAvatar:
+		return b.Avatar
 	default:
 		return ""
 	}

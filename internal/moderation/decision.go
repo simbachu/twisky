@@ -25,9 +25,11 @@ type UIResult struct {
 	Filter     bool
 	Blur       bool
 	BlurMedia  bool
+	BlurAvatar bool
 	Alert      bool
 	Inform     bool
 	NoOverride bool
+	Filters    []LabelCause
 	Alerts     []LabelCause
 	Informs    []LabelCause
 	Blurs      []LabelCause
@@ -98,17 +100,21 @@ func (d Decision) UI(context UIContext) UIResult {
 		}
 
 		if (context == UIContextContentList || context == UIContextContentView) &&
-			(labelCause.Target == LabelTargetAccount || labelCause.Target == LabelTargetContent) &&
-			labelCause.Setting == LabelHide {
+			labelCause.Setting == LabelHide &&
+			shouldFilter(labelCause, context) {
 			result.Filter = true
+			result.Filters = append(result.Filters, labelCause)
 		}
 
 		action := labelCause.Behavior.action(context)
 		switch action {
 		case BehaviorBlur:
-			if context == UIContextContentMedia {
+			switch context {
+			case UIContextContentMedia:
 				result.BlurMedia = true
-			} else {
+			case UIContextAvatar:
+				result.BlurAvatar = true
+			default:
 				result.Blur = true
 			}
 			result.Blurs = append(result.Blurs, labelCause)
@@ -126,6 +132,17 @@ func (d Decision) UI(context UIContext) UIResult {
 	return result
 }
 
+func shouldFilter(cause LabelCause, context UIContext) bool {
+	switch cause.Target {
+	case LabelTargetContent:
+		return true
+	case LabelTargetAccount:
+		return cause.Behavior.action(context) == BehaviorBlur
+	default:
+		return false
+	}
+}
+
 func (r UIResult) PrimaryMessage() string {
 	ui := r
 	if len(ui.Alerts) > 0 {
@@ -138,4 +155,11 @@ func (r UIResult) PrimaryMessage() string {
 		return ui.Blurs[0].Message
 	}
 	return ""
+}
+
+func (r UIResult) PrimaryFilterMessage() string {
+	if len(r.Filters) > 0 {
+		return r.Filters[0].Message
+	}
+	return r.PrimaryMessage()
 }

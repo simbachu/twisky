@@ -18,6 +18,9 @@ func TestModeratePost_PornWithAdultOff_FiltersAndBlursWithoutOverride(t *testing
 	if !listUI.Filter {
 		t.Fatal("Filter = false, want true for porn with hide pref")
 	}
+	if listUI.PrimaryFilterMessage() != "Adult content" {
+		t.Fatalf("PrimaryFilterMessage() = %q, want Adult content", listUI.PrimaryFilterMessage())
+	}
 	if !mediaUI.BlurMedia {
 		t.Fatal("BlurMedia = false, want true for porn in contentMedia context")
 	}
@@ -99,6 +102,41 @@ func TestEvaluatePost_UsesPrefsProvider(t *testing.T) {
 	}, moderation.UIContextContentList)
 	if !ui.Filter {
 		t.Fatal("Filter = false, want true from EvaluatePost")
+	}
+}
+
+func TestModeratePost_AccountPorn_DoesNotFilterButBlursAvatar(t *testing.T) {
+	t.Parallel()
+
+	decision := moderation.ModeratePost(moderation.PostSubject{
+		AuthorDID:    "did:plc:author",
+		AuthorLabels: []moderation.Label{{Val: "porn", Src: moderation.BlueskyModerationDID}},
+	}, moderation.Options{Prefs: moderation.DefaultPrefs()})
+
+	listUI := decision.UI(moderation.UIContextContentList)
+	avatarUI := decision.UI(moderation.UIContextAvatar)
+
+	if listUI.Filter {
+		t.Fatal("Filter = true, want false for account-level porn")
+	}
+	if !avatarUI.BlurAvatar {
+		t.Fatal("BlurAvatar = false, want true for account-level porn")
+	}
+	if avatarUI.PrimaryMessage() != "Adult content" {
+		t.Fatalf("PrimaryMessage() = %q, want Adult content", avatarUI.PrimaryMessage())
+	}
+}
+
+func TestModeratePost_HideOnContent_ProvidesFilterMessage(t *testing.T) {
+	t.Parallel()
+
+	listUI := moderate(t, moderation.Label{Val: "!hide", Src: moderation.BlueskyModerationDID}, moderation.UIContextContentList)
+
+	if !listUI.Filter {
+		t.Fatal("Filter = false, want true for !hide")
+	}
+	if listUI.PrimaryFilterMessage() != "Content blocked" {
+		t.Fatalf("PrimaryFilterMessage() = %q, want Content blocked", listUI.PrimaryFilterMessage())
 	}
 }
 

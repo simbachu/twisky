@@ -484,6 +484,39 @@ func TestPostPage_UsesModerationFallbackForFilteredPost(t *testing.T) {
 	}
 }
 
+func TestPostPage_RendersFilterTextForFilteredPost(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:                "abc",
+			AuthorHandle:      "bsky.app",
+			AuthorDisplayName: "Bluesky",
+			Text:              "hidden content",
+			Moderation: feedquery.ModerationView{
+				Filtered:   true,
+				FilterText: "Adult content",
+			},
+		},
+	}, time.Now().UTC(), nil, "https://twisky.test").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		"Adult content",
+		`property="og:description" content="Adult content on Twisky"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, "Post hidden by moderation") {
+		t.Fatalf("html = %q, want specific filter text instead of fallback", html)
+	}
+}
+
 func TestPostPage_RendersReplyContextInSocialMeta(t *testing.T) {
 	t.Parallel()
 
