@@ -346,6 +346,15 @@ func TestPostPageAncestors_RendersAncestorPosts(t *testing.T) {
 	if grandparentIdx < 0 || parentIdx < 0 || grandparentIdx > parentIdx {
 		t.Fatalf("html order wrong: grandparent@%d parent@%d", grandparentIdx, parentIdx)
 	}
+	for _, want := range []string{
+		`href="/other.example/post/grandparent"`,
+		`href="/bsky.app/post/parent"`,
+		`aria-label="View post"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
 	if strings.Contains(html, `<html`) {
 		t.Fatalf("html = %q, want fragment without page wrapper", html)
 	}
@@ -452,11 +461,58 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 		t.Fatalf("html = %q, want nested reply inside nested post-replies list", html)
 	}
 
-	if strings.Contains(html, `href="/dev.example/post/reply1"`) {
-		t.Fatalf("html = %q, want no link wrapper around reply article", html)
+	for _, want := range []string{
+		`href="/dev.example/post/reply1"`,
+		`href="/dev.example/post/reply2"`,
+		`aria-label="View post"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
-	if strings.Contains(html, `href="/dev.example/post/reply2"`) {
-		t.Fatalf("html = %q, want no link wrapper around nested reply article", html)
+}
+
+func TestPostPage_ReplyWithQuotedPostLinksToQuotedPost(t *testing.T) {
+	t.Parallel()
+
+	quoted := feedquery.PostView{
+		ID:           "quoted",
+		AuthorHandle: "quoted.example",
+		Text:         "original post",
+	}
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "root post",
+		},
+		Replies: []feedquery.ThreadNodeView{
+			{
+				Post: feedquery.PostView{
+					ID:              "reply1",
+					AuthorHandle:    "dev.example",
+					Text:            "my take",
+					QuotedPostMaybe: &quoted,
+				},
+			},
+		},
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="feed-item"`,
+		`href="/dev.example/post/reply1"`,
+		`class="clickable-inset"`,
+		`href="/quoted.example/post/quoted"`,
+		`aria-label="View post"`,
+		`aria-label="View quoted post"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 

@@ -16,6 +16,20 @@ func Post(view feedquery.PostView, now time.Time) g.Node {
 	return PostArticle(view, now, "post", false, false, "")
 }
 
+// ClickablePostItem wraps post content with a full-card overlay link to the
+// post page. Interactive elements inside the content (avatar, author name,
+// buttons, quoted posts) remain clickable via CSS pointer-events layering.
+func ClickablePostItem(content g.Node, view feedquery.PostView) g.Node {
+	return Div(
+		g.Attr("class", "feed-item"),
+		A(
+			g.Attr("href", postHref(view)),
+			g.Attr("aria-label", "View post"),
+		),
+		Div(content),
+	)
+}
+
 func postReply(view feedquery.PostView, now time.Time, opAuthorDID string) g.Node {
 	return PostArticle(view, now, "post", false, false, opAuthorDID)
 }

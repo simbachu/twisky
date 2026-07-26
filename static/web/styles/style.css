@@ -787,6 +787,11 @@ body > footer aside .iface-joined {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+.post-replies .feed-item:hover .post,
+.post-ancestors-section .feed-item:hover .post {
+  background-color: transparent;
+}
+
 .feed-sentinel {
   min-height: 1px;
   text-align: center;

@@ -82,14 +82,7 @@ func feedItem(postView feedquery.PostView, now time.Time) g.Node {
 	if postView.Moderation.Filtered {
 		return nil
 	}
-	href := "/" + postView.AuthorHandle + "/post/" + url.PathEscape(postView.ID)
-	return Li(g.Attr("class", "feed-item"),
-		A(
-			g.Attr("href", href),
-			g.Attr("aria-label", "View post"),
-		),
-		Div(post.Post(postView, now)),
-	)
+	return Li(post.ClickablePostItem(post.Post(postView, now), postView))
 }
 
 func feedSentinel(feedURL, cursor string) g.Node {

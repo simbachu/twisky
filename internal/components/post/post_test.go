@@ -11,6 +11,32 @@ import (
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 )
 
+func TestClickablePostItem_RendersOverlayLink(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+	}
+	var buf bytes.Buffer
+	if err := post.ClickablePostItem(post.Post(view, time.Now().UTC()), view).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="feed-item"`,
+		`href="/dev.example/post/abc123"`,
+		`aria-label="View post"`,
+		"hello",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
 func TestPost_RendersActionPillGroups(t *testing.T) {
 	t.Parallel()
 

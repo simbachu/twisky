@@ -174,7 +174,7 @@ func ancestorItem(node feedquery.AncestorNodeView, now time.Time) g.Node {
 	if node.Post.Moderation.Filtered {
 		return P(g.Text(filteredPostMessage(node.Post.Moderation)))
 	}
-	return Post(node.Post, now)
+	return ClickablePostItem(Post(node.Post, now), node.Post)
 }
 
 func furthestFirstAncestors(ancestors []feedquery.AncestorNodeView) []feedquery.AncestorNodeView {
@@ -229,7 +229,7 @@ func replyItem(node feedquery.ThreadNodeView, now time.Time, opAuthorDID string)
 	}
 
 	return Li(
-		postReply(node.Post, now, opAuthorDID),
+		ClickablePostItem(postReply(node.Post, now, opAuthorDID), node.Post),
 		g.If(len(node.Replies) > 0, repliesList(node.Replies, now, "", opAuthorDID, false)),
 	)
 }
