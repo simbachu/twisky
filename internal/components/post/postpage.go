@@ -131,7 +131,7 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 		g.Group{
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
 			postPageHeader(),
-			postPageRoot(view.Post, view.Replies, settings, now, view.ExplicitLive),
+			postPageRoot(view.Post, view.Replies, settings, now, view.ExplicitLive, feedquery.ThreadRootAuthorDID(view)),
 		},
 	)
 }
@@ -147,7 +147,7 @@ func RepliesRefreshFragment(view feedquery.PostPageView, known map[string]bool, 
 	if !feedquery.ThreadHasUnknown(view.Replies, known) {
 		return g.Group{}
 	}
-	return repliesList(view.Replies, now, repliesRootID(view.Post.ID), view.Post.AuthorDID(), true)
+	return repliesList(view.Replies, now, repliesRootID(view.Post.ID), feedquery.ThreadRootAuthorDID(view), true)
 }
 
 func postPageAncestorsSlot(post feedquery.PostView) g.Node {
@@ -163,7 +163,7 @@ func postPageAncestorsSlot(post feedquery.PostView) g.Node {
 }
 
 func postPageAncestorsContent(ancestors []feedquery.AncestorNodeView, now time.Time) g.Node {
-	return g.Group(g.Map(furthestFirstAncestors(ancestors), func(ancestor feedquery.AncestorNodeView) g.Node {
+	return g.Group(g.Map(ancestors, func(ancestor feedquery.AncestorNodeView) g.Node {
 		return ancestorItem(ancestor, now)
 	}))
 }
@@ -178,15 +178,7 @@ func ancestorItem(node feedquery.AncestorNodeView, now time.Time) g.Node {
 	return ClickablePostItem(Post(node.Post, now), node.Post)
 }
 
-func furthestFirstAncestors(ancestors []feedquery.AncestorNodeView) []feedquery.AncestorNodeView {
-	reversed := make([]feedquery.AncestorNodeView, len(ancestors))
-	for i, node := range ancestors {
-		reversed[len(ancestors)-1-i] = node
-	}
-	return reversed
-}
-
-func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, settings PostPageSettings, now time.Time, explicitLive bool) g.Node {
+func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, settings PostPageSettings, now time.Time, explicitLive bool, threadRootAuthorDID string) g.Node {
 	if view.Moderation.Filtered {
 		return P(g.Text(filteredPostMessage(view.Moderation)))
 	}
@@ -194,7 +186,7 @@ func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, s
 	// Always render a stable replies section so live refresh can OOB-swap into
 	// the list even when the page first loaded with zero replies. CSS hides
 	// the section until the root ul contains li elements.
-	extra := []g.Node{repliesSection(replies, settings, now, view.ID, view.AuthorDID(), false)}
+	extra := []g.Node{repliesSection(replies, settings, now, view.ID, threadRootAuthorDID, false)}
 	return PostArticle(view, now, "post post-page", true, live, "", extra...)
 }
 

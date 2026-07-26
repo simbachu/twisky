@@ -72,6 +72,7 @@ type PostView struct {
 	replyParentURI    string
 	postURI           string
 	authorDID         string
+	threadRootAuthorDID string
 	labels            []moderation.Label
 	authorLabels      []moderation.Label
 }
@@ -82,6 +83,13 @@ type FeedView struct {
 }
 
 func (v PostView) AuthorDID() string {
+	return v.authorDID
+}
+
+func (v PostView) ThreadRootAuthorDID() string {
+	if v.threadRootAuthorDID != "" {
+		return v.threadRootAuthorDID
+	}
 	return v.authorDID
 }
 
@@ -148,9 +156,10 @@ func NewPostView(post bluesky.Post) PostView {
 		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
 		CreatedAt:         post.Record.CreatedAt,
 		replyParentURI:    post.ReplyParentURI(),
-		postURI:           post.URI,
-		authorDID:         post.Author.DID,
-		labels:            moderationLabels(post.AllLabels()),
+		postURI:             post.URI,
+		authorDID:           post.Author.DID,
+		threadRootAuthorDID: threadRootAuthorDIDFromPost(post),
+		labels:              moderationLabels(post.AllLabels()),
 		authorLabels:      moderationLabels(post.Author.Labels),
 	}
 	appendImagesFromEmbed(&view, post.Embed)
@@ -165,6 +174,15 @@ func NewPostView(post bluesky.Post) PostView {
 	}
 
 	return view
+}
+
+func threadRootAuthorDIDFromPost(post bluesky.Post) string {
+	if post.Record.Reply != nil && post.Record.Reply.Root.URI != "" {
+		if did, err := atproto.PostAuthorDID(post.Record.Reply.Root.URI); err == nil {
+			return did
+		}
+	}
+	return post.Author.DID
 }
 
 func moderationLabels(labels []bluesky.Label) []moderation.Label {

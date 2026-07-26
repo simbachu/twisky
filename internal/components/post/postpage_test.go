@@ -344,8 +344,8 @@ func TestPostPageAncestors_RendersAncestorPosts(t *testing.T) {
 	}
 	grandparentIdx := strings.Index(html, `id="post-grandparent"`)
 	parentIdx := strings.Index(html, `id="post-parent"`)
-	if grandparentIdx < 0 || parentIdx < 0 || grandparentIdx > parentIdx {
-		t.Fatalf("html order wrong: grandparent@%d parent@%d", grandparentIdx, parentIdx)
+	if grandparentIdx < 0 || parentIdx < 0 || parentIdx > grandparentIdx {
+		t.Fatalf("html order wrong: parent@%d grandparent@%d", parentIdx, grandparentIdx)
 	}
 	for _, want := range []string{
 		`href="/other.example/post/grandparent"`,
@@ -358,6 +358,27 @@ func TestPostPageAncestors_RendersAncestorPosts(t *testing.T) {
 	}
 	if strings.Contains(html, `<html`) {
 		t.Fatalf("html = %q, want fragment without page wrapper", html)
+	}
+}
+
+func TestPostPageAncestors_RendersChronologicalThreadOrder(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.PostPageAncestors(feedquery.PostPageView{
+		Ancestors: []feedquery.AncestorNodeView{
+			{Post: feedquery.PostView{ID: "3mquqo4o7fc26", AuthorHandle: "doodlelotl.bsky.social", Text: "Pokemon page commission"}},
+			{Post: feedquery.PostView{ID: "3mquqr5ne6c2y", AuthorHandle: "dragodracon.bsky.social", Text: "I remember how hard"}},
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	rootIdx := strings.Index(html, `id="post-3mquqo4o7fc26"`)
+	dragoIdx := strings.Index(html, `id="post-3mquqr5ne6c2y"`)
+	if rootIdx < 0 || dragoIdx < 0 || rootIdx > dragoIdx {
+		t.Fatalf("html order wrong: root@%d drago@%d", rootIdx, dragoIdx)
 	}
 }
 
@@ -609,6 +630,64 @@ func TestPostPage_ReplyBylineShowsOPWhenAuthorMatchesRoot(t *testing.T) {
 	nestedOPHTML := html[nestedOPStart : nestedOPStart+nestedOPEnd]
 	if !strings.Contains(nestedOPHTML, `class="byline-op"`) {
 		t.Fatalf("nested op reply = %q, want OP marker", nestedOPHTML)
+	}
+}
+
+func TestPostPage_ReplyBylineShowsOPWhenAuthorMatchesThreadRoot(t *testing.T) {
+	t.Parallel()
+
+	const kellyDID = "did:plc:kelly"
+	const padottoDID = "did:plc:padotto"
+	now := time.Date(2026, 7, 1, 15, 37, 0, 0, time.UTC)
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+			ID:           "padotto-reply",
+			AuthorHandle: "padotto.bsky.social",
+			Text:         "YESSS perfect Kelly Pringle art",
+			CreatedAt:    now,
+		}, padottoDID),
+		HasAncestors: true,
+		Ancestors: []feedquery.AncestorNodeView{
+			{Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+				ID:           "kelly-root",
+				AuthorHandle: "kellypringle.com",
+				Text:         "original art post",
+				CreatedAt:    now.Add(-time.Hour),
+			}, kellyDID)},
+		},
+		Replies: []feedquery.ThreadNodeView{
+			{Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+				ID:           "kelly-thanks",
+				AuthorHandle: "kellypringle.com",
+				Text:         "Thank you so much!!!",
+				CreatedAt:    now.Add(time.Minute),
+			}, kellyDID)},
+		},
+	}, now, nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+
+	focusStart := strings.Index(html, `class="post post-page"`)
+	focusEnd := strings.Index(html, `id="post-replies"`)
+	if focusStart < 0 || focusEnd < 0 || focusEnd < focusStart {
+		t.Fatalf("html = %q, want focused post before replies section", html)
+	}
+	if strings.Contains(html[focusStart:focusEnd], `class="byline-op"`) {
+		t.Fatalf("focused post = %q, want no OP marker on non-root focused post", html[focusStart:focusEnd])
+	}
+
+	kellyReplyStart := strings.Index(html, `id="post-kelly-thanks"`)
+	kellyReplyEnd := strings.Index(html[kellyReplyStart:], `</article>`)
+	if kellyReplyStart < 0 || kellyReplyEnd < 0 {
+		t.Fatalf("html = %q, want Kelly reply article", html)
+	}
+	kellyReplyHTML := html[kellyReplyStart : kellyReplyStart+kellyReplyEnd]
+	if !strings.Contains(kellyReplyHTML, `class="byline-op"`) || !strings.Contains(kellyReplyHTML, " (OP)") {
+		t.Fatalf("kelly reply = %q, want OP marker for thread root author", kellyReplyHTML)
 	}
 }
 

@@ -72,3 +72,15 @@ func TestPostURI(t *testing.T) {
 		t.Fatalf("PostURI() = %q, want %q", got, want)
 	}
 }
+
+func TestPostAuthorDID(t *testing.T) {
+	t.Parallel()
+
+	got, err := atproto.PostAuthorDID("at://did:plc:example/app.bsky.feed.post/abc123")
+	if err != nil {
+		t.Fatalf("PostAuthorDID() err = %v", err)
+	}
+	if got != "did:plc:example" {
+		t.Fatalf("PostAuthorDID() = %q, want did:plc:example", got)
+	}
+}

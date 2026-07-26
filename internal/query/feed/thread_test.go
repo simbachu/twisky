@@ -89,6 +89,57 @@ func TestNewPostPageView_AncestorsFragment(t *testing.T) {
 	}
 }
 
+func TestThreadRootAuthorDID_UsesFurthestAncestor(t *testing.T) {
+	t.Parallel()
+
+	const rootDID = "did:plc:thread-root"
+	const focusDID = "did:plc:focus"
+	view := feedquery.PostPageView{
+		Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{ID: "focus"}, focusDID),
+		Ancestors: []feedquery.AncestorNodeView{
+			{Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{ID: "thread-root"}, rootDID)},
+		},
+	}
+	if got := feedquery.ThreadRootAuthorDID(view); got != rootDID {
+		t.Fatalf("ThreadRootAuthorDID() = %q, want %q", got, rootDID)
+	}
+}
+
+func TestThreadRootAuthorDID_UsesFocusedPostWhenNoAncestors(t *testing.T) {
+	t.Parallel()
+
+	const focusDID = "did:plc:focus"
+	view := feedquery.PostPageView{
+		Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{ID: "root"}, focusDID),
+	}
+	if got := feedquery.ThreadRootAuthorDID(view); got != focusDID {
+		t.Fatalf("ThreadRootAuthorDID() = %q, want %q", got, focusDID)
+	}
+}
+
+func TestThreadRootAuthorDID_UsesReplyRootRefOnFocusedPost(t *testing.T) {
+	t.Parallel()
+
+	const rootDID = "did:plc:thread-root"
+	const focusDID = "did:plc:focus"
+	view := feedquery.PostPageView{
+		Post: feedquery.NewPostView(bluesky.Post{
+			URI:    "at://did:plc:focus/app.bsky.feed.post/reply",
+			Author: bluesky.Author{DID: focusDID, Handle: "focus.example"},
+			Record: bluesky.PostRecord{
+				Text: "reply",
+				Reply: &bluesky.RecordReplyRef{
+					Root:   bluesky.StrongRef{URI: "at://did:plc:thread-root/app.bsky.feed.post/root"},
+					Parent: bluesky.StrongRef{URI: "at://did:plc:thread-root/app.bsky.feed.post/root"},
+				},
+			},
+		}),
+	}
+	if got := feedquery.ThreadRootAuthorDID(view); got != rootDID {
+		t.Fatalf("ThreadRootAuthorDID() = %q, want %q", got, rootDID)
+	}
+}
+
 func TestNewThreadNodeViews_SortsRepliesOldestFirst(t *testing.T) {
 	t.Parallel()
 

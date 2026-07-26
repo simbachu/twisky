@@ -37,6 +37,27 @@ func PostRkey(uri string) (string, error) {
 	return rkey, nil
 }
 
+// PostAuthorDID returns the author DID from a post AT URI.
+// Example: at://did:plc:example/app.bsky.feed.post/abc -> did:plc:example
+func PostAuthorDID(uri string) (string, error) {
+	uri = strings.TrimSpace(uri)
+	if !strings.HasPrefix(uri, "at://") {
+		return "", ErrInvalidPostURI
+	}
+
+	path := strings.TrimPrefix(uri, "at://")
+	slash := strings.Index(path, "/")
+	if slash <= 0 {
+		return "", ErrInvalidPostURI
+	}
+
+	did := path[:slash]
+	if did == "" {
+		return "", ErrInvalidPostURI
+	}
+	return did, nil
+}
+
 // PostURI builds a post AT URI from an actor DID and record key.
 func PostURI(did, rkey string) string {
 	return "at://" + did + "/" + postCollection + "/" + rkey

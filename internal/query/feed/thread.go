@@ -88,6 +88,19 @@ func CollectAncestorNodes(root bluesky.ThreadViewPost) []AncestorNodeView {
 	return reverseAncestorNodes(ancestors)
 }
 
+// ThreadRootAuthorDID returns the DID of the thread root author. The focused
+// post's reply root ref is stored at view-build time; ancestors are a fallback
+// for tests and partial fragments where that field is unset.
+func ThreadRootAuthorDID(view PostPageView) string {
+	if view.Post.threadRootAuthorDID != "" {
+		return view.Post.threadRootAuthorDID
+	}
+	if len(view.Ancestors) > 0 && !view.Ancestors[0].Unavailable {
+		return view.Ancestors[0].Post.AuthorDID()
+	}
+	return view.Post.AuthorDID()
+}
+
 func NewThreadNodeViews(nodes []bluesky.ThreadNode) []ThreadNodeView {
 	views := make([]ThreadNodeView, 0, len(nodes))
 	for _, node := range nodes {
