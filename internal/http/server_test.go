@@ -264,6 +264,17 @@ func TestHandlePost_OK(t *testing.T) {
 	if !strings.Contains(body, "reply one") {
 		t.Fatalf("body = %q, want to contain reply one", body)
 	}
+	for _, want := range []string{
+		`class="iface-segmented post-share-group"`,
+		`class="post-share-open"`,
+		`data-copy-url="/bsky.app/post/root"`,
+		`data-copy-url="https://bsky.app/profile/bsky.app/post/root"`,
+		`post-share.js`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
 }
 
 func TestHandlePost_AncestorsFragment(t *testing.T) {

@@ -54,7 +54,7 @@ func postFooter(view feedquery.PostView) g.Node {
 				ui.PostEngagement(ui.IconLike, "Like", view.LikeCount),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
-			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
+			shareGroup(view),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
 		),
 	)
@@ -76,7 +76,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 				ui.PostEngagementPollable(ui.IconLike, "Like", view.LikeCount, ids.like),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
-			ui.SegmentedGroup("Share", ui.PostEngagement(ui.IconShare, "Share", 0)),
+			shareGroup(view),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
 			Menu(
 				g.Attr("class", "iface-segmented"),

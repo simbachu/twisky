@@ -685,6 +685,41 @@ body > footer aside .iface-joined {
       flex-wrap: wrap;
       gap: 0.5rem;
       align-items: center;
+
+      .post-share-group {
+        display: inline-grid;
+        grid-auto-flow: column;
+        grid-template-columns: min-content 0fr 0fr;
+        transition: grid-template-columns 180ms ease;
+
+        > li {
+          overflow: hidden;
+          min-width: 0;
+          border-inline-end: none;
+        }
+
+        &:not(.post-share-group--open) > .post-share-option {
+          pointer-events: none;
+        }
+
+        &.post-share-group--open {
+          grid-template-columns: 0fr 1fr 1fr;
+
+          > .post-share-trigger {
+            pointer-events: none;
+          }
+
+          > .post-share-option:not(:last-child) {
+            border-inline-end: 1px solid var(--iface-divider);
+          }
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .post-share-group {
+          transition: none;
+        }
+      }
     }
   }
 

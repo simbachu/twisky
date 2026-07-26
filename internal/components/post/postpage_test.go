@@ -48,6 +48,7 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 		`🔥`,
 		`↪️`,
 		`post-page-reply-view.js`,
+		`post-share.js`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)

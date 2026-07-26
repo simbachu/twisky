@@ -35,6 +35,16 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 		`aria-label="Bookmark"`,
 		`aria-label="Share"`,
 		`aria-label="More options"`,
+		`class="iface-segmented post-share-group"`,
+		`class="post-share-open"`,
+		`aria-expanded="false"`,
+		`aria-haspopup="menu"`,
+		`data-copy-url="/dev.example/post/abc123"`,
+		`data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`,
+		`aria-label="Copy Twisky link"`,
+		`aria-label="Copy Bluesky link"`,
+		`>🔗<`,
+		`>🦋<`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -43,8 +53,11 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 	if strings.Count(html, `role="group"`) != 4 {
 		t.Fatalf("html has %d role=group, want 4", strings.Count(html, `role="group"`))
 	}
-	if strings.Count(html, `class="iface-segmented"`) != 4 {
-		t.Fatalf("html has %d iface-segmented, want 4", strings.Count(html, `class="iface-segmented"`))
+	if strings.Count(html, `class="iface-segmented"`) != 3 {
+		t.Fatalf("html has %d iface-segmented, want 3", strings.Count(html, `class="iface-segmented"`))
+	}
+	if !strings.Contains(html, `class="iface-segmented post-share-group"`) {
+		t.Fatalf("html = %q, want share group menu", html)
 	}
 }
 

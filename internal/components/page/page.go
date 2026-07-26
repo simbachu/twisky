@@ -95,6 +95,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 		Script(g.Attr("src", "/static/scripts/post-page-ancestors.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-counts-live.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-page-reply-view.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/post-share.js"), g.Attr("defer", "")),
 		Link(
 			g.Attr("id", "page-favicon"),
 			g.Attr("rel", "icon"),
