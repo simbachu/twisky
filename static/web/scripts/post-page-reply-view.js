@@ -18,7 +18,9 @@ function writeReplyViewCookie(view) {
 }
 
 function rootRepliesList() {
-  return document.querySelector(".post-page > ul.post-replies[id]");
+  return document.querySelector(
+    ".post-page .post-replies-section > ul.post-replies[id]"
+  );
 }
 
 function syncDocumentReplyView(view) {
@@ -42,7 +44,7 @@ function applyReplyView(view) {
 }
 
 function initReplyView() {
-  if (!document.getElementById("post-page-header")) return;
+  if (!document.getElementById("post-replies")) return;
   applyReplyView(readReplyViewCookie());
 }
 

@@ -890,10 +890,14 @@ func TestHandlePost_FullPage_IncludesEmptyRepliesContainer(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `id="post-replies-root"`) {
-		t.Fatalf("body = %q, want empty replies container", body)
-	}
-	if !strings.Contains(body, `data-replies-href="/bsky.app/post/root?replies=1"`) {
-		t.Fatalf("body = %q, want live poller replies href", body)
+	for _, want := range []string{
+		`id="post-replies"`,
+		`class="post-replies-section"`,
+		`id="post-replies-root"`,
+		`data-replies-href="/bsky.app/post/root?replies=1"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
 	}
 }

@@ -13,24 +13,29 @@ import (
 )
 
 func Post(view feedquery.PostView, now time.Time) g.Node {
-	return PostArticle(view, now, "post", false, false)
+	return PostArticle(view, now, "post", false, false, "")
+}
+
+func postReply(view feedquery.PostView, now time.Time, opAuthorDID string) g.Node {
+	return PostArticle(view, now, "post", false, false, opAuthorDID)
 }
 
 // PostArticle renders a post. pollCounts enables the live-counts toggle and
 // poller (only used for the focused post on its own page); live is the
 // initial polling state when pollCounts is true.
-func PostArticle(view feedquery.PostView, now time.Time, class string, pollCounts, live bool, extra ...g.Node) g.Node {
+func PostArticle(view feedquery.PostView, now time.Time, class string, pollCounts, live bool, opAuthorDID string, extra ...g.Node) g.Node {
 	if view.Moderation.Filtered {
 		return nil
 	}
 
 	repostedBy, replyParent, replyParentID := postHeaderMeta(view)
+	isOP := opAuthorDID != "" && view.AuthorDID() == opAuthorDID
 	footer := postFooter(view)
 	if pollCounts {
 		footer = postFooterLive(view, now, live)
 	}
 	children := []g.Node{
-		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID, !pollCounts),
+		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID, !pollCounts, isOP),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
 		footer,
@@ -114,7 +119,7 @@ func InsetPost(view *feedquery.PostView, now time.Time) g.Node {
 		return nil
 	}
 	return Article(g.Attr("class", "post inset-post"), g.Attr("id", "inset-post-"+url.PathEscape(view.ID)),
-		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, "", true),
+		ui.PostHeader(authorInfo(*view), view.CreatedAt, now, nil, nil, "", true, false),
 		moderationNotice(view.Moderation),
 		moderationBody(*view, now),
 	)

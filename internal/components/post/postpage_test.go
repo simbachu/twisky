@@ -28,15 +28,17 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 	html := buf.String()
 	for _, want := range []string{
 		`id="post-page-header"`,
-		`class="post-page-settings"`,
+		`id="post-replies"`,
+		`class="post-replies-section"`,
 		`<details`,
 		`<summary`,
-		`Reply settings`,
+		`aria-label="Reply display settings"`,
+		`⚙`,
 		`name="reply-view"`,
 		`name="reply-sort-order"`,
 		`role="group"`,
-		`aria-label="Reply view"`,
-		`aria-label="Reply sort order"`,
+		`aria-label="Threading mode"`,
+		`aria-label="Sort order"`,
 		`value="threaded"`,
 		`value="linear"`,
 		`value="hot"`,
@@ -52,52 +54,77 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 		}
 	}
 
-	headerStart := strings.Index(html, `id="post-page-header"`)
-	if headerStart < 0 {
+	pageHeaderStart := strings.Index(html, `id="post-page-header"`)
+	if pageHeaderStart < 0 {
 		t.Fatalf("html = %q, want post-page-header", html)
 	}
-	headerEnd := strings.Index(html[headerStart:], "</header>")
-	if headerEnd < 0 {
-		t.Fatalf("html = %q, want closing header tag", html)
+	pageHeaderEnd := strings.Index(html[pageHeaderStart:], "</header>")
+	if pageHeaderEnd < 0 {
+		t.Fatalf("html = %q, want closing page header tag", html)
 	}
-	header := html[headerStart : headerStart+headerEnd]
-
-	if !strings.Contains(header, `<details class="post-page-settings"`) {
-		t.Fatalf("header = %q, want post-page-settings on details", header)
-	}
-	if strings.Contains(header, `<nav class="post-page-settings"`) {
-		t.Fatalf("header = %q, want post-page-settings on details not nav", header)
+	pageHeader := html[pageHeaderStart : pageHeaderStart+pageHeaderEnd]
+	if strings.Contains(pageHeader, `name="reply-view"`) || strings.Contains(pageHeader, `name="reply-sort-order"`) {
+		t.Fatalf("page header = %q, want no reply settings in page header", pageHeader)
 	}
 
-	if strings.Count(header, `name="reply-view"`) != 2 {
-		t.Fatalf("header = %q, want two reply-view radios", header)
+	repliesSectionStart := strings.Index(html, `id="post-replies"`)
+	if repliesSectionStart < 0 {
+		t.Fatalf("html = %q, want post-replies section", html)
 	}
-	if strings.Count(header, `name="reply-sort-order"`) != 4 {
-		t.Fatalf("header = %q, want four reply-sort-order radios", header)
+	repliesSectionEnd := strings.Index(html[repliesSectionStart:], "</section>")
+	if repliesSectionEnd < 0 {
+		t.Fatalf("html = %q, want closing section tag", html)
 	}
-	if strings.Count(header, `checked=""`) != 1 {
-		t.Fatalf("header = %q, want exactly one checked radio (sort order only)", header)
+	repliesSection := html[repliesSectionStart : repliesSectionStart+repliesSectionEnd]
+
+	if !strings.Contains(repliesSection, `<details>`) {
+		t.Fatalf("replies section = %q, want details for reply settings", repliesSection)
 	}
-	if !strings.Contains(header, `name="reply-view"`) || !strings.Contains(header, `value="threaded"`) {
-		t.Fatalf("header = %q, want threaded reply-view option", header)
+	detailsStart := strings.Index(repliesSection, "<details")
+	detailsEnd := strings.Index(repliesSection[detailsStart:], "</details>")
+	if detailsStart < 0 || detailsEnd < 0 {
+		t.Fatalf("replies section = %q, want details element", repliesSection)
 	}
-	if !strings.Contains(header, `id="reply-view-threaded"`) {
-		t.Fatalf("header = %q, want reply-view-threaded input id", header)
+	details := repliesSection[detailsStart : detailsStart+detailsEnd]
+	if !strings.Contains(details, "<nav>") {
+		t.Fatalf("details = %q, want nav wrapping control groups", details)
 	}
-	if strings.Contains(header, `id="reply-view-threaded"`) {
-		threadedIdx := strings.Index(header, `id="reply-view-threaded"`)
-		threadedSlice := header[threadedIdx:]
+	if !strings.Contains(details, `<menu class="iface-segmented"`) {
+		t.Fatalf("details = %q, want iface-segmented menus inside details", details)
+	}
+	if strings.Count(details, `<menu class="iface-segmented"`) != 2 {
+		t.Fatalf("details = %q, want two iface-segmented control groups", details)
+	}
+
+	if strings.Count(repliesSection, `name="reply-view"`) != 2 {
+		t.Fatalf("replies section = %q, want two reply-view radios", repliesSection)
+	}
+	if strings.Count(repliesSection, `name="reply-sort-order"`) != 4 {
+		t.Fatalf("replies section = %q, want four reply-sort-order radios", repliesSection)
+	}
+	if strings.Count(repliesSection, `checked=""`) != 1 {
+		t.Fatalf("replies section = %q, want exactly one checked radio (sort order only)", repliesSection)
+	}
+	if !strings.Contains(repliesSection, `name="reply-view"`) || !strings.Contains(repliesSection, `value="threaded"`) {
+		t.Fatalf("replies section = %q, want threaded reply-view option", repliesSection)
+	}
+	if !strings.Contains(repliesSection, `id="reply-view-threaded"`) {
+		t.Fatalf("replies section = %q, want reply-view-threaded input id", repliesSection)
+	}
+	if strings.Contains(repliesSection, `id="reply-view-threaded"`) {
+		threadedIdx := strings.Index(repliesSection, `id="reply-view-threaded"`)
+		threadedSlice := repliesSection[threadedIdx:]
 		if strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
-			t.Fatalf("header = %q, want reply-view unchecked server-side (client cookie owns state)", header)
+			t.Fatalf("replies section = %q, want reply-view unchecked server-side (client cookie owns state)", repliesSection)
 		}
 	}
-	hotIdx := strings.Index(header, `id="reply-sort-order-hot"`)
+	hotIdx := strings.Index(repliesSection, `id="reply-sort-order-hot"`)
 	if hotIdx < 0 {
-		t.Fatalf("header = %q, want reply-sort-order-hot input id", header)
+		t.Fatalf("replies section = %q, want reply-sort-order-hot input id", repliesSection)
 	}
-	hotSlice := header[hotIdx:]
+	hotSlice := repliesSection[hotIdx:]
 	if !strings.Contains(hotSlice[:strings.Index(hotSlice, ">")], `checked=""`) {
-		t.Fatalf("header = %q, want hot reply-sort-order checked by default", header)
+		t.Fatalf("replies section = %q, want hot reply-sort-order checked by default", repliesSection)
 	}
 }
 
@@ -120,6 +147,19 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 	html := buf.String()
 	if !strings.Contains(html, `id="post-page-ancestors"`) {
 		t.Fatalf("html = %q, want post-page-ancestors slot", html)
+	}
+	if !strings.Contains(html, `class="post-ancestors-section"`) {
+		t.Fatalf("html = %q, want post-ancestors-section class", html)
+	}
+	if strings.Contains(html, `<section id="post-page-ancestors"`) && strings.Contains(html, `id="post-page-ancestors"`) {
+		ancestorsStart := strings.Index(html, `id="post-page-ancestors"`)
+		ancestorsEnd := strings.Index(html[ancestorsStart:], "</section>")
+		if ancestorsEnd > 0 {
+			ancestorsSection := html[ancestorsStart : ancestorsStart+ancestorsEnd]
+			if strings.Contains(ancestorsSection, "<header") || strings.Contains(ancestorsSection, "<h3") {
+				t.Fatalf("ancestors section = %q, want no header inside ancestors section", ancestorsSection)
+			}
+		}
 	}
 	if !strings.Contains(html, `hx-get="/bsky.app/post/root?ancestors=1"`) {
 		t.Fatalf("html = %q, want ancestors fragment hx-get", html)
@@ -395,9 +435,10 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 	}
 
 	rootArticleIdx := strings.Index(html, `class="post post-page"`)
+	sectionIdx := strings.Index(html, `class="post-replies-section"`)
 	repliesIdx := strings.Index(html, `id="post-replies-root"`)
-	if rootArticleIdx < 0 || repliesIdx < 0 || repliesIdx < rootArticleIdx {
-		t.Fatalf("html = %q, want post-replies inside root article", html)
+	if rootArticleIdx < 0 || sectionIdx < 0 || repliesIdx < 0 || sectionIdx < rootArticleIdx || repliesIdx < sectionIdx {
+		t.Fatalf("html = %q, want post-replies section and list inside root article", html)
 	}
 
 	replyOneIdx := strings.Index(html, `id="post-reply1"`)
@@ -418,6 +459,101 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 	}
 }
 
+func TestPostPage_ReplyBylineShowsOPWhenAuthorMatchesRoot(t *testing.T) {
+	t.Parallel()
+
+	const opDID = "did:plc:op"
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	createdAt := now.Add(-2 * time.Hour)
+
+	var buf bytes.Buffer
+	if err := post.PostPage(feedquery.PostPageView{
+		Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "root post",
+			CreatedAt:    createdAt,
+		}, opDID),
+		Replies: []feedquery.ThreadNodeView{
+			{
+				Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+					ID:           "op-reply",
+					AuthorHandle: "bsky.app",
+					Text:         "op reply",
+					CreatedAt:    createdAt,
+				}, opDID),
+				Replies: []feedquery.ThreadNodeView{
+					{
+						Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+							ID:           "nested-op-reply",
+							AuthorHandle: "bsky.app",
+							Text:         "nested op reply",
+							CreatedAt:    createdAt,
+						}, opDID),
+					},
+				},
+			},
+			{
+				Post: feedquery.PostViewWithAuthorDID(feedquery.PostView{
+					ID:           "other-reply",
+					AuthorHandle: "dev.example",
+					Text:         "other reply",
+					CreatedAt:    createdAt,
+				}, "did:plc:other"),
+			},
+		},
+	}, now, nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+
+	rootStart := strings.Index(html, `class="post post-page"`)
+	rootEnd := strings.Index(html, `id="post-replies"`)
+	if rootStart < 0 || rootEnd < 0 || rootEnd < rootStart {
+		t.Fatalf("html = %q, want root article before replies section", html)
+	}
+	rootHTML := html[rootStart:rootEnd]
+	if strings.Contains(rootHTML, `class="byline-op"`) {
+		t.Fatalf("root post = %q, want no OP marker on root post", rootHTML)
+	}
+
+	opReplyStart := strings.Index(html, `id="post-op-reply"`)
+	opReplyEnd := strings.Index(html[opReplyStart:], `id="post-other-reply"`)
+	if opReplyStart < 0 || opReplyEnd < 0 {
+		t.Fatalf("html = %q, want op and other reply articles", html)
+	}
+	opReplyHTML := html[opReplyStart : opReplyStart+opReplyEnd]
+	if !strings.Contains(opReplyHTML, `class="byline-op"`) || !strings.Contains(opReplyHTML, " (OP)") {
+		t.Fatalf("op reply = %q, want OP marker in byline", opReplyHTML)
+	}
+	timeIdx := strings.Index(opReplyHTML, "</time>")
+	opIdx := strings.Index(opReplyHTML, `class="byline-op"`)
+	if timeIdx < 0 || opIdx < timeIdx {
+		t.Fatalf("op reply = %q, want OP marker after timestamp", opReplyHTML)
+	}
+
+	otherReplyStart := strings.Index(html, `id="post-other-reply"`)
+	otherReplyEnd := strings.Index(html[otherReplyStart:], `</article>`)
+	if otherReplyStart < 0 || otherReplyEnd < 0 {
+		t.Fatalf("html = %q, want other reply article", html)
+	}
+	otherReplyHTML := html[otherReplyStart : otherReplyStart+otherReplyEnd]
+	if strings.Contains(otherReplyHTML, `class="byline-op"`) {
+		t.Fatalf("other reply = %q, want no OP marker", otherReplyHTML)
+	}
+
+	nestedOPStart := strings.Index(html, `id="post-nested-op-reply"`)
+	nestedOPEnd := strings.Index(html[nestedOPStart:], `</article>`)
+	if nestedOPStart < 0 || nestedOPEnd < 0 {
+		t.Fatalf("html = %q, want nested op reply article", html)
+	}
+	nestedOPHTML := html[nestedOPStart : nestedOPStart+nestedOPEnd]
+	if !strings.Contains(nestedOPHTML, `class="byline-op"`) {
+		t.Fatalf("nested op reply = %q, want OP marker", nestedOPHTML)
+	}
+}
+
 func TestPostPage_RendersEmptyRepliesContainer(t *testing.T) {
 	t.Parallel()
 
@@ -433,8 +569,15 @@ func TestPostPage_RendersEmptyRepliesContainer(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `id="post-replies-root"`) {
-		t.Fatalf("html = %q, want empty replies container for live OOB swap target", html)
+	for _, want := range []string{
+		`id="post-replies"`,
+		`class="post-replies-section"`,
+		`id="post-replies-root"`,
+		`<ul class="post-replies" id="post-replies-root"></ul>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s for live OOB swap target", html, want)
+		}
 	}
 }
 

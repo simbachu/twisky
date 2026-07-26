@@ -28,8 +28,8 @@ const (
 )
 
 const (
-	ReplyViewThreadedIcon = "↪️"
-	ReplyViewLinearIcon   = "⬇️"
+	ReplyViewThreadedIcon   = "↪️"
+	ReplyViewLinearIcon     = "⬇️"
 	ReplySortOrderHotIcon   = "🔥"
 	ReplySortOrderNewIcon   = "🆕"
 	ReplySortOrderOldIcon   = "⏮️"
@@ -86,19 +86,33 @@ func postPageSettingGroup(name, ariaLabel string, current string, options []post
 	)
 }
 
-func postPageSettingsHeader(settings PostPageSettings) g.Node {
+func postPageHeader() g.Node {
 	return Header(
 		g.Attr("id", "post-page-header"),
 		H2(g.Text("Viewing post")),
-		Details(
-			g.Attr("class", "post-page-settings"),
-			Summary(g.Text("Reply settings")),
-			Nav(
-				// Reply view checked state is client-side (cookie); see post-page-reply-view.js.
-				postPageSettingGroup("reply-view", "Reply view", "", replyViewOptions),
-				postPageSettingGroup("reply-sort-order", "Reply sort order", string(settings.ReplySortOrder), replySortOptions),
-			),
+	)
+}
+
+func repliesSettingsDetails(settings PostPageSettings) g.Node {
+	return Details(
+		Summary(g.Text("⚙"), g.Attr("aria-label", "Reply display settings")),
+		Nav(
+			// Reply view checked state is client-side (cookie); see post-page-reply-view.js.
+			postPageSettingGroup("reply-view", "Threading mode", "", replyViewOptions),
+			postPageSettingGroup("reply-sort-order", "Sort order", string(settings.ReplySortOrder), replySortOptions),
 		),
+	)
+}
+
+func repliesSection(replies []feedquery.ThreadNodeView, settings PostPageSettings, now time.Time, postID, opAuthorDID string, oob bool) g.Node {
+	return Section(
+		g.Attr("id", "post-replies"),
+		g.Attr("class", "post-replies-section"),
+		Header(
+			H3(g.Text("Replies")),
+			repliesSettingsDetails(settings),
+		),
+		repliesList(replies, now, repliesRootID(postID), opAuthorDID, oob),
 	)
 }
 
@@ -114,9 +128,9 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 		postPageMeta(view, publicBaseURL),
 		suggested,
 		g.Group{
-			postPageSettingsHeader(settings),
+			postPageHeader(),
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
-			postPageRoot(view.Post, view.Replies, now, view.ExplicitLive),
+			postPageRoot(view.Post, view.Replies, settings, now, view.ExplicitLive),
 		},
 	)
 }
@@ -132,14 +146,14 @@ func RepliesRefreshFragment(view feedquery.PostPageView, known map[string]bool, 
 	if !feedquery.ThreadHasUnknown(view.Replies, known) {
 		return g.Group{}
 	}
-	return repliesList(view.Replies, now, repliesRootID(view.Post.ID), true)
+	return repliesList(view.Replies, now, repliesRootID(view.Post.ID), view.Post.AuthorDID(), true)
 }
 
 func postPageAncestorsSlot(post feedquery.PostView) g.Node {
 	href := "/" + post.AuthorHandle + "/post/" + url.PathEscape(post.ID)
 	return Section(
 		g.Attr("id", "post-page-ancestors"),
-		g.Attr("class", "post-page-ancestors"),
+		g.Attr("class", "post-ancestors-section"),
 		g.Attr("aria-label", "Thread context"),
 		g.Attr("hx-get", href+"?ancestors=1"),
 		g.Attr("hx-trigger", "twiskyAncestors"),
@@ -171,15 +185,16 @@ func furthestFirstAncestors(ancestors []feedquery.AncestorNodeView) []feedquery.
 	return reversed
 }
 
-func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, now time.Time, explicitLive bool) g.Node {
+func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, settings PostPageSettings, now time.Time, explicitLive bool) g.Node {
 	if view.Moderation.Filtered {
 		return P(g.Text(filteredPostMessage(view.Moderation)))
 	}
 	live := explicitLive || autoStartLive(now.Sub(view.CreatedAt))
-	// Always render a stable replies container so live refresh can OOB-swap
-	// into it even when the page first loaded with zero replies.
-	extra := []g.Node{repliesList(replies, now, repliesRootID(view.ID), false)}
-	return PostArticle(view, now, "post post-page", true, live, extra...)
+	// Always render a stable replies section so live refresh can OOB-swap into
+	// the list even when the page first loaded with zero replies. CSS hides
+	// the section until the root ul contains li elements.
+	extra := []g.Node{repliesSection(replies, settings, now, view.ID, view.AuthorDID(), false)}
+	return PostArticle(view, now, "post post-page", true, live, "", extra...)
 }
 
 func repliesRootID(postID string) string {
@@ -189,7 +204,7 @@ func repliesRootID(postID string) string {
 // repliesList renders a reply tree. rootID is set only on the top-level list
 // (swap target for live refresh); nested lists pass "". When oob is true the
 // list carries hx-swap-oob for out-of-band replacement.
-func repliesList(replies []feedquery.ThreadNodeView, now time.Time, rootID string, oob bool) g.Node {
+func repliesList(replies []feedquery.ThreadNodeView, now time.Time, rootID, opAuthorDID string, oob bool) g.Node {
 	attrs := []g.Node{g.Attr("class", "post-replies")}
 	if rootID != "" {
 		attrs = append(attrs, g.Attr("id", rootID))
@@ -200,12 +215,12 @@ func repliesList(replies []feedquery.ThreadNodeView, now time.Time, rootID strin
 	return Ul(
 		g.Group(attrs),
 		g.Group(g.Map(replies, func(node feedquery.ThreadNodeView) g.Node {
-			return replyItem(node, now)
+			return replyItem(node, now, opAuthorDID)
 		})),
 	)
 }
 
-func replyItem(node feedquery.ThreadNodeView, now time.Time) g.Node {
+func replyItem(node feedquery.ThreadNodeView, now time.Time, opAuthorDID string) g.Node {
 	if node.Unavailable {
 		return Li(P(g.Text("Post unavailable")))
 	}
@@ -214,8 +229,8 @@ func replyItem(node feedquery.ThreadNodeView, now time.Time) g.Node {
 	}
 
 	return Li(
-		Post(node.Post, now),
-		g.If(len(node.Replies) > 0, repliesList(node.Replies, now, "", false)),
+		postReply(node.Post, now, opAuthorDID),
+		g.If(len(node.Replies) > 0, repliesList(node.Replies, now, "", opAuthorDID, false)),
 	)
 }
 

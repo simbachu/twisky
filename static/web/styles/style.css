@@ -17,6 +17,9 @@
   --iface-bg: rgba(0, 0, 0, 0.06);
   --iface-divider: rgba(0, 0, 0, 0.1);
   --iface-hover-bg: rgba(0, 0, 0, 0.05);
+  --iface-selected-bg: rgba(0, 0, 0, 0.12); /* active state is darker to show depressed */
+  --iface-selected-fg: black;
+  --iface-selected-border: grey 1px solid;
 }
 
 time {
@@ -174,6 +177,10 @@ main {
   .byline-avatar img {
     max-width: var(--post-byline-avatar-max-width);
     margin: var(--post-byline-avatar-margin);
+  }
+
+  .byline-op {
+    font-size: 0.9em;
   }
 }
 
@@ -373,7 +380,7 @@ body > footer aside .iface-joined {
   border: var(--post-border);
 
   /* post page has a larger font size and line height */
-  &.post-page {
+  &.post-page > header, &.post-page > p {
     font-size: 1.2em;
     line-height: 1.3;
   }
@@ -771,65 +778,14 @@ body > footer aside .iface-joined {
 }
 
 #post-page-header {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 0.5rem;
   margin-block-end: 1rem;
 
   > h2 {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  > .post-page-settings {
-    grid-column: 2;
-    grid-row: 1;
-
-    > summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 0.35rem 0.75rem;
-      border-radius: var(--iface-radius);
-      background-color: var(--iface-bg);
-      font-size: 0.85em;
-
-      &:hover {
-        background-color: var(--iface-hover-bg);
-      }
-
-      &::-webkit-details-marker {
-        display: none;
-      }
-    }
-
-    > nav {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      justify-content: flex-start;
-    }
-
-    &[open] {
-      grid-column: 1 / -1;
-      grid-row: 2;
-
-      > summary {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-
-      > nav {
-        margin-block-start: 0.5rem;
-      }
-    }
+    margin: 0;
   }
 }
 
-.post-page-ancestors {
+.post-ancestors-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -840,76 +796,152 @@ body > footer aside .iface-joined {
   border-block-end: none;
   border-inline-start: 1px solid lightgrey;
 
+  &:empty {
+    display: none;
+  }
+
   .post {
     border: none;
   }
 }
 
-.post-page-ancestors + .post.post-page {
+.post-ancestors-section + .post.post-page {
   border-block-start: none;
 }
 
-.post-replies {
+.post-replies-section {
   margin-block-start: 1rem;
-  margin-inline-start: var(--post-indent);
-  padding-inline-start: 1rem;
-  border-inline-start: 1px solid lightgrey;
 
-  .post:not(.inset-post) {
-    border: none;
+  &:not(:has(> ul.post-replies > li)) {
+    display: none;
   }
 
-  .post-replies {
-    margin-block-start: 0.75rem;
+  > header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-block-end: 0.75rem;
+
+    > h3 {
+      margin: 0;
+    }
+
+    > details {
+      margin-inline-start: auto;
+      margin-inline-end: 1rem;
+      flex: 0 1 auto;
+
+      > summary {
+        list-style: none;
+        cursor: pointer;
+        margin-inline-end: 2rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--iface-radius);
+        background-color: var(--iface-bg);
+        font-size: 0.85em;
+
+        &:hover {
+          background-color: var(--iface-hover-bg);
+        }
+
+        &::-webkit-details-marker {
+          display: none;
+        }
+      }
+
+      &[open] {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0;
+
+        > summary {
+          display: inline-block;
+          width: fit-content;
+          border-bottom: none;
+          border-radius: var(--iface-radius) var(--iface-radius) 0 0;
+          margin-bottom: -1px;
+          position: relative;
+          z-index: 1;
+          background-color: var(--iface-divider);
+        }
+
+        > nav {
+          display: inline-flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 0.5rem;
+          padding: 0.35rem;
+          border: 1px solid var(--iface-divider);
+          border-radius: var(--iface-radius);
+        }
+      }
+    }
   }
 
-  &.reply-view-linear {
-    margin-inline-start: 0;
-    padding-inline-start: 0;
-    border-inline-start: none;
+  > ul.post-replies {
+    margin-block-start: 0;
+    margin-inline-start: var(--post-indent);
+    padding-inline-start: 1rem;
+    border-inline-start: 1px solid lightgrey;
 
-    .post-replies {
+    .post:not(.inset-post) {
+      border: none;
+    }
+
+    &.reply-view-linear {
       margin-inline-start: 0;
       padding-inline-start: 0;
       border-inline-start: none;
-    }
 
-    > li {
-      border-block-end: 1px solid lightgrey;
-      padding-block: 0.75rem;
-      margin-block-end: 0;
-
-      &:last-child {
+      > li {
+        border-block-end: 1px solid lightgrey;
+        padding-block: 0.75rem;
         margin-block-end: 0;
+
+        &:last-child {
+          margin-block-end: 0;
+        }
       }
+    }
+  }
+
+  ul.post-replies {
+    margin-block-start: 0.75rem;
+    margin-inline-start: var(--post-indent);
+    padding-inline-start: 1rem;
+    border-inline-start: 1px solid lightgrey;
+
+    .post:not(.inset-post) {
+      border: none;
     }
   }
 }
 
 html[data-reply-view="linear"] {
-  .post-replies {
-    margin-inline-start: 0;
-    padding-inline-start: 0;
-    border-inline-start: none;
+  .post-replies-section {
+    > ul.post-replies {
+      margin-inline-start: 0;
+      padding-inline-start: 0;
+      border-inline-start: none;
 
-    .post-replies {
+      > li {
+        border-block-end: 1px solid lightgrey;
+        padding-block: 0.75rem;
+        margin-block-end: 0;
+
+        &:last-child {
+          margin-block-end: 0;
+        }
+      }
+    }
+
+    ul.post-replies .post-replies {
       margin-inline-start: 0;
       padding-inline-start: 0;
       border-inline-start: none;
     }
   }
-
-  .post-page > .post-replies > li {
-    border-block-end: 1px solid lightgrey;
-    padding-block: 0.75rem;
-    margin-block-end: 0;
-
-    &:last-child {
-      margin-block-end: 0;
-    }
-  }
-}
-
-.post.post-page > .post-replies:empty {
-  display: none;
 }

@@ -81,6 +81,16 @@ type FeedView struct {
 	NextCursor string
 }
 
+func (v PostView) AuthorDID() string {
+	return v.authorDID
+}
+
+// PostViewWithAuthorDID returns view with authorDID set for tests outside this package.
+func PostViewWithAuthorDID(view PostView, authorDID string) PostView {
+	view.authorDID = authorDID
+	return view
+}
+
 func NewFeedView(posts []bluesky.Post, cursor string) FeedView {
 	views := make([]PostView, 0, len(posts))
 	for _, post := range posts {

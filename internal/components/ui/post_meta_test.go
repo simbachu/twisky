@@ -67,6 +67,7 @@ func TestPostHeader_OmitsMetaWhenNil(t *testing.T) {
 		nil,
 		"",
 		true,
+		false,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -98,6 +99,7 @@ func TestPostHeader_RendersRepostAndReplyMeta(t *testing.T) {
 		&replyParent,
 		"parent-id",
 		true,
+		false,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -126,6 +128,7 @@ func TestPostHeader_OmitsTimestampWhenDisabled(t *testing.T) {
 		nil,
 		"",
 		false,
+		false,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -151,6 +154,7 @@ func TestPostHeader_RendersTimestampWhenEnabled(t *testing.T) {
 		nil,
 		"",
 		true,
+		false,
 	).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
@@ -161,5 +165,36 @@ func TestPostHeader_RendersTimestampWhenEnabled(t *testing.T) {
 	}
 	if !strings.Contains(html, "2h") {
 		t.Fatalf("html = %q, want compact relative timestamp", html)
+	}
+}
+
+func TestPostHeader_RendersOPMarkerAfterTimestamp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 25, 14, 56, 0, 0, time.UTC)
+	createdAt := now.Add(-2 * time.Hour)
+
+	var buf bytes.Buffer
+	if err := ui.PostHeader(
+		ui.AuthorInfo{Handle: "dev.example", DisplayName: "Dev"},
+		createdAt,
+		now,
+		nil,
+		nil,
+		"",
+		true,
+		true,
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	timeIdx := strings.Index(html, "</time>")
+	opIdx := strings.Index(html, `class="byline-op"`)
+	if timeIdx < 0 || opIdx < 0 || opIdx < timeIdx {
+		t.Fatalf("html = %q, want (OP) span after timestamp", html)
+	}
+	if !strings.Contains(html, " (OP)") {
+		t.Fatalf("html = %q, want (OP) marker text", html)
 	}
 }
