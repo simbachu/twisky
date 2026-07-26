@@ -176,9 +176,10 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 	}
 
 	ancestorsIdx := strings.Index(html, `id="post-page-ancestors"`)
+	headerIdx := strings.Index(html, `id="post-page-header"`)
 	focusIdx := strings.Index(html, `class="post post-page"`)
-	if ancestorsIdx < 0 || focusIdx < 0 || ancestorsIdx > focusIdx {
-		t.Fatalf("html order wrong: ancestors@%d focus@%d", ancestorsIdx, focusIdx)
+	if ancestorsIdx < 0 || headerIdx < 0 || focusIdx < 0 || ancestorsIdx > headerIdx || headerIdx > focusIdx {
+		t.Fatalf("html order wrong: ancestors@%d header@%d focus@%d", ancestorsIdx, headerIdx, focusIdx)
 	}
 }
 

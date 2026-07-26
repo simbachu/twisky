@@ -1,5 +1,3 @@
-let focusAnchorTop = null;
-
 function scrollSpacer() {
   let spacer = document.getElementById("post-page-scroll-spacer");
   const main = document.querySelector("main");
@@ -11,6 +9,28 @@ function scrollSpacer() {
     main.appendChild(spacer);
   }
   return spacer;
+}
+
+function scrollToPostPageHeader() {
+  const header = document.getElementById("post-page-header");
+  if (!header) return;
+
+  let targetScrollY = header.getBoundingClientRect().top + window.scrollY;
+  let maxScrollY =
+    document.documentElement.scrollHeight - window.innerHeight;
+
+  if (targetScrollY > maxScrollY) {
+    const spacer = scrollSpacer();
+    if (spacer) {
+      spacer.style.height = `${targetScrollY - maxScrollY}px`;
+      void document.documentElement.offsetHeight;
+      maxScrollY =
+        document.documentElement.scrollHeight - window.innerHeight;
+    }
+  }
+
+  window.scrollTo(0, Math.min(targetScrollY, maxScrollY));
+  header.focus({ preventScroll: true });
 }
 
 function initPostPageAncestors() {
@@ -27,9 +47,6 @@ function initPostPageAncestors() {
   }
   window.scrollTo(0, 0);
 
-  const focus = document.querySelector("article.post.post-page");
-  focusAnchorTop = focus ? focus.getBoundingClientRect().top : 0;
-
   htmx.trigger(slot, "twiskyAncestors");
 }
 
@@ -45,29 +62,6 @@ window.addEventListener("pageshow", (event) => {
 });
 
 document.body.addEventListener("htmx:afterSwap", (event) => {
-  if (event.detail.target.id !== "post-page-ancestors" || focusAnchorTop === null) return;
-  const focus = document.querySelector("article.post.post-page");
-  if (!focus) return;
-
-  const delta = focus.getBoundingClientRect().top - focusAnchorTop;
-  if (delta === 0) {
-    focusAnchorTop = null;
-    return;
-  }
-
-  let neededScrollY = window.scrollY + delta;
-  let maxScrollY =
-    document.documentElement.scrollHeight - window.innerHeight;
-  if (neededScrollY > maxScrollY) {
-    const spacer = scrollSpacer();
-    if (spacer) {
-      spacer.style.height = `${neededScrollY - maxScrollY}px`;
-      void document.documentElement.offsetHeight;
-      maxScrollY =
-        document.documentElement.scrollHeight - window.innerHeight;
-    }
-  }
-
-  window.scrollTo(0, Math.min(neededScrollY, maxScrollY));
-  focusAnchorTop = null;
+  if (event.detail.target.id !== "post-page-ancestors") return;
+  scrollToPostPageHeader();
 });

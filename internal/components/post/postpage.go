@@ -89,6 +89,7 @@ func postPageSettingGroup(name, ariaLabel string, current string, options []post
 func postPageHeader() g.Node {
 	return Header(
 		g.Attr("id", "post-page-header"),
+		g.Attr("tabindex", "-1"),
 		H2(g.Text("Viewing post")),
 	)
 }
@@ -128,8 +129,8 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 		postPageMeta(view, publicBaseURL),
 		suggested,
 		g.Group{
-			postPageHeader(),
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
+			postPageHeader(),
 			postPageRoot(view.Post, view.Replies, settings, now, view.ExplicitLive),
 		},
 	)
