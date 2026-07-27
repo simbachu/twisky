@@ -28,6 +28,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      failure_stage: ${{ steps.record.outputs.failure_stage }}
+      healthz_body: ${{ steps.record.outputs.healthz_body }}
     steps:
       - uses: actions/checkout@v6
 
@@ -42,6 +45,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push server image
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -56,6 +60,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy on VPS
+        id: deploy
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
@@ -125,6 +130,7 @@ jobs:
             "GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d) GHCR_USER=${ghcr_user_q} DEPLOY_PUBLIC_BASE_URL=${deploy_public_base_url_q} bash /opt/twisky/vps-deploy.sh"
 
       - name: Verify public /healthz serves this commit
+        id: healthz
         env:
           DEPLOY_PUBLIC_BASE_URL: ${{ vars.DEPLOY_PUBLIC_BASE_URL }}
         run: |
@@ -136,8 +142,10 @@ jobs:
           # is the one actually serving public traffic through the shared edge.
           expected="${GITHUB_SHA:0:7}"
           echo "Probing ${base_url}/healthz for build ${expected}"
+          last_body=""
           for attempt in $(seq 1 30); do
             body="$(curl -fsS --max-time 5 "${base_url}/healthz" || true)"
+            last_body="${body}"
             if [[ "${body}" == *"${expected}"* ]]; then
               echo "Public /healthz reports build ${expected}: ${body}"
               exit 0
@@ -145,5 +153,101 @@ jobs:
             echo "Attempt ${attempt}: got '${body:-<no response>}', retrying in 4s..."
             sleep 4
           done
+          echo "healthz_body=${last_body:-<no response>}" >> "${GITHUB_OUTPUT}"
           echo "Public /healthz did not report build ${expected} within timeout" >&2
           exit 1
+
+      - name: Record deploy outcome
+        id: record
+        if: always()
+        run: |
+          if [[ "${{ steps.build.outcome }}" == "failure" ]]; then
+            echo "failure_stage=build" >> "${GITHUB_OUTPUT}"
+          elif [[ "${{ steps.deploy.outcome }}" == "failure" ]]; then
+            echo "failure_stage=deploy" >> "${GITHUB_OUTPUT}"
+          elif [[ "${{ steps.healthz.outcome }}" == "failure" ]]; then
+            echo "failure_stage=healthz" >> "${GITHUB_OUTPUT}"
+            echo "healthz_body=${{ steps.healthz.outputs.healthz_body }}" >> "${GITHUB_OUTPUT}"
+          fi
+
+  notify:
+    name: Discord notification
+    needs: [test, deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always() && !cancelled()
+    runs-on: ubuntu-24.04
+    environment: twisky_staging
+    permissions:
+      actions: read
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DEPLOY_PUBLIC_BASE_URL: ${{ vars.DEPLOY_PUBLIC_BASE_URL }}
+          TEST_RESULT: ${{ needs.test.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          FAILURE_STAGE: ${{ needs.deploy.outputs.failure_stage }}
+          HEALTHZ_BODY: ${{ needs.deploy.outputs.healthz_body }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DISCORD_WEBHOOK:-}" ]]; then
+            echo "DISCORD_WEBHOOK is not set; skipping Discord notification."
+            exit 0
+          fi
+
+          sha="${GITHUB_SHA:0:7}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          error_snippet() {
+            gh run view "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --log-failed 2>/dev/null \
+              | sed 's/\x1b\[[0-9;]*m//g' \
+              | tail -8 \
+              | tr '\n' ' ' \
+              | head -c 400 \
+              || true
+          }
+
+          post_discord() {
+            local content="$1"
+            local payload
+            payload="$(jq -n --arg content "${content}" '{content: $content}')"
+            curl -fsS -X POST -H "Content-Type: application/json" -d "${payload}" "${DISCORD_WEBHOOK}"
+          }
+
+          if [[ "${TEST_RESULT}" == "failure" ]]; then
+            snippet="$(error_snippet)"
+            if [[ -z "${snippet// }" ]]; then
+              snippet="${run_url}"
+            fi
+            post_discord "Commit #${sha} failed at test stage: ${snippet}"
+            exit 0
+          fi
+
+          if [[ "${DEPLOY_RESULT}" == "success" ]]; then
+            base_url="${DEPLOY_PUBLIC_BASE_URL%/}"
+            post_discord "Commit #${sha} is up: ${base_url}/healthz"
+            exit 0
+          fi
+
+          if [[ "${DEPLOY_RESULT}" == "failure" ]]; then
+            stage="${FAILURE_STAGE:-deploy}"
+            if [[ "${stage}" == "healthz" ]]; then
+              if [[ -n "${HEALTHZ_BODY:-}" ]]; then
+                detail="Public /healthz did not report build ${sha} (last: ${HEALTHZ_BODY})"
+              else
+                detail="$(error_snippet)"
+                if [[ -z "${detail// }" ]]; then
+                  detail="${run_url}"
+                fi
+              fi
+            else
+              detail="$(error_snippet)"
+              if [[ -z "${detail// }" ]]; then
+                detail="${run_url}"
+              fi
+            fi
+            post_discord "Commit #${sha} failed at ${stage} stage: ${detail}"
+            exit 0
+          fi
+
+          echo "No notification needed (test=${TEST_RESULT}, deploy=${DEPLOY_RESULT})."
