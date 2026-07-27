@@ -98,6 +98,41 @@ func TestHandleHealthz_OK(t *testing.T) {
 	}
 }
 
+func TestHandleHealthz_HTMLPreview(t *testing.T) {
+	t.Parallel()
+
+	prev := version.BuildID
+	t.Cleanup(func() { version.BuildID = prev })
+	version.BuildID = "9c8a405abcdef"
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	newTestServer(stubReader{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/html; charset=utf-8", got)
+	}
+	if got := rec.Header().Get("Vary"); got != "Accept" {
+		t.Fatalf("Vary = %q, want Accept", got)
+	}
+
+	body := rec.Body.String()
+	for _, want := range []string{
+		`property="og:title" content="Twisky is live"`,
+		`property="og:description" content="Build 9c8a405 · Twisky 0.1.0"`,
+		`property="og:url" content="https://twisky.test/healthz"`,
+		"ok 9c8a405",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+}
+
 func TestHandleSlug_OK(t *testing.T) {
 	t.Parallel()
 

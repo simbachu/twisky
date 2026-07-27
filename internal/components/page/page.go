@@ -118,3 +118,22 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 		),
 	)
 }
+
+// PreviewPage renders a minimal HTML document for link unfurling (e.g. /healthz).
+func PreviewPage(meta PageMeta, body string) g.Node {
+	headNodes := []g.Node{
+		TitleEl(g.Text(meta.Title)),
+		Meta(
+			g.Attr("name", "description"),
+			g.Attr("content", meta.Description),
+		),
+	}
+	headNodes = append(headNodes, socialMetaNodes(meta)...)
+
+	return HTML(
+		Doctype(
+			Head(g.Group(headNodes)),
+		),
+		Body(g.Text(body)),
+	)
+}

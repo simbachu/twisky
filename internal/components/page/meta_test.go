@@ -234,3 +234,32 @@ func TestPage_OmitsOptionalArticleFieldsWhenUnset(t *testing.T) {
 		t.Fatalf("html = %q, want og:locale", html)
 	}
 }
+
+func TestPreviewPage_RendersSocialMetaTags(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	meta := page.PageMeta{
+		Title:        "Twisky is live",
+		Description:  "Build 9c8a405 · Twisky 0.1.0",
+		CanonicalURL: "https://twisky.test/healthz",
+		OGType:       "website",
+	}
+	if err := page.PreviewPage(meta, "ok 9c8a405").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`<title>Twisky is live</title>`,
+		`property="og:title" content="Twisky is live"`,
+		`property="og:description" content="Build 9c8a405 · Twisky 0.1.0"`,
+		`property="og:url" content="https://twisky.test/healthz"`,
+		`property="og:type" content="website"`,
+		`ok 9c8a405`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}

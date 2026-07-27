@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
+	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
@@ -73,9 +74,20 @@ func (s *Server) Handler() http.Handler {
 	return r
 }
 
-func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	if acceptsHTML(r) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Vary", "Accept")
+		_ = healthzpage.Preview(s.publicBaseURL).Render(w)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = fmt.Fprintf(w, "ok %s", version.ShortID())
+}
+
+func acceptsHTML(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }
 
 func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
