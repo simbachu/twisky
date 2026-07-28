@@ -1,15 +1,14 @@
 #feed-list {
   border: var(--post-border);
 
-  /* Markup is ul > li > .feed-item > … > .post (sentinel is li.feed-sentinel). */
+  /* Markup is ul > li > .feed-item > … > .post (sentinel is li.feed-sentinel).
+     Divider on the lower post in each consecutive pair — skips the sentinel because
+     it is not a feed item, and picks up newly loaded posts automatically. */
+  > li:has(> .feed-item) + li:has(> .feed-item) {
+    border-block-start: var(--post-border);
+  }
+
   > li:has(> .feed-item) {
-    border-block-end: var(--post-border);
-
-    &:has(+ .feed-sentinel),
-    &:last-child {
-      border-block-end: none;
-    }
-
     > .feed-item > div > .post:not(.inset-post) {
       border: none;
     }
