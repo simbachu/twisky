@@ -15,8 +15,8 @@ func TestAvatar_RendersShieldFallbackForLabeler(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := ui.Avatar(ui.AuthorInfo{
-		Handle:      "moderation.bsky.app",
-		DisplayName: "Bluesky Moderation Service",
+		Handle:      "labeler.example.com",
+		DisplayName: "Example Labeler Service",
 		IsLabeler:   true,
 	}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
@@ -36,8 +36,8 @@ func TestAvatar_RendersButterflyFallbackForBskyApp(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := ui.Avatar(ui.AuthorInfo{
-		Handle:      "bsky.app",
-		DisplayName: "Bluesky",
+		Handle:      "user.bsky.app",
+		DisplayName: "Bluesky User",
 	}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}

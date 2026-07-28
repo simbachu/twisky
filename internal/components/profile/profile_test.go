@@ -105,7 +105,7 @@ func TestProfile_RendersLabelsIndicator(t *testing.T) {
 		`title="Bluesky Moderation: Suggestive content"`,
 		`title="Bluesky Moderation: Non-sexual nudity"`,
 		`class="byline-avatar-emoji"`,
-		actor.AvatarEmojiShield,
+		actor.AvatarEmojiButterfly,
 		`Suggestive content`,
 		`Non-sexual nudity`,
 	} {
