@@ -1,0 +1,24 @@
+:root {
+  --content-width: 50rem;
+  --content-padding-inline: 1rem;
+
+
+  --post-indent: 3rem; /* left margin column width; avatar lives here, everything else starts after it */
+  
+  /* post byline avatar */
+  /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
+  --post-byline-avatar-margin: 0.5rem;
+  --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
+
+  --post-border: grey 1px solid;
+
+  --iface-radius: 999rem;
+  --iface-bg: rgba(0, 0, 0, 0.06);
+  --iface-divider: rgba(0, 0, 0, 0.1);
+  --iface-hover-bg: rgba(0, 0, 0, 0.05);
+  --iface-selected-bg: rgba(0, 0, 0, 0.12); /* active state is darker to show depressed */
+  --iface-selected-fg: black;
+  --iface-selected-border: grey 1px solid;
+
+  --muted-fg: #666;
+}

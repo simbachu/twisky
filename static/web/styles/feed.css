@@ -1,0 +1,88 @@
+#feed-list {
+  border: var(--post-border);
+
+  > .feed-item {
+    border-block-end: var(--post-border);
+
+    &:has(+ .feed-sentinel),
+    &:last-child {
+      border-block-end: none;
+    }
+
+    > div > .post:not(.inset-post) {
+      border: none;
+    }
+
+    &:hover .post {
+      background-color: transparent;
+    }
+  }
+}
+
+.feed-item,
+.clickable-inset {
+  position: relative;
+
+  > a {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  > div {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+
+    a, button, .post-video {
+      position: relative;
+      z-index: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+/* Nested quote overlays: beat .feed-item > div a { position: relative } */
+.feed-item .clickable-inset {
+  pointer-events: auto;
+}
+
+.feed-item .clickable-inset > a {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.feed-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.post-replies .feed-item:hover .post,
+.post-ancestors-section .feed-item:hover .post {
+  background-color: transparent;
+}
+
+.feed-sentinel {
+  min-height: 1px;
+  text-align: center;
+  color: dimgrey;
+  padding: 0.5rem 0;
+}
+
+.feed-sentinel.htmx-request::after {
+  content: "Loading more posts…";
+}
+
+#new-posts-slot {
+  display: flex;
+
+  button {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+  }
+}

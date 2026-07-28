@@ -1,0 +1,64 @@
+.account-list {
+  menu {
+    display: flex;
+    flex-direction: column;
+
+    .account-list-item {
+      padding: 0.5em 0.75em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    }
+  }
+}
+
+.mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  color: dimgrey;
+  text-decoration: none;
+  font-size: 0.9em;
+
+  .byline-avatar img {
+    max-width: 2.5rem;
+    max-height: 2.5rem;
+  }
+}
+
+.mini-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  h1,
+  h2 {
+    margin: 0;
+  }
+
+  .byline-avatar img {
+    z-index: 99;
+    max-height: 6em;
+  }
+}
+
+.profile-pinned-label {
+  font-size: 0.85em;
+  color: dimgrey;
+  margin: 0 0 0.25rem;
+  margin-inline-start: var(--post-indent);
+}

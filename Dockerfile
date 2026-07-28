@@ -7,7 +7,9 @@ RUN go mod download
 COPY . .
 
 ARG GIT_SHA=dev
-RUN CGO_ENABLED=0 go build \
+# style.css is gitignored; generate before embed/build.
+RUN go generate ./static \
+	&& CGO_ENABLED=0 go build \
 	-ldflags "-X github.com/simbachu/twisky/internal/version.BuildID=${GIT_SHA}" \
 	-o /out/server \
 	./cmd/server

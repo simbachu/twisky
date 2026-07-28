@@ -13,3 +13,6 @@
 # OS
 *.DS_Store
 *Thumbs.db
+
+# style.css — generated from static/web/styles/*.css (go generate ./static)
+static/web/styles/style.css
