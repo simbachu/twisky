@@ -3,13 +3,24 @@
   --content-padding-inline: 1rem;
 
 
-  --post-indent: 3rem; /* left margin column width; avatar lives here, everything else starts after it */
+  /* Avatar gutter (column A): size + asymmetric margins define the track. */
+  --post-avatar-size: 2.2rem;
+  --post-avatar-margin-inline-start: 0.65rem; /* slightly larger than the other sides */
+  --post-avatar-margin-inline-end: 0.5rem;
+  --post-avatar-margin-block: 0.5rem;
+  --post-avatar-track: calc(
+    var(--post-avatar-margin-inline-start)
+    + var(--post-avatar-size)
+    + var(--post-avatar-margin-inline-end)
+  );
+
+  /* Thread / nested indent and non-feed post body start — aligned with avatar track. */
+  --post-indent: var(--post-avatar-track);
   --post-inline-end: 1rem; /* breathing room on the inline-end of post body / insets */
-  
-  /* post byline avatar */
-  /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
-  --post-byline-avatar-margin: 0.5rem;
-  --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
+
+  /* Legacy aliases used by author/profile avatar sizing */
+  --post-byline-avatar-margin: var(--post-avatar-margin-block);
+  --post-byline-avatar-max-width: var(--post-avatar-size);
 
   /* Strong: peer contexts (feed items, reply threads). Weak: parts of one context. */
   --separator-strong-color: black;

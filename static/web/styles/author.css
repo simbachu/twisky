@@ -16,7 +16,7 @@
 
 .byline-avatar-moderated {
   display: inline-block;
-  width: var(--post-byline-avatar-max-width, 2.5rem);
+  width: var(--post-avatar-size, var(--post-byline-avatar-max-width, 2.5rem));
   aspect-ratio: 1;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.12);
@@ -52,8 +52,8 @@
   }
   
   .byline-avatar img {
-    max-width: var(--post-byline-avatar-max-width);
-    margin: var(--post-byline-avatar-margin);
+    width: var(--post-avatar-size, var(--post-byline-avatar-max-width));
+    max-width: var(--post-avatar-size, var(--post-byline-avatar-max-width));
   }
 
   .byline-op {

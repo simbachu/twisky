@@ -15,6 +15,16 @@
   }
 }
 
+/* Profile/tag tablist already draws the shared top edge; avoid a second rule on the feed. */
+nav:has(> menu[role="tablist"]) + #feed-list,
+nav:has(> menu[role="tablist"]) + #new-posts-slot + #feed-list {
+  border-block-start: none;
+}
+
+nav:has(> menu[role="tablist"]):has(+ #new-posts-slot, + #feed-list) > menu[role="tablist"] {
+  border-color: var(--separator-strong-color);
+}
+
 .feed-item,
 .clickable-inset {
   position: relative;

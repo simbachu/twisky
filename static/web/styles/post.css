@@ -7,7 +7,7 @@
     line-height: 1.3;
   }
 
-  /* children that are not header get indented; inline-end keeps body/insets off the edge */
+  /* Shared header/meta primitives (focus post keeps header-local grid + body margin). */
   & > :not(header) {
     margin-inline-start: var(--post-indent);
     margin-inline-end: var(--post-inline-end);
@@ -15,10 +15,10 @@
 
   & > header {
     display: grid;
-    grid-template-columns: var(--post-indent) 1fr;
-    column-gap: 0.5rem;
-    align-items: center;
+    grid-template-columns: var(--post-avatar-track) minmax(0, 1fr);
+    align-items: start;
     margin-block-end: 0.5rem;
+    padding-block-start: var(--post-avatar-margin-block);
     padding-inline-end: var(--post-inline-end);
 
     .post-meta {
@@ -39,12 +39,76 @@
 
     .byline-avatar {
       grid-column: 1;
-      justify-self: center;
-      margin: var(--post-byline-avatar-margin);
+      grid-row: 1;
+      align-self: start;
+      justify-self: stretch;
+      /* Inline margins define the gutter track; block spacing comes from header/post padding. */
+      margin-block: 0;
+      margin-inline-start: var(--post-avatar-margin-inline-start);
+      margin-inline-end: var(--post-avatar-margin-inline-end);
+
+      img {
+        width: var(--post-avatar-size);
+        max-width: var(--post-avatar-size);
+        margin: 0;
+      }
+
+      .byline-avatar-emoji {
+        width: var(--post-avatar-size);
+        height: var(--post-avatar-size);
+        font-size: 1.25rem;
+      }
     }
 
     .byline > span:not(.byline-avatar) {
       grid-column: 2;
+      align-self: center;
+    }
+  }
+
+  /*
+   * Feed-item shell (A|B/C/D): article is the grid.
+   * A = avatar track spanning beside B/C/D; header is display:contents so
+   * grandchildren (avatar, meta, byline text) participate.
+   * Direct child only — not nested .inset-post quotes.
+   */
+  .feed-item > div > & {
+    display: grid;
+    grid-template-columns: var(--post-avatar-track) minmax(0, 1fr);
+    padding-block: var(--post-avatar-margin-block);
+    padding-inline-end: var(--post-inline-end);
+
+    & > :not(header) {
+      grid-column: 2;
+      margin-inline-start: 0;
+      margin-inline-end: 0;
+    }
+
+    /* UA <p> margin + byline margin-block-end was stacking (~24px). */
+    & > p {
+      margin-block: 0.25rem 0.5rem;
+    }
+
+    & > header {
+      display: contents;
+      margin-block-end: 0;
+      padding-inline-end: 0;
+    }
+
+    .byline-avatar {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: start;
+    }
+
+    .post-meta,
+    .byline > span:not(.byline-avatar) {
+      grid-column: 2;
+      align-self: start;
+    }
+
+    .byline > span:not(.byline-avatar) {
+      margin-block-end: 0.25rem;
     }
   }
 
@@ -196,7 +260,15 @@
       font-size: 0.875em;
 
       .byline-avatar img {
+        width: auto;
+        max-width: none;
         max-height: 1.5em;
+      }
+
+      .byline-avatar-emoji {
+        width: 1.5em;
+        height: 1.5em;
+        font-size: 1em;
       }
     }
 
