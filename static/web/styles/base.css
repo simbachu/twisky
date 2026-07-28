@@ -15,6 +15,19 @@ time {
   border: 0;
 }
 
+/* Inset horizontal rule for separating parts of one context */
+.separator-weak {
+  border: none;
+
+  &::after {
+    content: "";
+    display: block;
+    inline-size: var(--separator-weak-inline-size);
+    margin-inline: auto;
+    border-block-end: var(--separator-weak);
+  }
+}
+
 
 ul,
 menu {

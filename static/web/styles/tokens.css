@@ -4,13 +4,22 @@
 
 
   --post-indent: 3rem; /* left margin column width; avatar lives here, everything else starts after it */
+  --post-inline-end: 1rem; /* breathing room on the inline-end of post body / insets */
   
   /* post byline avatar */
   /* if we're placing it in the left margin of the post, we need to subtract the margin from the indent */
   --post-byline-avatar-margin: 0.5rem;
   --post-byline-avatar-max-width: calc(var(--post-indent) - (2* var(--post-byline-avatar-margin)));
 
-  --post-border: grey 1px solid;
+  /* Strong: peer contexts (feed items, reply threads). Weak: parts of one context. */
+  --separator-strong-color: black;
+  --separator-strong: 1px solid var(--separator-strong-color);
+
+  --separator-weak-color: dimgrey;
+  --separator-weak: 1px solid var(--separator-weak-color);
+  --separator-weak-inline-size: 80%;
+
+  --post-border: var(--separator-strong);
 
   --iface-radius: 999rem;
   --iface-bg: rgba(0, 0, 0, 0.06);

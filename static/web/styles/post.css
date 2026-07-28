@@ -7,9 +7,10 @@
     line-height: 1.3;
   }
 
-  /* children that are not header get indented */
+  /* children that are not header get indented; inline-end keeps body/insets off the edge */
   & > :not(header) {
     margin-inline-start: var(--post-indent);
+    margin-inline-end: var(--post-inline-end);
   }
 
   & > header {
@@ -18,6 +19,7 @@
     column-gap: 0.5rem;
     align-items: center;
     margin-block-end: 0.5rem;
+    padding-inline-end: var(--post-inline-end);
 
     .post-meta {
       grid-column: 2;
@@ -248,15 +250,25 @@
   }
 
   & > footer {
-    margin-block-end: 0.5rem;
+    /* Contain nav margins so they stay inside the clickable hover wash. */
+    display: flow-root;
 
     .post-engagement-stats {
       margin-block-end: 0.75rem;
 
       &[open] > summary {
-        border-block-end: 1px solid dimgrey;
         padding-block-end: 0.5rem;
         margin-block-end: 0.5rem;
+        border: none;
+
+        &::after {
+          content: "";
+          display: block;
+          inline-size: var(--separator-weak-inline-size);
+          margin-inline: auto;
+          margin-block-start: 0.5rem;
+          border-block-end: var(--separator-weak);
+        }
       }
 
       summary {
@@ -307,6 +319,7 @@
       flex-wrap: wrap;
       gap: 0.5rem;
       align-items: center;
+      margin-block: 0.5rem;
 
       .post-share-group {
         display: inline-grid;
@@ -343,9 +356,5 @@
         }
       }
     }
-  }
-
-  &:not(.post-page):hover {
-    background-color: rgba(0, 0, 0, 0.05);
   }
 }

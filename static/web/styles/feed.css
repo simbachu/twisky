@@ -1,7 +1,8 @@
 #feed-list {
   border: var(--post-border);
 
-  > .feed-item {
+  /* Markup is ul > li > .feed-item > … > .post (sentinel is li.feed-sentinel). */
+  > li:has(> .feed-item) {
     border-block-end: var(--post-border);
 
     &:has(+ .feed-sentinel),
@@ -9,12 +10,8 @@
       border-block-end: none;
     }
 
-    > div > .post:not(.inset-post) {
+    > .feed-item > div > .post:not(.inset-post) {
       border: none;
-    }
-
-    &:hover .post {
-      background-color: transparent;
     }
   }
 }
@@ -40,6 +37,11 @@
       pointer-events: auto;
     }
   }
+
+  /* Full-cell highlight only on clickable wrappers (overlay link to post page). */
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
 }
 
 /* Nested quote overlays: beat .feed-item > div a { position: relative } */
@@ -53,12 +55,8 @@
   z-index: 0;
 }
 
-.feed-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.post-replies .feed-item:hover .post,
-.post-ancestors-section .feed-item:hover .post {
+/* Hovering a nested quote: highlight only the quote cell, not the parent row. */
+.feed-item:has(.clickable-inset:hover) {
   background-color: transparent;
 }
 
