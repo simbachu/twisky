@@ -9,6 +9,7 @@ import (
 	"github.com/simbachu/twisky/internal/components/profile"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
+	"github.com/simbachu/twisky/internal/moderation"
 )
 
 func TestProfile_RendersPinnedPost(t *testing.T) {
@@ -62,6 +63,53 @@ func TestProfile_OmitsPinnedPostWhenNil(t *testing.T) {
 	html := buf.String()
 	if strings.Contains(html, `class="profile-pinned"`) {
 		t.Fatalf("html = %q, want no profile-pinned section", html)
+	}
+}
+
+func TestProfile_RendersLabelsIndicator(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := profile.Profile(profilequery.ProfileView{
+		Handle:      "bsky.app",
+		DisplayName: "Bluesky",
+		Labels: []moderation.ProfileLabelView{
+			{Val: "sexual", Labeler: moderation.BlueskyModerationName, Message: "Suggestive content"},
+			{Val: "nudity", Labeler: moderation.BlueskyModerationName, Message: "Non-sexual nudity"},
+		},
+		Tab: profilequery.TabPosts,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="profile-labels"`,
+		`Labels (2)`,
+		`Bluesky Moderation - Suggestive content`,
+		`Bluesky Moderation - Non-sexual nudity`,
+		`title="sexual"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestProfile_OmitsLabelsIndicatorWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := profile.Profile(profilequery.ProfileView{
+		Handle:      "bsky.app",
+		DisplayName: "Bluesky",
+		Tab:         profilequery.TabPosts,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	if strings.Contains(buf.String(), `class="profile-labels"`) {
+		t.Fatalf("html = %q, want no profile-labels section", buf.String())
 	}
 }
 

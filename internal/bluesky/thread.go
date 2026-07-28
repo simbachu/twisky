@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 )
 
@@ -52,35 +50,8 @@ func (c *Client) GetPostThread(ctx context.Context, postURI string) (ThreadNode,
 	query.Set("uri", postURI)
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var threadResp getPostThreadResponse
-	if err := json.Unmarshal(body, &threadResp); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &threadResp); err != nil {
 		return nil, err
 	}
 

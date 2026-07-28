@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type Client struct {
 	baseURL       string
 	searchBaseURL string
 	httpClient    *http.Client
+	labelers      []string
 }
 
 func NewClient() *Client {
@@ -48,6 +50,11 @@ func NewClientWith(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
+// SetLabelers configures DIDs sent via the atproto-accept-labelers header on requests.
+func (c *Client) SetLabelers(labelers []string) {
+	c.labelers = append([]string(nil), labelers...)
+}
+
 type StrongRef struct {
 	URI string `json:"uri"`
 	CID string `json:"cid"`
@@ -64,6 +71,7 @@ type Profile struct {
 	Following          int        `json:"followsCount"`
 	Posts              int        `json:"postsCount"`
 	PinnedPost         *StrongRef `json:"pinnedPost,omitempty"`
+	Labels             []Label    `json:"labels,omitempty"`
 }
 
 type Label struct {
@@ -231,6 +239,48 @@ type getPostsResponse struct {
 
 const maxGetPostsURIs = 25
 
+func (c *Client) setLabelerHeaders(req *http.Request) {
+	if len(c.labelers) == 0 {
+		return
+	}
+	req.Header.Set("atproto-accept-labelers", strings.Join(c.labelers, ", "))
+}
+
+func (c *Client) doGet(ctx context.Context, endpointURL string, dest any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointURL, nil)
+	if err != nil {
+		return err
+	}
+	c.setLabelerHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		var apiErr apiError
+		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
+			return fmt.Errorf("bluesky api: %s", apiErr.Message)
+		}
+		return fmt.Errorf("bluesky api: status %d", resp.StatusCode)
+	}
+
+	if dest == nil {
+		return nil
+	}
+	return json.Unmarshal(body, dest)
+}
+
 func (c *Client) GetProfile(ctx context.Context, actor string) (*Profile, error) {
 	endpoint, err := url.Parse(c.baseURL + "/app.bsky.actor.getProfile")
 	if err != nil {
@@ -240,35 +290,8 @@ func (c *Client) GetProfile(ctx context.Context, actor string) (*Profile, error)
 	query.Set("actor", actor)
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var profile Profile
-	if err := json.Unmarshal(body, &profile); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &profile); err != nil {
 		return nil, err
 	}
 	return &profile, nil
@@ -285,35 +308,8 @@ func (c *Client) GetProfiles(ctx context.Context, actors []string) ([]Profile, e
 	}
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var profilesResp getProfilesResponse
-	if err := json.Unmarshal(body, &profilesResp); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &profilesResp); err != nil {
 		return nil, err
 	}
 	return profilesResp.Profiles, nil
@@ -337,35 +333,8 @@ func (c *Client) GetAuthorFeed(ctx context.Context, feedReq AuthorFeedRequest) (
 	}
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var feedResp authorFeedResponse
-	if err := json.Unmarshal(body, &feedResp); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &feedResp); err != nil {
 		return nil, err
 	}
 	return &AuthorFeedResponse{
@@ -390,35 +359,8 @@ func (c *Client) SearchPosts(ctx context.Context, searchReq SearchPostsRequest) 
 	}
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var searchResp searchPostsResponse
-	if err := json.Unmarshal(body, &searchResp); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &searchResp); err != nil {
 		return nil, err
 	}
 	return &SearchPostsResponse{
@@ -458,35 +400,8 @@ func (c *Client) getPosts(ctx context.Context, uris []string) ([]Post, error) {
 	}
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		var apiErr apiError
-		if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("bluesky api: %s", apiErr.Message)
-		}
-		return nil, fmt.Errorf("bluesky api: status %d", resp.StatusCode)
-	}
-
 	var postsResp getPostsResponse
-	if err := json.Unmarshal(body, &postsResp); err != nil {
+	if err := c.doGet(ctx, endpoint.String(), &postsResp); err != nil {
 		return nil, err
 	}
 	return postsResp.Posts, nil

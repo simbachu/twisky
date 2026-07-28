@@ -100,6 +100,37 @@ func TestHandler_Handle(t *testing.T) {
 	}
 }
 
+func TestHandler_Handle_ProfileLabels(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "bsky.app",
+			Labels: []bluesky.Label{{
+				Val: "sexual",
+				Src: moderation.BlueskyModerationDID,
+				URI: "did:plc:example",
+			}},
+		},
+		feed: &bluesky.AuthorFeedResponse{},
+	}
+	handler := profile.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	view, ok := resp.(profile.ProfileView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ProfileView", resp)
+	}
+	if len(view.Labels) != 1 {
+		t.Fatalf("len(view.Labels) = %d, want 1", len(view.Labels))
+	}
+	if view.Labels[0].Message != "Suggestive content" {
+		t.Fatalf("view.Labels[0].Message = %q, want Suggestive content", view.Labels[0].Message)
+	}
+}
+
 func TestHandler_HandleMediaTab(t *testing.T) {
 	t.Parallel()
 

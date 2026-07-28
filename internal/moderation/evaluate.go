@@ -23,6 +23,10 @@ func PostSubjectFromBluesky(post bluesky.Post) PostSubject {
 }
 
 func labelsFromBluesky(labels []bluesky.Label) []Label {
+	return LabelsFromBluesky(labels)
+}
+
+func LabelsFromBluesky(labels []bluesky.Label) []Label {
 	if len(labels) == 0 {
 		return nil
 	}

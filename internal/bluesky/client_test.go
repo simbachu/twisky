@@ -448,6 +448,45 @@ func TestClient_GetProfile_ParsesPinnedPost(t *testing.T) {
 	}
 }
 
+func TestClient_GetProfile_ParsesLabelsAndSendsLabelerHeader(t *testing.T) {
+	t.Parallel()
+
+	const moderationDID = "did:plc:ar7c4by46qjdydhdevvrndac"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/xrpc/app.bsky.actor.getProfile" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.actor.getProfile", r.URL.Path)
+		}
+		if got := r.Header.Get("atproto-accept-labelers"); got != moderationDID {
+			t.Fatalf("atproto-accept-labelers = %q, want %q", got, moderationDID)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"did": "did:plc:example",
+			"handle": "bsky.app",
+			"labels": [
+				{"val": "sexual", "src": "did:plc:ar7c4by46qjdydhdevvrndac", "uri": "did:plc:example"}
+			]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+	client.SetLabelers([]string{moderationDID})
+
+	profile, err := client.GetProfile(context.Background(), "bsky.app")
+	if err != nil {
+		t.Fatalf("GetProfile() err = %v", err)
+	}
+	if len(profile.Labels) != 1 {
+		t.Fatalf("len(profile.Labels) = %d, want 1", len(profile.Labels))
+	}
+	if profile.Labels[0].Val != "sexual" {
+		t.Fatalf("profile.Labels[0].Val = %q, want sexual", profile.Labels[0].Val)
+	}
+}
+
 func TestClient_GetPostThread(t *testing.T) {
 	t.Parallel()
 

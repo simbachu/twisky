@@ -40,6 +40,15 @@ func DefaultPrefs() Prefs {
 	}
 }
 
+func DefaultLabelerDIDs() []string {
+	prefs := DefaultPrefs()
+	dids := make([]string, 0, len(prefs.Labelers))
+	for _, labeler := range prefs.Labelers {
+		dids = append(dids, labeler.DID)
+	}
+	return dids
+}
+
 func (p Prefs) labelPreference(def LabelDefinition, labelerDID string, isSelf bool) LabelPreference {
 	if !def.Configurable {
 		if def.DefaultSetting != "" {

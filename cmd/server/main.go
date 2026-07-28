@@ -23,6 +23,7 @@ func main() {
 	defer stop()
 
 	blueskyClient := bluesky.NewClient()
+	blueskyClient.SetLabelers(moderation.DefaultLabelerDIDs())
 	prefs := moderation.DefaultPrefsProvider{}
 	_ = command.NewDispatcher() // reserved for future write intents
 

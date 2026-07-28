@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"time"
 
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
@@ -9,6 +10,7 @@ import (
 	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
+	"github.com/simbachu/twisky/internal/moderation"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -18,6 +20,8 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
 		Avatar:      view.Avatar,
+		BlurAvatar:  view.AvatarModeration.BlurAvatar,
+		AvatarText:  view.AvatarModeration.AvatarText,
 	}
 	feedURL := "/" + view.Handle
 	if view.Tab == profilequery.TabMedia {
@@ -31,6 +35,7 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 			H1(ui.AuthorName(author)),
 			H2(ui.AuthorHandle(author)),
 			profileStats(view),
+			profileLabels(view.Labels),
 			g.If(view.Description != "", profileDescription(view)),
 			maybePinnedPost(view.PinnedPostMaybe, now),
 		),
@@ -56,6 +61,28 @@ func profileStats(view profilequery.ProfileView) g.Node {
 		ui.FuzzyNumber(view.Followers), g.Text(" followers · "),
 		ui.FuzzyNumber(view.Following), g.Text(" following · "),
 		ui.FuzzyNumber(view.Posts), g.Text(" posts"),
+	)
+}
+
+func profileLabels(labels []moderation.ProfileLabelView) g.Node {
+	if len(labels) == 0 {
+		return nil
+	}
+
+	items := make([]g.Node, len(labels))
+	for i, label := range labels {
+		text := fmt.Sprintf("%s - %s", label.Labeler, label.Message)
+		item := Li(g.Text(text))
+		if label.Val != "" {
+			item = Li(g.Attr("title", label.Val), g.Text(text))
+		}
+		items[i] = item
+	}
+
+	return Details(
+		g.Attr("class", "profile-labels"),
+		Summary(g.Text(fmt.Sprintf("Labels (%d)", len(labels)))),
+		Ul(g.Group(items)),
 	)
 }
 

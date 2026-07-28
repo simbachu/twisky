@@ -62,3 +62,26 @@
   margin: 0 0 0.25rem;
   margin-inline-start: var(--post-indent);
 }
+
+.profile-labels {
+  font-size: 0.85em;
+  color: var(--muted-fg);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  ul {
+    margin: 0.25rem 0 0;
+    padding-inline-start: 1.25rem;
+  }
+
+  li {
+    margin: 0.125rem 0;
+  }
+}

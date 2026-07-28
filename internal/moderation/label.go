@@ -1,6 +1,22 @@
 package moderation
 
-const BlueskyModerationDID = "did:plc:ar7c4by46qjdydhdevvrndac"
+const (
+	BlueskyModerationDID  = "did:plc:ar7c4by46qjdydhdevvrndac"
+	BlueskyModerationName = "Bluesky Moderation"
+)
+
+// LabelerDisplayName returns a human-readable name for the label source DID.
+func LabelerDisplayName(src, authorDID string) string {
+	if src == authorDID && authorDID != "" {
+		return "Self"
+	}
+	switch src {
+	case BlueskyModerationDID:
+		return BlueskyModerationName
+	default:
+		return src
+	}
+}
 
 type LabelTarget string
 
@@ -33,6 +49,7 @@ const (
 	UIContextContentView  UIContext = "contentView"
 	UIContextContentMedia UIContext = "contentMedia"
 	UIContextAvatar       UIContext = "avatar"
+	UIContextProfileView  UIContext = "profileView"
 )
 
 type LabelDefinitionFlag string
@@ -226,6 +243,8 @@ func (b Behavior) action(context UIContext) BehaviorAction {
 		return b.ContentMedia
 	case UIContextAvatar:
 		return b.Avatar
+	case UIContextProfileView:
+		return b.ProfileView
 	default:
 		return ""
 	}

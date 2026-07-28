@@ -56,6 +56,8 @@ type ProfileView struct {
 	Tab         Tab
 	PinnedPostMaybe *feedquery.PostView
 	Feed        feedquery.FeedView
+	Labels           []moderation.ProfileLabelView
+	AvatarModeration feedquery.ModerationView
 }
 
 func (ProfileView) IsResponse() {}
@@ -108,6 +110,10 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 
 	moderatedFeed := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList)
 
+	prefs := h.prefs.Prefs(ctx)
+	profileLabels := moderation.LabelsFromBluesky(profile.Labels)
+	avatarUI := moderation.EvaluateProfileAvatar(ctx, h.prefs, profile.DID, profileLabels)
+
 	return ProfileView{
 		DID:                 profile.DID,
 		Handle:              profile.Handle,
@@ -121,6 +127,11 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Tab:                 tab,
 		PinnedPostMaybe:     h.pinnedPostMaybe(ctx, profile, i.Cursor),
 		Feed:                moderatedFeed,
+		Labels:              moderation.ProfileLabelsForDisplay(profileLabels, profile.DID, prefs),
+		AvatarModeration: feedquery.ModerationView{
+			BlurAvatar: avatarUI.BlurAvatar,
+			AvatarText: avatarUI.PrimaryMessage(),
+		},
 	}
 }
 
