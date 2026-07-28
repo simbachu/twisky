@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/profile"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
@@ -74,8 +75,22 @@ func TestProfile_RendersLabelsIndicator(t *testing.T) {
 		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
 		Labels: []moderation.ProfileLabelView{
-			{Val: "sexual", Labeler: moderation.BlueskyModerationName, Message: "Suggestive content"},
-			{Val: "nudity", Labeler: moderation.BlueskyModerationName, Message: "Non-sexual nudity"},
+			{
+				Val:              "sexual",
+				Labeler:          moderation.BlueskyModerationName,
+				Message:          "Suggestive content",
+				LabelerHandle:    "moderation.bsky.app",
+				LabelerDID:       moderation.BlueskyModerationDID,
+				LabelerIsLabeler: true,
+			},
+			{
+				Val:           "nudity",
+				Labeler:       moderation.BlueskyModerationName,
+				Message:       "Non-sexual nudity",
+				LabelerHandle: "moderation.bsky.app",
+				LabelerDID:    moderation.BlueskyModerationDID,
+				LabelerIsLabeler: true,
+			},
 		},
 		Tab: profilequery.TabPosts,
 	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
@@ -85,14 +100,24 @@ func TestProfile_RendersLabelsIndicator(t *testing.T) {
 	html := buf.String()
 	for _, want := range []string{
 		`class="profile-labels"`,
-		`Labels (2)`,
-		`Bluesky Moderation - Suggestive content`,
-		`Bluesky Moderation - Non-sexual nudity`,
-		`title="sexual"`,
+		`class="iface-pill"`,
+		`href="/moderation.bsky.app"`,
+		`title="Bluesky Moderation: Suggestive content"`,
+		`title="Bluesky Moderation: Non-sexual nudity"`,
+		`class="byline-avatar-emoji"`,
+		actor.AvatarEmojiShield,
+		`Suggestive content`,
+		`Non-sexual nudity`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, `<details`) {
+		t.Fatalf("html = %q, want no details element", html)
+	}
+	if strings.Contains(html, `profile-label-pill`) {
+		t.Fatalf("html = %q, want no profile-label-pill class", html)
 	}
 }
 

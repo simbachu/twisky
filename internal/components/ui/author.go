@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -10,9 +11,24 @@ import (
 type AuthorInfo struct {
 	Handle      string
 	DisplayName string
+	DID         string
 	Avatar      string
+	IsLabeler   bool
 	BlurAvatar  bool
 	AvatarText  string
+}
+
+func avatarGlyph(avatarURL, handle, did string, isLabeler bool, alt string) g.Node {
+	if avatarURL != "" {
+		return Img(
+			g.Attr("src", avatarURL),
+			g.Attr("alt", alt),
+		)
+	}
+	if emoji := actor.AvatarFallbackEmoji(handle, did, isLabeler); emoji != "" {
+		return Span(g.Attr("class", "byline-avatar-emoji"), g.Text(emoji))
+	}
+	return nil
 }
 
 func Avatar(author AuthorInfo) g.Node {
@@ -27,18 +43,21 @@ func Avatar(author AuthorInfo) g.Node {
 			g.Text(""),
 		)
 	}
-	if author.Avatar == "" {
+	glyph := avatarGlyph(author.Avatar, author.Handle, author.DID, author.IsLabeler, author.DisplayName)
+	if glyph == nil {
 		return nil
 	}
 	return A(
 		g.Attr("href", "/"+author.Handle),
 		g.Attr("class", "byline-avatar"),
 		g.Attr("style", "pointer-events: auto"),
-		Img(
-			g.Attr("src", author.Avatar),
-			g.Attr("alt", author.DisplayName),
-		),
+		glyph,
 	)
+}
+
+// AvatarGlyph renders a small avatar image or fallback emoji for inline use.
+func AvatarGlyph(avatarURL, handle, did string, isLabeler bool) g.Node {
+	return avatarGlyph(avatarURL, handle, did, isLabeler, "")
 }
 
 func AuthorName(author AuthorInfo) g.Node {

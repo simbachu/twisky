@@ -6,8 +6,47 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/ui"
 )
+
+func TestAvatar_RendersShieldFallbackForLabeler(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Avatar(ui.AuthorInfo{
+		Handle:      "moderation.bsky.app",
+		DisplayName: "Bluesky Moderation Service",
+		IsLabeler:   true,
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="byline-avatar-emoji"`) {
+		t.Fatalf("html = %q, want emoji avatar", html)
+	}
+	if !strings.Contains(html, actor.AvatarEmojiShield) {
+		t.Fatalf("html = %q, want shield emoji", html)
+	}
+}
+
+func TestAvatar_RendersButterflyFallbackForBskyApp(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Avatar(ui.AuthorInfo{
+		Handle:      "bsky.app",
+		DisplayName: "Bluesky",
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, actor.AvatarEmojiButterfly) {
+		t.Fatalf("html = %q, want butterfly emoji", html)
+	}
+}
 
 func TestAuthorLink_ShowsNameAndHandle(t *testing.T) {
 	t.Parallel()

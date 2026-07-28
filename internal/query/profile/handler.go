@@ -58,6 +58,7 @@ type ProfileView struct {
 	Feed        feedquery.FeedView
 	Labels           []moderation.ProfileLabelView
 	AvatarModeration feedquery.ModerationView
+	IsLabeler        bool
 }
 
 func (ProfileView) IsResponse() {}
@@ -113,6 +114,13 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	prefs := h.prefs.Prefs(ctx)
 	profileLabels := moderation.LabelsFromBluesky(profile.Labels)
 	avatarUI := moderation.EvaluateProfileAvatar(ctx, h.prefs, profile.DID, profileLabels)
+	displayLabels := moderation.ProfileLabelsForDisplay(profileLabels, profile.DID, prefs)
+	displayLabels, err = h.enrichProfileLabels(ctx, displayLabels, profile)
+	if err != nil {
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	}
+
+	isLabeler := actor.IsLabelerAccount(profile.Handle, profile.DID, profile.Associated != nil && profile.Associated.Labeler)
 
 	return ProfileView{
 		DID:                 profile.DID,
@@ -127,11 +135,12 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Tab:                 tab,
 		PinnedPostMaybe:     h.pinnedPostMaybe(ctx, profile, i.Cursor),
 		Feed:                moderatedFeed,
-		Labels:              moderation.ProfileLabelsForDisplay(profileLabels, profile.DID, prefs),
+		Labels:              displayLabels,
 		AvatarModeration: feedquery.ModerationView{
 			BlurAvatar: avatarUI.BlurAvatar,
 			AvatarText: avatarUI.PrimaryMessage(),
 		},
+		IsLabeler: isLabeler,
 	}
 }
 
@@ -153,4 +162,58 @@ func (h *Handler) pinnedPostMaybe(ctx context.Context, profile *bluesky.Profile,
 		return nil
 	}
 	return &moderated.Posts[0]
+}
+
+func (h *Handler) enrichProfileLabels(ctx context.Context, labels []moderation.ProfileLabelView, profile *bluesky.Profile) ([]moderation.ProfileLabelView, error) {
+	if len(labels) == 0 {
+		return labels, nil
+	}
+
+	labelerDIDs := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, label := range labels {
+		if label.LabelerDID == profile.DID {
+			continue
+		}
+		if _, ok := seen[label.LabelerDID]; ok {
+			continue
+		}
+		seen[label.LabelerDID] = struct{}{}
+		labelerDIDs = append(labelerDIDs, label.LabelerDID)
+	}
+
+	profilesByDID := make(map[string]bluesky.Profile)
+	if len(labelerDIDs) > 0 {
+		profiles, err := h.reader.GetProfiles(ctx, labelerDIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, labelerProfile := range profiles {
+			profilesByDID[labelerProfile.DID] = labelerProfile
+		}
+	}
+
+	enriched := make([]moderation.ProfileLabelView, len(labels))
+	for i, label := range labels {
+		enriched[i] = label
+		if label.LabelerDID == profile.DID {
+			enriched[i].LabelerHandle = profile.Handle
+			enriched[i].LabelerAvatar = profile.Avatar
+			enriched[i].LabelerIsLabeler = actor.IsLabelerAccount(profile.Handle, profile.DID, profile.Associated != nil && profile.Associated.Labeler)
+			continue
+		}
+		if labelerProfile, ok := profilesByDID[label.LabelerDID]; ok {
+			enriched[i].LabelerHandle = labelerProfile.Handle
+			enriched[i].LabelerAvatar = labelerProfile.Avatar
+			enriched[i].LabelerIsLabeler = actor.IsLabelerAccount(
+				labelerProfile.Handle,
+				labelerProfile.DID,
+				labelerProfile.Associated != nil && labelerProfile.Associated.Labeler,
+			)
+		} else {
+			enriched[i].LabelerHandle = moderation.LabelerProfileSlug(label.LabelerDID)
+			enriched[i].LabelerIsLabeler = actor.IsLabelerAccount("", label.LabelerDID, false)
+		}
+	}
+	return enriched, nil
 }

@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"fmt"
 	"time"
 
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
@@ -19,7 +18,9 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 	author := ui.AuthorInfo{
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
+		DID:         view.DID,
 		Avatar:      view.Avatar,
+		IsLabeler:   view.IsLabeler,
 		BlurAvatar:  view.AvatarModeration.BlurAvatar,
 		AvatarText:  view.AvatarModeration.AvatarText,
 	}
@@ -69,20 +70,23 @@ func profileLabels(labels []moderation.ProfileLabelView) g.Node {
 		return nil
 	}
 
-	items := make([]g.Node, len(labels))
+	pills := make([]g.Node, len(labels))
 	for i, label := range labels {
-		text := fmt.Sprintf("%s - %s", label.Labeler, label.Message)
-		item := Li(g.Text(text))
-		if label.Val != "" {
-			item = Li(g.Attr("title", label.Val), g.Text(text))
+		children := []g.Node{
+			g.Attr("class", "iface-pill"),
+			g.Attr("href", "/"+label.LabelerHandle),
+			g.Attr("title", label.Labeler+": "+label.Message),
 		}
-		items[i] = item
+		if glyph := ui.AvatarGlyph(label.LabelerAvatar, label.LabelerHandle, label.LabelerDID, label.LabelerIsLabeler); glyph != nil {
+			children = append(children, glyph)
+		}
+		children = append(children, Span(g.Text(label.Message)))
+		pills[i] = A(g.Group(children))
 	}
 
-	return Details(
+	return Div(
 		g.Attr("class", "profile-labels"),
-		Summary(g.Text(fmt.Sprintf("Labels (%d)", len(labels)))),
-		Ul(g.Group(items)),
+		g.Group(pills),
 	)
 }
 

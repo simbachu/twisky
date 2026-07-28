@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	g "maragu.dev/gomponents"
@@ -182,7 +183,9 @@ func authorInfo(view feedquery.PostView) ui.AuthorInfo {
 	return ui.AuthorInfo{
 		Handle:      view.AuthorHandle,
 		DisplayName: view.AuthorDisplayName,
+		DID:         view.AuthorDID(),
 		Avatar:      view.AuthorAvatar,
+		IsLabeler:   actor.IsLabelerAccount(view.AuthorHandle, view.AuthorDID(), false),
 		BlurAvatar:  view.Moderation.BlurAvatar,
 		AvatarText:  view.Moderation.AvatarText,
 	}
@@ -206,6 +209,7 @@ func authorInfoFromView(view feedquery.AuthorView) ui.AuthorInfo {
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
 		Avatar:      view.Avatar,
+		IsLabeler:   actor.IsLabelerAccount(view.Handle, "", false),
 	}
 }
 

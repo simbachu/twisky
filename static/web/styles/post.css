@@ -40,9 +40,10 @@
     .byline-avatar {
       grid-column: 1;
       justify-self: center;
+      margin: var(--post-byline-avatar-margin);
     }
 
-    .byline > span {
+    .byline > span:not(.byline-avatar) {
       grid-column: 2;
     }
   }

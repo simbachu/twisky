@@ -18,6 +18,16 @@ func LabelerDisplayName(src, authorDID string) string {
 	}
 }
 
+// LabelerProfileSlug returns the URL path segment for a labeler's profile page.
+func LabelerProfileSlug(did string) string {
+	switch did {
+	case BlueskyModerationDID:
+		return "moderation.bsky.app"
+	default:
+		return did
+	}
+}
+
 type LabelTarget string
 
 const (

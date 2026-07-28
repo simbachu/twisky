@@ -3,9 +3,13 @@ package moderation
 import "context"
 
 type ProfileLabelView struct {
-	Val     string
-	Labeler string
-	Message string
+	Val           string
+	Labeler       string
+	Message       string
+	LabelerDID      string
+	LabelerHandle   string
+	LabelerAvatar   string
+	LabelerIsLabeler bool
 }
 
 // ProfileLabelsForDisplay returns known account/profile labels for the profile
@@ -34,14 +38,16 @@ func ProfileLabelsForDisplay(labels []Label, authorDID string, prefs Prefs) []Pr
 			continue
 		}
 
-		if _, ok := seen[label.Val]; ok {
+		dedupeKey := label.Val + "\x00" + label.Src
+		if _, ok := seen[dedupeKey]; ok {
 			continue
 		}
-		seen[label.Val] = struct{}{}
+		seen[dedupeKey] = struct{}{}
 		out = append(out, ProfileLabelView{
-			Val:     label.Val,
-			Labeler: LabelerDisplayName(label.Src, authorDID),
-			Message: def.Message,
+			Val:        label.Val,
+			Labeler:    LabelerDisplayName(label.Src, authorDID),
+			Message:    def.Message,
+			LabelerDID: label.Src,
 		})
 	}
 	return out

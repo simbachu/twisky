@@ -15,13 +15,10 @@ func miniProfileLink(author AuthorInfo) g.Node {
 		g.Attr("href", "/"+author.Handle),
 		g.Attr("class", "mini-profile"),
 	}
-	if author.Avatar != "" {
+	if glyph := AvatarGlyph(author.Avatar, author.Handle, author.DID, author.IsLabeler); glyph != nil {
 		children = append(children, Span(
 			g.Attr("class", "byline-avatar"),
-			Img(
-				g.Attr("src", author.Avatar),
-				g.Attr("alt", author.DisplayName),
-			),
+			glyph,
 		))
 	}
 	children = append(children, Span(

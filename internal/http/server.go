@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/simbachu/twisky/internal/actor"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	postpage "github.com/simbachu/twisky/internal/components/post"
@@ -52,7 +53,9 @@ func (s *Server) suggestedAccounts(ctx context.Context) []ui.AuthorInfo {
 		authors[i] = ui.AuthorInfo{
 			Handle:      account.Handle,
 			DisplayName: account.DisplayName,
+			DID:         account.DID,
 			Avatar:      account.Avatar,
+			IsLabeler:   actor.IsLabelerAccount(account.Handle, account.DID, account.IsLabeler),
 		}
 	}
 	return authors

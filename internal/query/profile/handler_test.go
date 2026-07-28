@@ -114,6 +114,11 @@ func TestHandler_Handle_ProfileLabels(t *testing.T) {
 			}},
 		},
 		feed: &bluesky.AuthorFeedResponse{},
+		profiles: []bluesky.Profile{{
+			DID:    moderation.BlueskyModerationDID,
+			Handle: "moderation.bsky.app",
+			Associated: &bluesky.ProfileAssociated{Labeler: true},
+		}},
 	}
 	handler := profile.NewHandler(reader, nil)
 
@@ -128,6 +133,12 @@ func TestHandler_Handle_ProfileLabels(t *testing.T) {
 	}
 	if view.Labels[0].Message != "Suggestive content" {
 		t.Fatalf("view.Labels[0].Message = %q, want Suggestive content", view.Labels[0].Message)
+	}
+	if view.Labels[0].LabelerHandle != "moderation.bsky.app" {
+		t.Fatalf("LabelerHandle = %q, want moderation.bsky.app", view.Labels[0].LabelerHandle)
+	}
+	if !view.Labels[0].LabelerIsLabeler {
+		t.Fatal("LabelerIsLabeler = false, want true")
 	}
 }
 

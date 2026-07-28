@@ -61,17 +61,22 @@ type StrongRef struct {
 }
 
 type Profile struct {
-	DID                string     `json:"did"`
-	Handle             string     `json:"handle"`
-	DisplayName        string     `json:"displayName"`
-	Description        string     `json:"description"`
-	DescriptionFacets  []Facet    `json:"descriptionFacets,omitempty"`
-	Avatar             string     `json:"avatar"`
-	Followers          int        `json:"followersCount"`
-	Following          int        `json:"followsCount"`
-	Posts              int        `json:"postsCount"`
-	PinnedPost         *StrongRef `json:"pinnedPost,omitempty"`
-	Labels             []Label    `json:"labels,omitempty"`
+	DID                string              `json:"did"`
+	Handle             string              `json:"handle"`
+	DisplayName        string              `json:"displayName"`
+	Description        string              `json:"description"`
+	DescriptionFacets  []Facet             `json:"descriptionFacets,omitempty"`
+	Avatar             string              `json:"avatar"`
+	Followers          int                 `json:"followersCount"`
+	Following          int                 `json:"followsCount"`
+	Posts              int                 `json:"postsCount"`
+	PinnedPost         *StrongRef          `json:"pinnedPost,omitempty"`
+	Labels             []Label             `json:"labels,omitempty"`
+	Associated         *ProfileAssociated  `json:"associated,omitempty"`
+}
+
+type ProfileAssociated struct {
+	Labeler bool `json:"labeler,omitempty"`
 }
 
 type Label struct {

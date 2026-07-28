@@ -19,7 +19,9 @@ type Reader interface {
 type AccountView struct {
 	Handle      string
 	DisplayName string
+	DID         string
 	Avatar      string
+	IsLabeler   bool
 }
 
 type Handler struct {
@@ -58,7 +60,9 @@ func (h *Handler) SuggestedAccounts(ctx context.Context) []AccountView {
 		accounts = append(accounts, AccountView{
 			Handle:      profile.Handle,
 			DisplayName: actor.Name(profile.DisplayName, profile.Handle),
+			DID:         profile.DID,
 			Avatar:      profile.Avatar,
+			IsLabeler:   actor.IsLabelerAccount(profile.Handle, profile.DID, profile.Associated != nil && profile.Associated.Labeler),
 		})
 	}
 	return accounts

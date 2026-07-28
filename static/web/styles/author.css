@@ -5,6 +5,15 @@
   display: block;
 }
 
+.byline-avatar-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  line-height: 1;
+}
+
 .byline-avatar-moderated {
   display: inline-block;
   width: var(--post-byline-avatar-max-width, 2.5rem);

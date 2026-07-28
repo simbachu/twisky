@@ -23,6 +23,9 @@ func TestProfileLabelsForDisplay_IncludesIgnoredLabels(t *testing.T) {
 	if len(labels) != 1 {
 		t.Fatalf("len(labels) = %d, want 1", len(labels))
 	}
+	if labels[0].LabelerDID != moderation.BlueskyModerationDID {
+		t.Fatalf("LabelerDID = %q, want %q", labels[0].LabelerDID, moderation.BlueskyModerationDID)
+	}
 	if labels[0].Labeler != moderation.BlueskyModerationName {
 		t.Fatalf("Labeler = %q, want %q", labels[0].Labeler, moderation.BlueskyModerationName)
 	}
@@ -31,7 +34,7 @@ func TestProfileLabelsForDisplay_IncludesIgnoredLabels(t *testing.T) {
 	}
 }
 
-func TestProfileLabelsForDisplay_DeduplicatesByVal(t *testing.T) {
+func TestProfileLabelsForDisplay_DeduplicatesByValAndSrc(t *testing.T) {
 	t.Parallel()
 
 	labels := moderation.ProfileLabelsForDisplay(
@@ -44,7 +47,39 @@ func TestProfileLabelsForDisplay_DeduplicatesByVal(t *testing.T) {
 	)
 
 	if len(labels) != 1 {
-		t.Fatalf("len(labels) = %d, want 1", len(labels))
+		t.Fatalf("len(labels) = %d, want 1 for duplicate val+src", len(labels))
+	}
+}
+
+func TestProfileLabelsForDisplay_AllowsSameValFromDifferentLabelers(t *testing.T) {
+	t.Parallel()
+
+	otherLabeler := "did:plc:other-labeler"
+	prefs := moderation.DefaultPrefs()
+	prefs.Labelers = append(prefs.Labelers, moderation.LabelerPrefs{DID: otherLabeler})
+
+	labels := moderation.ProfileLabelsForDisplay(
+		[]moderation.Label{
+			{Val: "sexual", Src: moderation.BlueskyModerationDID, URI: "did:plc:author"},
+			{Val: "sexual", Src: otherLabeler, URI: "did:plc:author"},
+		},
+		"did:plc:author",
+		prefs,
+	)
+
+	if len(labels) != 2 {
+		t.Fatalf("len(labels) = %d, want 2 for same val from different labelers", len(labels))
+	}
+}
+
+func TestLabelerProfileSlug(t *testing.T) {
+	t.Parallel()
+
+	if got := moderation.LabelerProfileSlug(moderation.BlueskyModerationDID); got != "moderation.bsky.app" {
+		t.Fatalf("LabelerProfileSlug() = %q, want moderation.bsky.app", got)
+	}
+	if got := moderation.LabelerProfileSlug("did:plc:custom"); got != "did:plc:custom" {
+		t.Fatalf("LabelerProfileSlug() = %q, want did passthrough", got)
 	}
 }
 
