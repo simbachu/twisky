@@ -34,6 +34,62 @@ func TestSegmentedGroup_RendersIfaceSegmented(t *testing.T) {
 	}
 }
 
+func TestSegmentedShell_RendersExtraClass(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.SegmentedShell("Share", "post-share-group",
+		ui.PillButton(ui.ActionButtonConfig{Icon: ui.IconShare, Label: "Share"}),
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="iface-segmented post-share-group"`) {
+		t.Fatalf("html = %q, want iface-segmented post-share-group class", html)
+	}
+	if !strings.Contains(html, `aria-label="Share"`) {
+		t.Fatalf("html = %q, want Share aria-label", html)
+	}
+	if !strings.Contains(html, `role="group"`) {
+		t.Fatalf("html = %q, want role=group", html)
+	}
+}
+
+func TestSegmentedRadioGroup_RendersRadios(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.SegmentedRadioGroup("reply-sort-order", "Sort order", "hot", []ui.SegmentedRadioOption{
+		{Value: "hot", Icon: "🔥", Label: "Hot"},
+		{Value: "new", Icon: "🆕", Label: "New"},
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="iface-segmented"`,
+		`aria-label="Sort order"`,
+		`role="group"`,
+		`name="reply-sort-order"`,
+		`id="reply-sort-order-hot"`,
+		`id="reply-sort-order-new"`,
+		`value="hot"`,
+		`value="new"`,
+		`title="Hot"`,
+		`🔥`,
+		`checked=""`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Count(html, `checked=""`) != 1 {
+		t.Fatalf("html = %q, want exactly one checked radio", html)
+	}
+}
+
 func TestPillButton_RendersIfacePill(t *testing.T) {
 	t.Parallel()
 

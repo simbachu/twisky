@@ -92,12 +92,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			shareGroup(view),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
-			Menu(
-				g.Attr("class", "iface-segmented"),
-				g.Attr("aria-label", "Live counts"),
-				g.Attr("role", "group"),
-				Li(countsLiveToggle(view, live)),
-			),
+			ui.SegmentedShell("Live counts", "", Li(countsLiveToggle(view, live))),
 		),
 		countsPollerData(view, now, live, false),
 		countsAnnouncer(view.ID),

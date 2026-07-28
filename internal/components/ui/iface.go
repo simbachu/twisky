@@ -5,18 +5,59 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+// SegmentedShell renders a shared pill shell for grouped controls that share semantics.
+// extraClass is appended to iface-segmented when non-empty (e.g. "post-share-group").
+func SegmentedShell(label, extraClass string, items ...g.Node) g.Node {
+	class := "iface-segmented"
+	if extraClass != "" {
+		class += " " + extraClass
+	}
+	return Menu(
+		g.Attr("class", class),
+		g.Attr("aria-label", label),
+		g.Attr("role", "group"),
+		g.Group(items),
+	)
+}
+
 // SegmentedGroup renders multiple action buttons in a shared pill shell.
 func SegmentedGroup(label string, buttons ...ActionButtonConfig) g.Node {
 	items := make([]g.Node, len(buttons))
 	for i, cfg := range buttons {
 		items[i] = Li(ActionButton(cfg))
 	}
-	return Menu(
-		g.Attr("class", "iface-segmented"),
-		g.Attr("aria-label", label),
-		g.Attr("role", "group"),
-		g.Group(items),
-	)
+	return SegmentedShell(label, "", items...)
+}
+
+// SegmentedRadioOption describes one radio in a SegmentedRadioGroup.
+type SegmentedRadioOption struct {
+	Value string
+	Icon  string
+	Label string
+}
+
+// SegmentedRadioGroup renders radio options in a shared pill shell.
+// Input ids are name+"-"+Value. current selects the checked option; empty means none checked.
+func SegmentedRadioGroup(name, ariaLabel, current string, options []SegmentedRadioOption) g.Node {
+	items := make([]g.Node, len(options))
+	for i, opt := range options {
+		inputID := name + "-" + opt.Value
+		items[i] = Li(
+			Label(
+				g.Attr("for", inputID),
+				g.Attr("title", opt.Label),
+				Input(
+					g.Attr("type", "radio"),
+					g.Attr("id", inputID),
+					g.Attr("name", name),
+					g.Attr("value", opt.Value),
+					g.If(current == opt.Value, g.Attr("checked", "")),
+				),
+				Span(g.Text(opt.Icon)),
+			),
+		)
+	}
+	return SegmentedShell(ariaLabel, "", items...)
 }
 
 // PillButton renders a standalone pill-shaped action button.

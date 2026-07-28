@@ -60,30 +60,16 @@ var replySortOptions = []postPageSettingOption{
 	{string(ReplySortOrderRatio), ReplySortOrderRatioIcon, "Controversial"},
 }
 
-func postPageSettingRadio(name, inputID string, checked bool, opt postPageSettingOption) g.Node {
-	return Label(
-		g.Attr("for", inputID),
-		g.Attr("title", opt.label),
-		Input(
-			g.Attr("type", "radio"),
-			g.Attr("id", inputID),
-			g.Attr("name", name),
-			g.Attr("value", opt.value),
-			g.If(checked, g.Attr("checked", "")),
-		),
-		Span(g.Text(opt.icon)),
-	)
-}
-
 func postPageSettingGroup(name, ariaLabel string, current string, options []postPageSettingOption) g.Node {
-	return Menu(
-		g.Attr("class", "iface-segmented"),
-		g.Attr("role", "group"),
-		g.Attr("aria-label", ariaLabel),
-		g.Group(g.Map(options, func(opt postPageSettingOption) g.Node {
-			return Li(postPageSettingRadio(name, name+"-"+opt.value, current == opt.value, opt))
-		})),
-	)
+	radioOptions := make([]ui.SegmentedRadioOption, len(options))
+	for i, opt := range options {
+		radioOptions[i] = ui.SegmentedRadioOption{
+			Value: opt.value,
+			Icon:  opt.icon,
+			Label: opt.label,
+		}
+	}
+	return ui.SegmentedRadioGroup(name, ariaLabel, current, radioOptions)
 }
 
 func postPageHeader() g.Node {

@@ -36,10 +36,7 @@ func shareCopyLabel(label string) string {
 func shareGroup(view feedquery.PostView) g.Node {
 	twiskyPath := postHref(view)
 	bskyURL := blueskyPostPageURL(view.AuthorHandle, view.ID)
-	return Menu(
-		g.Attr("class", "iface-segmented post-share-group"),
-		g.Attr("aria-label", "Share"),
-		g.Attr("role", "group"),
+	return ui.SegmentedShell("Share", "post-share-group",
 		Li(
 			g.Attr("class", "post-share-trigger"),
 			Button(
