@@ -13,6 +13,58 @@ import (
 	"github.com/simbachu/twisky/internal/moderation"
 )
 
+func TestProfile_RendersBannerImage(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := profile.Profile(profilequery.ProfileView{
+		Handle:      "bsky.app",
+		DisplayName: "Bluesky",
+		Banner:      "https://cdn.example/banner.jpg",
+		Tab:         profilequery.TabPosts,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="profile"`,
+		`<figure>`,
+		`src="https://cdn.example/banner.jpg"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `profile-header`) {
+		t.Fatalf("html = %q, want no profile-header class", html)
+	}
+}
+
+func TestProfile_RendersEmptyBannerFigureWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := profile.Profile(profilequery.ProfileView{
+		Handle:      "bsky.app",
+		DisplayName: "Bluesky",
+		Tab:         profilequery.TabPosts,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="profile"`) {
+		t.Fatalf("html = %q, want class=\"profile\"", html)
+	}
+	if !strings.Contains(html, `<figure>`) {
+		t.Fatalf("html = %q, want <figure>", html)
+	}
+	if strings.Contains(html, `<figure><img`) || strings.Contains(html, `<figure> <img`) {
+		t.Fatalf("html = %q, want figure with no img", html)
+	}
+}
+
 func TestProfile_RendersPinnedPost(t *testing.T) {
 	t.Parallel()
 

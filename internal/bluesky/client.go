@@ -67,6 +67,7 @@ type Profile struct {
 	Description        string              `json:"description"`
 	DescriptionFacets  []Facet             `json:"descriptionFacets,omitempty"`
 	Avatar             string              `json:"avatar"`
+	Banner             string              `json:"banner"`
 	Followers          int                 `json:"followersCount"`
 	Following          int                 `json:"followsCount"`
 	Posts              int                 `json:"postsCount"`

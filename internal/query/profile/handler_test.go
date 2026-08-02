@@ -61,6 +61,7 @@ func TestHandler_Handle(t *testing.T) {
 			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			DisplayName: "Bluesky",
+			Banner:      "https://cdn.example/banner.jpg",
 			Followers:   100,
 		},
 		feed: &bluesky.AuthorFeedResponse{
@@ -82,6 +83,9 @@ func TestHandler_Handle(t *testing.T) {
 	}
 	if view.Handle != "bsky.app" {
 		t.Fatalf("Handle() view.Handle = %q, want bsky.app", view.Handle)
+	}
+	if view.Banner != "https://cdn.example/banner.jpg" {
+		t.Fatalf("Handle() view.Banner = %q, want https://cdn.example/banner.jpg", view.Banner)
 	}
 	if view.Tab != profile.TabPosts {
 		t.Fatalf("Handle() view.Tab = %q, want %q", view.Tab, profile.TabPosts)

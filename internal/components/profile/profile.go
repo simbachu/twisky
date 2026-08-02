@@ -31,7 +31,8 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 
 	children := []g.Node{
 		Header(
-			g.Attr("class", "profile-header"),
+			g.Attr("class", "profile"),
+			profileBanner(view.Banner),
 			ui.Avatar(author),
 			H1(ui.AuthorName(author)),
 			H2(ui.AuthorHandle(author)),
@@ -54,6 +55,18 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 		profilePageMeta(view, publicBaseURL),
 		suggested,
 		children...,
+	)
+}
+
+func profileBanner(url string) g.Node {
+	if url == "" {
+		return Figure()
+	}
+	return Figure(
+		Img(
+			g.Attr("src", url),
+			g.Attr("alt", ""),
+		),
 	)
 }
 

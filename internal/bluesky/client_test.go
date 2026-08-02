@@ -405,6 +405,34 @@ func TestClient_GetProfiles(t *testing.T) {
 	}
 }
 
+func TestClient_GetProfile_ParsesBanner(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/xrpc/app.bsky.actor.getProfile" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.actor.getProfile", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"did": "did:plc:example",
+			"handle": "bsky.app",
+			"banner": "https://cdn.example/banner.jpg"
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
+
+	profile, err := client.GetProfile(context.Background(), "bsky.app")
+	if err != nil {
+		t.Fatalf("GetProfile() err = %v", err)
+	}
+	if profile.Banner != "https://cdn.example/banner.jpg" {
+		t.Fatalf("Banner = %q, want https://cdn.example/banner.jpg", profile.Banner)
+	}
+}
+
 func TestClient_GetProfile_ParsesPinnedPost(t *testing.T) {
 	t.Parallel()
 

@@ -50,6 +50,7 @@ type ProfileView struct {
 	Description         string
 	DescriptionSegments []richtext.Segment
 	Avatar              string // url
+	Banner              string // url
 	Followers   int
 	Following   int
 	Posts       int
@@ -129,6 +130,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		Description:         profile.Description,
 		DescriptionSegments: descriptionSegments,
 		Avatar:              profile.Avatar,
+		Banner:              profile.Banner,
 		Followers:           profile.Followers,
 		Following:           profile.Following,
 		Posts:               profile.Posts,
