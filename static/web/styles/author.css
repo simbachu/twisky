@@ -24,6 +24,12 @@
   flex-shrink: 0;
 }
 
+.byline-avatar[data-kind="labeler"] img,
+.byline-avatar[data-kind="labeler"] .byline-avatar-emoji,
+.byline-avatar-moderated[data-kind="labeler"] {
+  border-radius: 0.35em;
+}
+
 .author-name {
   color: black;
   font-size: 1.2em;

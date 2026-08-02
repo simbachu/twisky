@@ -29,6 +29,47 @@ func TestAvatar_RendersShieldFallbackForLabeler(t *testing.T) {
 	if !strings.Contains(html, actor.AvatarEmojiShield) {
 		t.Fatalf("html = %q, want shield emoji", html)
 	}
+	if !strings.Contains(html, `data-kind="labeler"`) {
+		t.Fatalf("html = %q, want data-kind=labeler", html)
+	}
+}
+
+func TestAvatar_OmitsDataKindForNonLabeler(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Avatar(ui.AuthorInfo{
+		Handle:      "dev.example",
+		DisplayName: "Dev",
+		Avatar:      "https://cdn.example/a.jpg",
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	if strings.Contains(buf.String(), `data-kind=`) {
+		t.Fatalf("html = %q, want no data-kind", buf.String())
+	}
+}
+
+func TestAvatar_LabelerKindOnModeratedPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Avatar(ui.AuthorInfo{
+		Handle:     "labeler.example.com",
+		IsLabeler:  true,
+		BlurAvatar: true,
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `data-kind="labeler"`) {
+		t.Fatalf("html = %q, want data-kind=labeler on moderated avatar", html)
+	}
+	if !strings.Contains(html, `byline-avatar-moderated`) {
+		t.Fatalf("html = %q, want moderated avatar", html)
+	}
 }
 
 func TestAvatar_RendersButterflyFallbackForBskyApp(t *testing.T) {

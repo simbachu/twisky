@@ -37,22 +37,30 @@ func Avatar(author AuthorInfo) g.Node {
 		if message == "" {
 			message = "Content warning"
 		}
-		return Span(
+		attrs := []g.Node{
 			g.Attr("class", "byline-avatar byline-avatar-moderated"),
 			g.Attr("title", message),
-			g.Text(""),
-		)
+		}
+		if author.IsLabeler {
+			attrs = append(attrs, g.Attr("data-kind", "labeler"))
+		}
+		attrs = append(attrs, g.Text(""))
+		return Span(attrs...)
 	}
 	glyph := avatarGlyph(author.Avatar, author.Handle, author.DID, author.IsLabeler, author.DisplayName)
 	if glyph == nil {
 		return nil
 	}
-	return A(
+	attrs := []g.Node{
 		g.Attr("href", "/"+author.Handle),
 		g.Attr("class", "byline-avatar"),
 		g.Attr("style", "pointer-events: auto"),
-		glyph,
-	)
+	}
+	if author.IsLabeler {
+		attrs = append(attrs, g.Attr("data-kind", "labeler"))
+	}
+	attrs = append(attrs, glyph)
+	return A(attrs...)
 }
 
 // AvatarGlyph renders a small avatar image or fallback emoji for inline use.

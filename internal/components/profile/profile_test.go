@@ -65,6 +65,29 @@ func TestProfile_RendersEmptyBannerFigureWhenMissing(t *testing.T) {
 	}
 }
 
+func TestProfile_LabelerAvatarHasDataKind(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := profile.Profile(profilequery.ProfileView{
+		Handle:      "moderation.bsky.app",
+		DisplayName: "Bluesky Moderation",
+		Avatar:      "https://cdn.example/labeler.jpg",
+		IsLabeler:   true,
+		Tab:         profilequery.TabPosts,
+	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `class="byline-avatar"`) {
+		t.Fatalf("html = %q, want byline-avatar", html)
+	}
+	if !strings.Contains(html, `data-kind="labeler"`) {
+		t.Fatalf("html = %q, want data-kind=labeler on profile avatar", html)
+	}
+}
+
 func TestProfile_RendersPinnedPost(t *testing.T) {
 	t.Parallel()
 
