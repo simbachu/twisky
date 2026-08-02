@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Re-pack the icon sprite when the Inkscape raw sheet is staged.
+set -euo pipefail
+
+raw_path="internal/assets/icons/svg/icons-raw.svg"
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -qx "${raw_path}"; then
+  exit 0
+fi
+
+echo "iconsprite: ${raw_path} staged; packing sprite..."
+go run ./cmd/iconsprite

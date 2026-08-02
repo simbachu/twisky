@@ -16,3 +16,6 @@
 
 # style.css — generated from static/web/styles/*.css (go generate ./static)
 static/web/styles/style.css
+
+# icons.svg — packed from internal/assets/icons/svg/icons-raw.svg (go generate ./static)
+static/web/icons/icons.svg

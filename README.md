@@ -16,7 +16,9 @@ go run ./cmd/server
 
 Listens on `:8080` by default (`TWISKY_ADDR`).
 
-`style.css` is generated from the `*.css` partials in `static/web/styles/` and is not checked in. Regenerate with `go generate ./static` after a fresh clone or after editing any partial.
+`style.css` is generated from the `*.css` partials in `static/web/styles/` and is not checked in. `icons.svg` is packed from `internal/assets/icons/svg/icons-raw.svg` the same way. Regenerate with `go generate ./static` after a fresh clone or after editing any partial or the raw icon sheet.
+
+Optional: `git config core.hooksPath .githooks` so a pre-commit hook re-packs when `icons-raw.svg` is staged.
 
 ## Hosting Twisky
 
