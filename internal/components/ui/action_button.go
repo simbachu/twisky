@@ -42,6 +42,7 @@ func ActionButton(cfg ActionButtonConfig) g.Node {
 }
 
 func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
+	class = joinClasses(class, ActionClass(cfg.Icon))
 	attrs := []g.Node{
 		Icon(cfg.Icon),
 		g.Attr("aria-label", actionLabel(cfg.Label, cfg.Count)),
@@ -62,6 +63,20 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 		attrs = append(attrs, FuzzyCountText(cfg.Count))
 	}
 	return Button(g.Group(attrs))
+}
+
+func joinClasses(parts ...string) string {
+	out := ""
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+		if out != "" {
+			out += " "
+		}
+		out += p
+	}
+	return out
 }
 
 func actionLabel(label string, count int) string {

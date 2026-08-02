@@ -43,6 +43,12 @@ func TestPackRawSVG(t *testing.T) {
 	if !strings.Contains(got, `translate(-68`) {
 		t.Fatalf("expected page-local translate for beta (page x=68):\n%s", got)
 	}
+	if strings.Contains(got, "#000000") || strings.Contains(got, "#000") {
+		t.Fatalf("expected black colors rewritten to currentColor:\n%s", got)
+	}
+	if !strings.Contains(got, "currentColor") {
+		t.Fatalf("expected currentColor in packed styles:\n%s", got)
+	}
 }
 
 func TestPackEmptyLabeledPage(t *testing.T) {

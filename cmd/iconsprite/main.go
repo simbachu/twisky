@@ -313,7 +313,7 @@ func cleanElement(el *element) *element {
 		}
 		out.attrs = append(out.attrs, xml.Attr{
 			Name:  xml.Name{Local: a.Name.Local},
-			Value: a.Value,
+			Value: rewritePaintToCurrentColor(a.Name.Local, a.Value),
 		})
 	}
 	for _, c := range el.children {
@@ -323,6 +323,53 @@ func cleanElement(el *element) *element {
 		}
 	}
 	return out
+}
+
+// rewritePaintToCurrentColor replaces solid black fills/strokes with
+// currentColor so CSS color on the referencing element controls the icon.
+// Values that are already none/transparent are left alone.
+func rewritePaintToCurrentColor(attrName, value string) string {
+	switch attrName {
+	case "fill", "stroke":
+		if isBlackPaint(value) {
+			return "currentColor"
+		}
+		return value
+	case "style":
+		return rewriteStylePaints(value)
+	default:
+		return value
+	}
+}
+
+func rewriteStylePaints(style string) string {
+	parts := strings.Split(style, ";")
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key, val, ok := strings.Cut(part, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		if (key == "fill" || key == "stroke") && isBlackPaint(val) {
+			parts[i] = key + ":currentColor"
+		}
+	}
+	return strings.Join(parts, ";")
+}
+
+func isBlackPaint(value string) bool {
+	v := strings.TrimSpace(strings.ToLower(value))
+	switch v {
+	case "#000", "#000000", "black", "rgb(0,0,0)", "rgb(0, 0, 0)":
+		return true
+	default:
+		return false
+	}
 }
 
 func parseSVG(raw []byte) (*element, error) {

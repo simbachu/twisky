@@ -42,5 +42,8 @@
 
   --muted-fg: #666;
 
+  --action-like-fg: #e11d48;
+  --action-bluesky-fg: #0085ff;
+
   --profile-banner-bg: #d0d0d0;
 }

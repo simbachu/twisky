@@ -36,8 +36,12 @@ async function copyShareURL(button) {
 
   const label = button.getAttribute("aria-label") || "";
   button.setAttribute("aria-label", "Copied");
+  if (button.dataset.copyFeedback === "icon") {
+    button.classList.add("ui-icon-engaged");
+  }
   window.setTimeout(() => {
     button.setAttribute("aria-label", label);
+    button.classList.remove("ui-icon-engaged");
   }, 1500);
 
   const group = shareGroupFromTarget(button);

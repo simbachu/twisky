@@ -41,11 +41,17 @@ func TestShareGroup_RendersCopyTargets(t *testing.T) {
 		`data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`,
 		`aria-label="Copy Twisky link"`,
 		`aria-label="Copy Bluesky link"`,
+		`data-copy-feedback="icon"`,
+		`class="ui-action ui-action--bluesky"`,
+		`href="/static/icons/icons.svg#icon-butterfly-outline"`,
+		`href="/static/icons/icons.svg#icon-butterfly-filled"`,
 		`>🔗<`,
-		`>🦋<`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, "🦋") {
+		t.Fatalf("html = %q, want butterfly SVG not emoji", html)
 	}
 }

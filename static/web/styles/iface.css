@@ -20,6 +20,7 @@
     min-width: 3rem;
     margin: 0;
     padding: 0.5rem 0.75rem;
+    color: dimgrey;
 
     span {
       margin-inline: 0.5rem;
@@ -27,10 +28,30 @@
     }
 
     &:hover:not(:disabled):not([aria-disabled="true"]) {
+      color: black;
       span {
         color: black;
       }
       background-color: var(--iface-hover-bg);
+    }
+
+    &.ui-action--like:hover:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--like:active:not(:disabled):not([aria-disabled="true"]) {
+      color: var(--action-like-fg);
+
+      span {
+        color: var(--action-like-fg);
+      }
+    }
+
+    &.ui-action--bluesky:hover:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--bluesky:active:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--bluesky.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]) {
+      color: var(--action-bluesky-fg);
+
+      span {
+        color: var(--action-bluesky-fg);
+      }
     }
   }
 
@@ -122,4 +143,26 @@ nav menu.iface-segmented {
 
 body > footer aside .iface-joined {
   margin-inline: 0.75rem;
+}
+
+.ui-icon {
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.ui-icon--toggle .ui-icon-filled {
+  display: none;
+}
+
+button:active .ui-icon--toggle .ui-icon-outline,
+button.ui-icon-engaged .ui-icon--toggle .ui-icon-outline {
+  display: none;
+}
+
+button:active .ui-icon--toggle .ui-icon-filled,
+button.ui-icon-engaged .ui-icon--toggle .ui-icon-filled {
+  display: inline;
 }

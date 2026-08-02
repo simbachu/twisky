@@ -14,23 +14,24 @@ func blueskyPostPageURL(handle, postID string) string {
 }
 
 func shareCopyButton(label, copyURL string) g.Node {
-	return Button(
+	attrs := []g.Node{
 		g.Attr("type", "button"),
 		g.Attr("data-copy-url", copyURL),
 		g.Attr("aria-label", label),
-		g.Text(shareCopyLabel(label)),
-	)
-}
-
-func shareCopyLabel(label string) string {
+	}
 	switch label {
 	case "Copy Twisky link":
-		return "🔗"
+		attrs = append(attrs, g.Text("🔗"))
 	case "Copy Bluesky link":
-		return "🦋"
+		attrs = append(attrs,
+			g.Attr("class", ui.ActionClass(ui.IconBluesky)),
+			g.Attr("data-copy-feedback", "icon"),
+			ui.Icon(ui.IconBluesky),
+		)
 	default:
-		return label
+		attrs = append(attrs, g.Text(label))
 	}
+	return Button(g.Group(attrs))
 }
 
 func shareGroup(view feedquery.PostView) g.Node {

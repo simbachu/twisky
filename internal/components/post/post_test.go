@@ -69,12 +69,19 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 		`data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`,
 		`aria-label="Copy Twisky link"`,
 		`aria-label="Copy Bluesky link"`,
+		`data-copy-feedback="icon"`,
+		`ui-action--like`,
+		`ui-action--bluesky`,
+		`icon-heart-outline`,
+		`icon-butterfly-outline`,
 		`>🔗<`,
-		`>🦋<`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, "🦋") {
+		t.Fatalf("html = %q, want butterfly SVG not emoji", html)
 	}
 	if strings.Count(html, `role="group"`) != 4 {
 		t.Fatalf("html has %d role=group, want 4", strings.Count(html, `role="group"`))
