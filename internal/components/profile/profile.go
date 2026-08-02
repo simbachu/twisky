@@ -7,14 +7,14 @@ import (
 	"github.com/simbachu/twisky/internal/components/page"
 	postcomponent "github.com/simbachu/twisky/internal/components/post"
 	"github.com/simbachu/twisky/internal/components/ui"
+	"github.com/simbachu/twisky/internal/moderation"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
-	"github.com/simbachu/twisky/internal/moderation"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
+func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo, auth page.AuthChrome, publicBaseURL string) g.Node {
 	author := ui.AuthorInfo{
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
@@ -54,6 +54,7 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 	return page.Page(
 		profilePageMeta(view, publicBaseURL),
 		suggested,
+		auth,
 		children...,
 	)
 }

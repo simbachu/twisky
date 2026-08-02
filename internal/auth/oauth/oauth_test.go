@@ -3,13 +3,13 @@ package oauth_test
 import (
 	"testing"
 
-	"github.com/bluesky-social/indigo/atproto/auth/oauth"
+	"github.com/simbachu/twisky/internal/auth/oauth"
 )
 
 func TestLocalhostConfig(t *testing.T) {
 	t.Parallel()
 
-	cfg := oauth.NewLocalhostConfig("http://127.0.0.1:8080/oauth/callback", []string{"atproto", "transition:generic"})
+	cfg := oauth.NewConfig("", []string{"atproto", "transition:generic"})
 	if cfg.CallbackURL != "http://127.0.0.1:8080/oauth/callback" {
 		t.Fatalf("CallbackURL = %q, want http://127.0.0.1:8080/oauth/callback", cfg.CallbackURL)
 	}

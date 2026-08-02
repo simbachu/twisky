@@ -70,6 +70,7 @@ jobs:
           DEPLOY_PUBLIC_BASE_URL: ${{ vars.DEPLOY_PUBLIC_BASE_URL }}
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          TWISKY_SESSION_SECRET: ${{ secrets.TWISKY_SESSION_SECRET }}
           # The ephemeral GITHUB_TOKEN cannot pull this private package from the VPS
           # (it is not auto-linked to the repo). Use a dedicated read:packages PAT.
           GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
@@ -89,6 +90,11 @@ jobs:
 
           if [[ -z "${SSH_PRIVATE_KEY}" || -z "${SSH_KNOWN_HOSTS}" ]]; then
             echo "Set environment secrets DEPLOY_SSH_PRIVATE_KEY and DEPLOY_SSH_KNOWN_HOSTS in twisky_staging." >&2
+            exit 1
+          fi
+
+          if [[ -z "${TWISKY_SESSION_SECRET}" ]]; then
+            echo "Set environment secret TWISKY_SESSION_SECRET in twisky_staging." >&2
             exit 1
           fi
 
@@ -124,13 +130,14 @@ jobs:
             "${ssh_target}:/opt/twisky/vps-deploy.sh"
           ssh "${ssh_opts[@]}" "${ssh_target}" "chmod +x /opt/twisky/vps-deploy.sh"
 
-          # Do not pass GHCR_TOKEN on the ssh command line: shell quoting can corrupt
-          # PAT characters before they reach the VPS. Base64 survives remote sh -c.
+          # Do not pass secrets on the ssh command line: shell quoting can corrupt
+          # characters before they reach the VPS. Base64 survives remote sh -c.
           ghcr_token_b64="$(printf '%s' "${GHCR_TOKEN}" | base64 -w 0)"
+          session_secret_b64="$(printf '%s' "${TWISKY_SESSION_SECRET}" | base64 -w 0)"
           ghcr_user_q="$(printf '%q' "${GHCR_USER}")"
           deploy_public_base_url_q="$(printf '%q' "${DEPLOY_PUBLIC_BASE_URL}")"
           ssh "${ssh_opts[@]}" "${ssh_target}" \
-            "GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d) GHCR_USER=${ghcr_user_q} DEPLOY_PUBLIC_BASE_URL=${deploy_public_base_url_q} bash /opt/twisky/vps-deploy.sh"
+            "GHCR_TOKEN=\$(printf '%s' '${ghcr_token_b64}' | base64 -d) TWISKY_SESSION_SECRET=\$(printf '%s' '${session_secret_b64}' | base64 -d) GHCR_USER=${ghcr_user_q} DEPLOY_PUBLIC_BASE_URL=${deploy_public_base_url_q} bash /opt/twisky/vps-deploy.sh"
 
       - name: Verify public /healthz serves this commit
         id: healthz

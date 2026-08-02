@@ -75,7 +75,7 @@ func newTestServer(reader stubReader) http.Handler {
 		tag.NewHandler(reader, nil),
 		post.NewHandler(reader, nil),
 	)
-	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil), "https://twisky.test").Handler()
+	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil), "https://twisky.test", nil).Handler()
 }
 
 func TestHandleHealthz_OK(t *testing.T) {

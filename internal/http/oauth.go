@@ -1,0 +1,180 @@
+package http
+
+import (
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/simbachu/twisky/internal/auth/session"
+	loginpage "github.com/simbachu/twisky/internal/components/login"
+	"github.com/simbachu/twisky/internal/components/page"
+)
+
+func (s *Server) authChrome(r *http.Request) page.AuthChrome {
+	if s.auth == nil {
+		return page.AuthChrome{}
+	}
+	chrome := page.AuthChrome{Enabled: true}
+	state, err := s.auth.Jar.Load(r)
+	if err != nil {
+		return chrome
+	}
+	account, ok := state.ActiveAccount()
+	if !ok {
+		return chrome
+	}
+	chrome.DID = account.DID
+	chrome.Handle = account.Handle
+	return chrome
+}
+
+func (s *Server) requireAuth() bool {
+	return s.auth != nil
+}
+
+func (s *Server) handleClientMetadata(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+	meta, err := s.auth.ClientMetadata()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(meta); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = loginpage.Page("", s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	username := strings.TrimSpace(r.PostFormValue("username"))
+	if username == "" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = loginpage.Page("Handle or DID is required.", s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		return
+	}
+
+	redirectURL, err := s.auth.App.StartAuthFlow(r.Context(), username)
+	if err != nil {
+		slog.Warn("oauth login failed", "err", err)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		return
+	}
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+func (s *Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+
+	sessData, err := s.auth.App.ProcessCallback(r.Context(), r.URL.Query())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("OAuth callback failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	handle := ""
+	if ident, err := identity.DefaultDirectory().LookupDID(r.Context(), sessData.AccountDID); err == nil {
+		handle = ident.Handle.String()
+	}
+
+	state, _ := s.auth.Jar.Load(r)
+	state = state.AddAccount(session.Account{
+		DID:       sessData.AccountDID.String(),
+		SessionID: sessData.SessionID,
+		Handle:    handle,
+	})
+	if err := s.auth.Jar.Save(w, state); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	redirectTo := "/oauth/login"
+	if handle != "" {
+		redirectTo = "/" + handle
+	}
+	http.Redirect(w, r, redirectTo, http.StatusFound)
+}
+
+func (s *Server) handleOAuthLogout(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	state, err := s.auth.Jar.Load(r)
+	if err == nil {
+		if account, ok := state.ActiveAccount(); ok {
+			did, parseErr := syntax.ParseDID(account.DID)
+			if parseErr == nil {
+				if logoutErr := s.auth.App.Logout(r.Context(), did, account.SessionID); logoutErr != nil {
+					slog.Warn("oauth logout revoke failed", "did", account.DID, "err", logoutErr)
+				}
+			}
+			state = state.RemoveAccount(account.DID)
+		}
+		if len(state.Accounts) == 0 {
+			s.auth.Jar.Clear(w)
+		} else if saveErr := s.auth.Jar.Save(w, state); saveErr != nil {
+			http.Error(w, saveErr.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		s.auth.Jar.Clear(w)
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// ResumeActiveSession returns the indigo OAuth session for the active browser account.
+func (s *Server) ResumeActiveSession(r *http.Request) (*session.Account, error) {
+	if s.auth == nil {
+		return nil, session.ErrMissingCookie
+	}
+	state, err := s.auth.Jar.Load(r)
+	if err != nil {
+		return nil, err
+	}
+	account, ok := state.ActiveAccount()
+	if !ok {
+		return nil, session.ErrMissingCookie
+	}
+	did, err := syntax.ParseDID(account.DID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.auth.App.ResumeSession(r.Context(), did, account.SessionID); err != nil {
+		return nil, err
+	}
+	return &account, nil
+}

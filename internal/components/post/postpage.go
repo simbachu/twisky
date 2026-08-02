@@ -103,7 +103,7 @@ func repliesSection(replies []feedquery.ThreadNodeView, settings PostPageSetting
 	)
 }
 
-func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo, publicBaseURL string) g.Node {
+func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorInfo, auth page.AuthChrome, publicBaseURL string) g.Node {
 	// ReplyView is loaded from the user profile once auth exists; until then the
 	// client mirrors the same threaded|linear values via cookie.
 	settings := PostPageSettings{
@@ -114,6 +114,7 @@ func PostPage(view feedquery.PostPageView, now time.Time, suggested []ui.AuthorI
 	return page.Page(
 		postPageMeta(view, publicBaseURL),
 		suggested,
+		auth,
 		g.Group{
 			g.If(view.HasAncestors, postPageAncestorsSlot(view.Post)),
 			postPageHeader(),

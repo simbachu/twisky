@@ -21,6 +21,11 @@ if [[ -z "${DEPLOY_PUBLIC_BASE_URL:-}" ]]; then
 fi
 export TWISKY_PUBLIC_BASE_URL="${DEPLOY_PUBLIC_BASE_URL}"
 
+if [[ -z "${TWISKY_SESSION_SECRET:-}" ]]; then
+    echo "Set TWISKY_SESSION_SECRET for signed session cookies." >&2
+    exit 1
+fi
+
 if [[ -n "${GHCR_TOKEN:-}" ]]; then
     if [[ -z "${GHCR_USER:-}" ]]; then
         echo "GHCR_USER is required when GHCR_TOKEN is set." >&2

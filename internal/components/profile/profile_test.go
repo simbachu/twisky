@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/actor"
+	"github.com/simbachu/twisky/internal/components/page"
 	"github.com/simbachu/twisky/internal/components/profile"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
@@ -22,7 +23,7 @@ func TestProfile_RendersBannerImage(t *testing.T) {
 		DisplayName: "Bluesky",
 		Banner:      "https://cdn.example/banner.jpg",
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -49,7 +50,7 @@ func TestProfile_RendersEmptyBannerFigureWhenMissing(t *testing.T) {
 		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -75,7 +76,7 @@ func TestProfile_LabelerAvatarHasDataKind(t *testing.T) {
 		Avatar:      "https://cdn.example/labeler.jpg",
 		IsLabeler:   true,
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -103,7 +104,7 @@ func TestProfile_RendersPinnedPost(t *testing.T) {
 			CreatedAt:         time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
 		},
 		Tab: profilequery.TabPosts,
-	}, time.Date(2026, 1, 15, 13, 0, 0, 0, time.UTC), nil, "").Render(&buf); err != nil {
+	}, time.Date(2026, 1, 15, 13, 0, 0, 0, time.UTC), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -132,7 +133,7 @@ func TestProfile_OmitsPinnedPostWhenNil(t *testing.T) {
 		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -168,7 +169,7 @@ func TestProfile_RendersLabelsIndicator(t *testing.T) {
 			},
 		},
 		Tab: profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -204,7 +205,7 @@ func TestProfile_OmitsLabelsIndicatorWhenEmpty(t *testing.T) {
 		Handle:      "bsky.app",
 		DisplayName: "Bluesky",
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -226,7 +227,7 @@ func TestProfile_RendersSocialMetaTags(t *testing.T) {
 		Following:   237,
 		Posts:       663,
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -259,7 +260,7 @@ func TestProfile_UsesStatsWhenDescriptionMissing(t *testing.T) {
 		Following:   50,
 		Posts:       25,
 		Tab:         profilequery.TabPosts,
-	}, time.Now().UTC(), nil, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

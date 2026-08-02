@@ -1,7 +1,8 @@
 # Dev VPS compose — copied to /opt/twisky/docker-compose.deploy.yml by the deploy job.
 # TLS is owned by the shared edge stack at /opt/edge (pet-cpp docker/edge).
 # This compose must not publish 80/443 or define Caddy; the app joins external network `edge`.
-# TWISKY_PUBLIC_BASE_URL is exported by scripts/vps-deploy.sh from GitHub twisky_staging variables.
+# TWISKY_PUBLIC_BASE_URL and TWISKY_SESSION_SECRET are exported by scripts/vps-deploy.sh
+# from GitHub twisky_staging (var + secret).
 
 services:
   app:
@@ -19,8 +20,15 @@ services:
     environment:
       TWISKY_ADDR: ":8080"
       TWISKY_PUBLIC_BASE_URL: ${TWISKY_PUBLIC_BASE_URL}
+      TWISKY_SESSION_SECRET: ${TWISKY_SESSION_SECRET}
+      TWISKY_OAUTH_STORE_PATH: /data/oauth.db
+    volumes:
+      - oauth-data:/data
     networks:
       - edge
+
+volumes:
+  oauth-data:
 
 networks:
   edge:

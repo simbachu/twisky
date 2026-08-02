@@ -5,8 +5,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
+	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/command"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
@@ -33,7 +35,22 @@ func main() {
 		post.NewHandler(blueskyClient, prefs),
 	)
 
-	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil), envOr("TWISKY_PUBLIC_BASE_URL", ""))
+	publicBaseURL := envOr("TWISKY_PUBLIC_BASE_URL", "")
+	auth, err := authoauth.NewService(authoauth.Config{
+		PublicBaseURL: publicBaseURL,
+		SessionSecret: envOr("TWISKY_SESSION_SECRET", ""),
+		StorePath:     envOr("TWISKY_OAUTH_STORE_PATH", "oauth.db"),
+		SecureCookies: strings.HasPrefix(strings.ToLower(publicBaseURL), "https://"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if auth != nil {
+		defer auth.Close()
+		log.Printf("oauth enabled (client_id=%s)", auth.App.Config.ClientID)
+	}
+
+	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil), publicBaseURL, auth)
 
 	addr := envOr("TWISKY_ADDR", ":8080")
 	log.Printf("listening on %s", addr)

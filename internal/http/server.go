@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/simbachu/twisky/internal/actor"
+	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	postpage "github.com/simbachu/twisky/internal/components/post"
@@ -34,10 +35,11 @@ type Server struct {
 	queries       *query.Dispatcher
 	suggestions   *suggestions.Handler
 	publicBaseURL string
+	auth          *authoauth.Service
 }
 
-func NewServer(queries *query.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string) *Server {
-	return &Server{queries: queries, suggestions: suggestionsHandler, publicBaseURL: publicBaseURL}
+func NewServer(queries *query.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
+	return &Server{queries: queries, suggestions: suggestionsHandler, publicBaseURL: publicBaseURL, auth: auth}
 }
 
 func (s *Server) suggestedAccounts(ctx context.Context) []ui.AuthorInfo {
@@ -70,6 +72,11 @@ func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 	r.Get("/healthz", s.handleHealthz)
+	r.Get("/oauth/client-metadata.json", s.handleClientMetadata)
+	r.Get("/oauth/login", s.handleOAuthLogin)
+	r.Post("/oauth/login", s.handleOAuthLogin)
+	r.Get("/oauth/callback", s.handleOAuthCallback)
+	r.Post("/oauth/logout", s.handleOAuthLogout)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
@@ -114,7 +121,7 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tagpage.Tag(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
+		_ = tagpage.Tag(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:
@@ -142,7 +149,7 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_ = profilepage.Profile(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
+			_ = profilepage.Profile(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
 		case response.ErrorResponse:
 			http.Error(w, v.Message, v.Status)
 		default:
@@ -185,7 +192,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			_ = postpage.RepliesRefreshFragment(v, parseKnownParam(r), now).Render(w)
 		default:
 			v.ExplicitLive = wantsLive(r)
-			_ = postpage.PostPage(v, now, s.suggestedAccounts(r.Context()), s.publicBaseURL).Render(w)
+			_ = postpage.PostPage(v, now, s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
 		}
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)

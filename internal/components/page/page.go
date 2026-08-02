@@ -65,7 +65,14 @@ func pageFooter(suggested []ui.AuthorInfo) g.Node {
 	)
 }
 
-func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
+// AuthChrome is the site-header login/logout state.
+type AuthChrome struct {
+	Enabled bool
+	Handle  string
+	DID     string
+}
+
+func Page(meta PageMeta, suggested []ui.AuthorInfo, auth AuthChrome, children ...g.Node) g.Node {
 	headNodes := []g.Node{
 		TitleEl(g.Text(meta.Title)),
 		Meta(
@@ -111,11 +118,37 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, children ...g.Node) g.Node {
 		),
 		Body(
 			Header(
-				H1(g.Text(AppName)),
+				H1(A(g.Attr("href", "/"), g.Text(AppName))),
+				siteAuthChrome(auth),
 			),
 			Main(children...),
 			pageFooter(suggested),
 		),
+	)
+}
+
+func siteAuthChrome(auth AuthChrome) g.Node {
+	if !auth.Enabled {
+		return nil
+	}
+	if auth.Handle != "" || auth.DID != "" {
+		label := auth.Handle
+		if label == "" {
+			label = auth.DID
+		}
+		return Nav(
+			g.Attr("aria-label", "Account"),
+			P(g.Text(label)),
+			Form(
+				g.Attr("method", "post"),
+				g.Attr("action", "/oauth/logout"),
+				Button(g.Attr("type", "submit"), g.Text("Log out")),
+			),
+		)
+	}
+	return Nav(
+		g.Attr("aria-label", "Account"),
+		A(g.Attr("href", "/oauth/login"), g.Text("Log in")),
 	)
 }
 
