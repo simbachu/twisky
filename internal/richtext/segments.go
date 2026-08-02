@@ -52,12 +52,15 @@ type linkSpan struct {
 }
 
 func BuildSegments(text string, facets []bluesky.Facet) []Segment {
-	var spans []linkSpan
-	if len(facets) > 0 {
-		spans = spansFromFacets(text, facets)
-	} else {
-		spans = spansFromRegex(text)
+	spans := spansFromFacets(text, facets)
+	if len(spans) == 0 {
+		return nil
 	}
+	return segmentsFromSpans(text, spans)
+}
+
+func DetectSegments(text string) []Segment {
+	spans := spansFromRegex(text)
 	if len(spans) == 0 {
 		return nil
 	}

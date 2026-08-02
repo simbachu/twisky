@@ -109,6 +109,22 @@ func TestNewPostView_PopulatesMentionAndLinkSegmentsFromFacets(t *testing.T) {
 	}
 }
 
+func TestNewPostView_WithoutFacetsDoesNotDetectLinks(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		Author: bluesky.Author{Handle: "bsky.app"},
+		Record: bluesky.PostRecord{
+			Text:      "v1.127 is live!",
+			CreatedAt: time.Date(2026, 7, 9, 19, 50, 0, 0, time.UTC),
+		},
+	})
+
+	if view.TextSegments != nil {
+		t.Fatalf("TextSegments = %#v, want nil", view.TextSegments)
+	}
+}
+
 func TestNewPostView_PopulatesImagesFromGalleryEmbed(t *testing.T) {
 	t.Parallel()
 

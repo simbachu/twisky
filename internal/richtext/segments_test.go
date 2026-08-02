@@ -153,10 +153,26 @@ func TestBuildSegments_FromFacetsUTF8(t *testing.T) {
 	assertSegment(t, segments[1], segmentExpect{kind: richtext.Tag, text: "#mtg", tag: "mtg"})
 }
 
-func TestBuildSegments_RegexFallbackTag(t *testing.T) {
+func TestBuildSegments_WithoutFacetsDoesNotDetect(t *testing.T) {
 	t.Parallel()
 
-	segments := richtext.BuildSegments("hello #golang world", nil)
+	cases := []string{
+		"v1.127 is live!",
+		"see https://example.com/page",
+		"hello #golang world",
+		"hello @bsky.app world",
+	}
+	for _, text := range cases {
+		if segments := richtext.BuildSegments(text, nil); segments != nil {
+			t.Fatalf("BuildSegments(%q, nil) = %#v, want nil", text, segments)
+		}
+	}
+}
+
+func TestDetectSegments_Tag(t *testing.T) {
+	t.Parallel()
+
+	segments := richtext.DetectSegments("hello #golang world")
 
 	if len(segments) != 3 {
 		t.Fatalf("len(segments) = %d, want 3", len(segments))
@@ -166,10 +182,10 @@ func TestBuildSegments_RegexFallbackTag(t *testing.T) {
 	assertSegment(t, segments[2], segmentExpect{kind: richtext.Plain, text: " world"})
 }
 
-func TestBuildSegments_RegexFallbackMention(t *testing.T) {
+func TestDetectSegments_Mention(t *testing.T) {
 	t.Parallel()
 
-	segments := richtext.BuildSegments("hello @bsky.app world", nil)
+	segments := richtext.DetectSegments("hello @bsky.app world")
 
 	if len(segments) != 3 {
 		t.Fatalf("len(segments) = %d, want 3", len(segments))
@@ -179,10 +195,10 @@ func TestBuildSegments_RegexFallbackMention(t *testing.T) {
 	assertSegment(t, segments[2], segmentExpect{kind: richtext.Plain, text: " world"})
 }
 
-func TestBuildSegments_RegexFallbackLink(t *testing.T) {
+func TestDetectSegments_Link(t *testing.T) {
 	t.Parallel()
 
-	segments := richtext.BuildSegments("see https://example.com/page", nil)
+	segments := richtext.DetectSegments("see https://example.com/page")
 
 	if len(segments) != 2 {
 		t.Fatalf("len(segments) = %d, want 2", len(segments))
@@ -191,10 +207,10 @@ func TestBuildSegments_RegexFallbackLink(t *testing.T) {
 	assertSegment(t, segments[1], segmentExpect{kind: richtext.Link, text: "https://example.com/page", uri: "https://example.com/page"})
 }
 
-func TestBuildSegments_RegexFallbackTrailingPunctuation(t *testing.T) {
+func TestDetectSegments_TrailingPunctuation(t *testing.T) {
 	t.Parallel()
 
-	segments := richtext.BuildSegments("nice #mtg!", nil)
+	segments := richtext.DetectSegments("nice #mtg!")
 
 	if len(segments) != 2 {
 		t.Fatalf("len(segments) = %d, want 2", len(segments))

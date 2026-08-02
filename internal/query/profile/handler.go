@@ -104,11 +104,13 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
-	descriptionSegments := feedquery.ResolveMentionHandlesInSegments(
-		ctx,
-		h.reader,
-		richtext.BuildSegments(profile.Description, profile.DescriptionFacets),
-	)
+	var descriptionSegments []richtext.Segment
+	if len(profile.DescriptionFacets) > 0 {
+		descriptionSegments = richtext.BuildSegments(profile.Description, profile.DescriptionFacets)
+	} else {
+		descriptionSegments = richtext.DetectSegments(profile.Description)
+	}
+	descriptionSegments = feedquery.ResolveMentionHandlesInSegments(ctx, h.reader, descriptionSegments)
 
 	moderatedFeed := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList)
 
