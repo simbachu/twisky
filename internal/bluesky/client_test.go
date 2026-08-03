@@ -1149,11 +1149,14 @@ func TestClient_GetPosts(t *testing.T) {
 			"posts": [
 				{
 					"uri": "at://did:plc:example/app.bsky.feed.post/parent",
+					"cid": "bafyparent",
 					"author": {"handle": "dev.example"},
-					"record": {"text": "parent post", "createdAt": "2026-01-15T11:00:00.000Z"}
+					"record": {"text": "parent post", "createdAt": "2026-01-15T11:00:00.000Z"},
+					"viewer": {"like": "at://did:plc:me/app.bsky.feed.like/abc"}
 				},
 				{
 					"uri": "at://did:plc:example/app.bsky.feed.post/other",
+					"cid": "bafyother",
 					"author": {"handle": "other.example"},
 					"record": {"text": "other post", "createdAt": "2026-01-15T12:00:00.000Z"}
 				}
@@ -1176,6 +1179,18 @@ func TestClient_GetPosts(t *testing.T) {
 	}
 	if posts[0].Record.Text != "parent post" {
 		t.Fatalf("posts[0].text = %q, want parent post", posts[0].Record.Text)
+	}
+	if posts[0].CID != "bafyparent" {
+		t.Fatalf("posts[0].CID = %q, want bafyparent", posts[0].CID)
+	}
+	if posts[0].Viewer == nil || posts[0].Viewer.Like != "at://did:plc:me/app.bsky.feed.like/abc" {
+		t.Fatalf("posts[0].Viewer = %#v, want like uri", posts[0].Viewer)
+	}
+	if posts[1].CID != "bafyother" {
+		t.Fatalf("posts[1].CID = %q, want bafyother", posts[1].CID)
+	}
+	if posts[1].Viewer != nil {
+		t.Fatalf("posts[1].Viewer = %#v, want nil", posts[1].Viewer)
 	}
 }
 

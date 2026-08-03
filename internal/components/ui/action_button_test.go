@@ -82,20 +82,37 @@ func TestActionButton_RendersPollableSpanEvenAtZero(t *testing.T) {
 	}
 }
 
-func TestActionButton_RendersPollableSpanWithFuzzyFormatting(t *testing.T) {
+func TestActionButton_EngagedAddsClass(t *testing.T) {
 	t.Parallel()
 
+	cfg := ui.PostEngagement(ui.IconLike, "Like", 1)
+	cfg.Engaged = true
 	var buf bytes.Buffer
-	if err := ui.ActionButton(ui.PostEngagementPollable(ui.IconLike, "Like", 15_000, "like-count-abc")).Render(&buf); err != nil {
+	if err := ui.ActionButton(cfg).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
+	html := buf.String()
+	if !strings.Contains(html, `ui-icon-engaged`) {
+		t.Fatalf("html = %q, want ui-icon-engaged", html)
+	}
+}
 
+func TestActionButton_HxPostAttrs(t *testing.T) {
+	t.Parallel()
+
+	cfg := ui.PostEngagement(ui.IconLike, "Like", 1)
+	cfg.HxPost = "/action/like"
+	cfg.HxVals = `{"uri":"at://x","cid":"c"}`
+	var buf bytes.Buffer
+	if err := ui.ActionButton(cfg).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
 	html := buf.String()
 	for _, want := range []string{
-		`id="like-count-abc"`,
-		`title="15000"`,
-		">15K<",
-		`aria-label="Like, 15K"`,
+		`hx-post="/action/like"`,
+		`hx-vals="{&#34;uri&#34;:&#34;at://x&#34;,&#34;cid&#34;:&#34;c&#34;}"`,
+		`hx-target="this"`,
+		`hx-swap="outerHTML"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)

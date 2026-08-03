@@ -14,6 +14,12 @@ type ActionButtonConfig struct {
 	Count    int
 	Disabled bool
 	HasPopup bool
+	Engaged  bool
+	// HxPost, when set, makes the button an HTMX POST control.
+	HxPost  string
+	HxVals  string
+	HxTarget string
+	HxSwap  string
 	// CountID, when set, forces the count span to always render (even at
 	// zero) with this id and fuzzy-number formatting, so it can be targeted
 	// by an htmx out-of-band swap when live counts polling is enabled.
@@ -35,7 +41,6 @@ func PostEngagementPollable(icon IconName, label string, count int, id string) A
 // ActionButton renders a button with an icon, aria-label, and optional count.
 // Counts of zero or less are omitted from the label and markup.
 //
-// TODO: Wire disabled state from engagement rules and auth (e.g. Like when logged out).
 // TODO: Add aria-haspopup on Reply, Repost, Share, and More when adding popovers.
 func ActionButton(cfg ActionButtonConfig) g.Node {
 	return actionButtonNode(cfg, "")
@@ -43,6 +48,9 @@ func ActionButton(cfg ActionButtonConfig) g.Node {
 
 func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 	class = joinClasses(class, ActionClass(cfg.Icon))
+	if cfg.Engaged {
+		class = joinClasses(class, "ui-icon-engaged")
+	}
 	attrs := []g.Node{
 		Icon(cfg.Icon),
 		g.Attr("aria-label", actionLabel(cfg.Label, cfg.Count)),
@@ -55,6 +63,22 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 	}
 	if cfg.HasPopup {
 		attrs = append(attrs, g.Attr("aria-haspopup", "true"))
+	}
+	if cfg.HxPost != "" {
+		attrs = append(attrs, g.Attr("hx-post", cfg.HxPost))
+		if cfg.HxVals != "" {
+			attrs = append(attrs, g.Attr("hx-vals", cfg.HxVals))
+		}
+		target := cfg.HxTarget
+		if target == "" {
+			target = "this"
+		}
+		attrs = append(attrs, g.Attr("hx-target", target))
+		swap := cfg.HxSwap
+		if swap == "" {
+			swap = "outerHTML"
+		}
+		attrs = append(attrs, g.Attr("hx-swap", swap))
 	}
 	switch {
 	case cfg.CountID != "":

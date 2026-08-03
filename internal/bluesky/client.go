@@ -86,15 +86,21 @@ type Label struct {
 	URI string `json:"uri,omitempty"`
 }
 
+type PostViewer struct {
+	Like string `json:"like,omitempty"`
+}
+
 type Post struct {
-	URI         string     `json:"uri"`
-	Author      Author     `json:"author"`
-	Record      PostRecord `json:"record"`
-	Embed       *Embed     `json:"embed,omitempty"`
-	LikeCount   int        `json:"likeCount,omitempty"`
-	RepostCount int        `json:"repostCount,omitempty"`
-	ReplyCount  int        `json:"replyCount,omitempty"`
-	Labels      []Label    `json:"labels,omitempty"`
+	URI         string      `json:"uri"`
+	CID         string      `json:"cid,omitempty"`
+	Author      Author      `json:"author"`
+	Record      PostRecord  `json:"record"`
+	Embed       *Embed      `json:"embed,omitempty"`
+	LikeCount   int         `json:"likeCount,omitempty"`
+	RepostCount int         `json:"repostCount,omitempty"`
+	ReplyCount  int         `json:"replyCount,omitempty"`
+	Labels      []Label     `json:"labels,omitempty"`
+	Viewer      *PostViewer `json:"viewer,omitempty"`
 }
 
 type Author struct {

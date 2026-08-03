@@ -40,14 +40,14 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := post.Post(feedquery.PostView{
+	if err := post.Post(feedquery.PostViewWithStrongRef(feedquery.PostView{
 		ID:           "abc123",
 		AuthorHandle: "dev.example",
 		Text:         "hello",
 		ReplyCount:   2,
 		RepostCount:  3,
 		LikeCount:    5,
-	}, time.Now().UTC()).Render(&buf); err != nil {
+	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid"), time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -59,10 +59,35 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 		`aria-label="Like, 5"`,
 		`ui-action--like`,
 		`icon-heart-outline`,
+		`hx-post="/action/like"`,
+		`at://did:plc:example/app.bsky.feed.post/abc123`,
+		`bafycid`,
+		`hx-target="this"`,
+		`hx-swap="outerHTML"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+}
+
+func TestPost_LikedRendersEngagedLikeButton(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostViewWithStrongRef(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		Liked:        true,
+		LikeCount:    5,
+	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid"), time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `ui-icon-engaged`) {
+		t.Fatalf("html = %q, want ui-icon-engaged", html)
 	}
 }
 

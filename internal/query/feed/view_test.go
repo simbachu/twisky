@@ -9,6 +9,49 @@ import (
 	"github.com/simbachu/twisky/internal/richtext"
 )
 
+func TestNewPostView_ExposesURIAndCIDAndLiked(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/abc",
+		CID:    "bafyexamplecid",
+		Author: bluesky.Author{Handle: "dev.example", DID: "did:plc:example"},
+		Record: bluesky.PostRecord{
+			Text:      "liked",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Viewer: &bluesky.PostViewer{Like: "at://did:plc:me/app.bsky.feed.like/like1"},
+	})
+
+	if view.URI() != "at://did:plc:example/app.bsky.feed.post/abc" {
+		t.Fatalf("URI() = %q", view.URI())
+	}
+	if view.CID() != "bafyexamplecid" {
+		t.Fatalf("CID() = %q", view.CID())
+	}
+	if !view.Liked {
+		t.Fatal("Liked = false, want true")
+	}
+}
+
+func TestNewPostView_LikedFalseWithoutViewerLike(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/abc",
+		CID:    "bafyexamplecid",
+		Author: bluesky.Author{Handle: "dev.example"},
+		Record: bluesky.PostRecord{
+			Text:      "not liked",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+	})
+
+	if view.Liked {
+		t.Fatal("Liked = true, want false")
+	}
+}
+
 func TestNewPostView_AttachesTextSegmentsFromFacets(t *testing.T) {
 	t.Parallel()
 

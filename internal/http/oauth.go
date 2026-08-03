@@ -9,6 +9,7 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/auth/session"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
 	"github.com/simbachu/twisky/internal/components/page"
@@ -156,8 +157,43 @@ func (s *Server) handleOAuthLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// ResumeActiveSession returns the indigo OAuth session for the active browser account.
+// ResumeActiveSession returns the active browser account after validating the OAuth session.
 func (s *Server) ResumeActiveSession(r *http.Request) (*session.Account, error) {
+	account, err := s.loadActiveAccount(r)
+	if err != nil {
+		return nil, err
+	}
+	did, err := syntax.ParseDID(account.DID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.auth.App.ResumeSession(r.Context(), did, account.SessionID); err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
+// ResumeActiveClient resumes the active OAuth session and returns an authenticated API client.
+func (s *Server) ResumeActiveClient(r *http.Request) (*session.Account, *authoauth.SessionClient, error) {
+	account, err := s.loadActiveAccount(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	did, err := syntax.ParseDID(account.DID)
+	if err != nil {
+		return nil, nil, err
+	}
+	sess, err := s.auth.App.ResumeSession(r.Context(), did, account.SessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if sess == nil || sess.Data == nil {
+		return nil, nil, fmt.Errorf("oauth: incomplete session")
+	}
+	return account, authoauth.NewSessionClient(sess.APIClient()), nil
+}
+
+func (s *Server) loadActiveAccount(r *http.Request) (*session.Account, error) {
 	if s.auth == nil {
 		return nil, session.ErrMissingCookie
 	}
@@ -168,13 +204,6 @@ func (s *Server) ResumeActiveSession(r *http.Request) (*session.Account, error) 
 	account, ok := state.ActiveAccount()
 	if !ok {
 		return nil, session.ErrMissingCookie
-	}
-	did, err := syntax.ParseDID(account.DID)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := s.auth.App.ResumeSession(r.Context(), did, account.SessionID); err != nil {
-		return nil, err
 	}
 	return &account, nil
 }

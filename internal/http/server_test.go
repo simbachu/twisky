@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/command"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
@@ -75,7 +76,7 @@ func newTestServer(reader stubReader) http.Handler {
 		tag.NewHandler(reader, nil),
 		post.NewHandler(reader, nil),
 	)
-	return twiskyhttp.NewServer(queries, suggestions.NewHandler(reader, nil), "https://twisky.test", nil).Handler()
+	return twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(reader, nil), "https://twisky.test", nil).Handler()
 }
 
 func TestHandleHealthz_OK(t *testing.T) {

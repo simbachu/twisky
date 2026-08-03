@@ -1,6 +1,7 @@
 package post
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -66,7 +67,7 @@ func postFooter(view feedquery.PostView) g.Node {
 			ui.SegmentedGroup("Engagement actions",
 				ui.PostEngagement(ui.IconReply, "Reply", view.ReplyCount),
 				ui.PostEngagement(ui.IconRepost, "Repost", view.RepostCount),
-				ui.PostEngagement(ui.IconLike, "Like", view.LikeCount),
+				likeButton(view, ""),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			shareGroup(view),
@@ -88,7 +89,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 			ui.SegmentedGroup("Engagement actions",
 				ui.PostEngagementPollable(ui.IconReply, "Reply", view.ReplyCount, ids.reply),
 				ui.PostEngagementPollable(ui.IconRepost, "Repost", view.RepostCount, ids.repost),
-				ui.PostEngagementPollable(ui.IconLike, "Like", view.LikeCount, ids.like),
+				likeButton(view, ids.like),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			shareGroup(view),
@@ -98,6 +99,37 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 		countsPollerData(view, now, live, false),
 		countsAnnouncer(view.ID),
 	)
+}
+
+// LikeButtonFragment renders the like action button for HTMX swaps after LikePost.
+func LikeButtonFragment(view feedquery.PostView, countID string) g.Node {
+	return ui.ActionButton(likeButtonConfig(view, countID))
+}
+
+func likeButton(view feedquery.PostView, countID string) ui.ActionButtonConfig {
+	return likeButtonConfig(view, countID)
+}
+
+func likeButtonConfig(view feedquery.PostView, countID string) ui.ActionButtonConfig {
+	cfg := ui.ActionButtonConfig{
+		Icon:    ui.IconLike,
+		Label:   "Like",
+		Count:   view.LikeCount,
+		CountID: countID,
+		Engaged: view.Liked,
+	}
+	if uri, cid := view.URI(), view.CID(); uri != "" && cid != "" {
+		vals, err := json.Marshal(map[string]any{
+			"uri":   uri,
+			"cid":   cid,
+			"count": view.LikeCount,
+		})
+		if err == nil {
+			cfg.HxPost = "/action/like"
+			cfg.HxVals = string(vals)
+		}
+	}
+	return cfg
 }
 
 func quotedInset(maybe *feedquery.PostView, now time.Time) g.Node {

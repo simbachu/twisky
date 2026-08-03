@@ -16,6 +16,7 @@ import (
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/auth/session"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/command"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
@@ -42,7 +43,7 @@ func newAuthTestServer(t *testing.T, baseURL string) (http.Handler, *authoauth.S
 		tag.NewHandler(stubReader{}, nil),
 		post.NewHandler(stubReader{}, nil),
 	)
-	handler := twiskyhttp.NewServer(queries, suggestions.NewHandler(stubReader{}, nil), baseURL, auth).Handler()
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), baseURL, auth).Handler()
 	return handler, auth
 }
 
@@ -108,7 +109,7 @@ func TestOAuthLogin_DisabledWithoutSecret(t *testing.T) {
 		tag.NewHandler(stubReader{}, nil),
 		post.NewHandler(stubReader{}, nil),
 	)
-	handler := twiskyhttp.NewServer(queries, suggestions.NewHandler(stubReader{profile: &bluesky.Profile{Handle: "x"}}, nil), "https://dev.twisky.app", nil).Handler()
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{profile: &bluesky.Profile{Handle: "x"}}, nil), "https://dev.twisky.app", nil).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/oauth/client-metadata.json", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -210,12 +211,18 @@ func (s *stubOAuthApp) Logout(_ context.Context, did syntax.DID, sessionID strin
 	return s.logoutErr
 }
 
-func (s *stubOAuthApp) ResumeSession(_ context.Context, _ syntax.DID, _ string) (*indigooauth.ClientSession, error) {
+func (s *stubOAuthApp) ResumeSession(_ context.Context, did syntax.DID, _ string) (*indigooauth.ClientSession, error) {
 	s.resumeCalls++
 	if s.resumeErr != nil {
 		return nil, s.resumeErr
 	}
-	return &indigooauth.ClientSession{}, nil
+	return &indigooauth.ClientSession{
+		Data: &indigooauth.ClientSessionData{
+			AccountDID: did,
+			HostURL:    "https://pds.example",
+		},
+		Config: &indigooauth.ClientConfig{},
+	}, nil
 }
 
 func newAuthTestServerWithApp(t *testing.T, baseURL string, app authoauth.App) (http.Handler, *authoauth.Service, *twiskyhttp.Server) {
@@ -227,7 +234,7 @@ func newAuthTestServerWithApp(t *testing.T, baseURL string, app authoauth.App) (
 		tag.NewHandler(stubReader{}, nil),
 		post.NewHandler(stubReader{}, nil),
 	)
-	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(stubReader{}, nil), baseURL, auth)
+	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), baseURL, auth)
 	return server.Handler(), auth, server
 }
 

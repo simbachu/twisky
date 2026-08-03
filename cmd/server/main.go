@@ -27,13 +27,12 @@ func main() {
 	blueskyClient := bluesky.NewClient()
 	blueskyClient.SetLabelers(moderation.DefaultLabelerDIDs())
 	prefs := moderation.DefaultPrefsProvider{}
-	_ = command.NewDispatcher() // reserved for future write intents
-
 	queries := query.NewDispatcher(
 		profile.NewHandler(blueskyClient, prefs),
 		tag.NewHandler(blueskyClient, prefs),
 		post.NewHandler(blueskyClient, prefs),
 	)
+	commands := command.NewDispatcher()
 
 	publicBaseURL := envOr("TWISKY_PUBLIC_BASE_URL", "")
 	auth, err := authoauth.NewService(authoauth.Config{
@@ -50,7 +49,7 @@ func main() {
 		log.Printf("oauth enabled (client_id=%s)", auth.Config.ClientID)
 	}
 
-	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil), publicBaseURL, auth)
+	server := twiskyhttp.NewServer(queries, commands, suggestions.NewHandler(blueskyClient, nil), publicBaseURL, auth)
 
 	addr := envOr("TWISKY_ADDR", ":8080")
 	log.Printf("listening on %s", addr)

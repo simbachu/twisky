@@ -59,6 +59,7 @@ type PostView struct {
 	LikeCount         int
 	RepostCount       int
 	ReplyCount        int
+	Liked             bool
 	Text              string
 	TextSegments      []richtext.Segment
 	CreatedAt         time.Time
@@ -71,6 +72,7 @@ type PostView struct {
 	Moderation        ModerationView
 	replyParentURI    string
 	postURI           string
+	postCID           string
 	authorDID         string
 	threadRootAuthorDID string
 	labels            []moderation.Label
@@ -86,6 +88,14 @@ func (v PostView) AuthorDID() string {
 	return v.authorDID
 }
 
+func (v PostView) URI() string {
+	return v.postURI
+}
+
+func (v PostView) CID() string {
+	return v.postCID
+}
+
 func (v PostView) ThreadRootAuthorDID() string {
 	if v.threadRootAuthorDID != "" {
 		return v.threadRootAuthorDID
@@ -96,6 +106,13 @@ func (v PostView) ThreadRootAuthorDID() string {
 // PostViewWithAuthorDID returns view with authorDID set for tests outside this package.
 func PostViewWithAuthorDID(view PostView, authorDID string) PostView {
 	view.authorDID = authorDID
+	return view
+}
+
+// PostViewWithStrongRef returns view with URI/CID set for tests outside this package.
+func PostViewWithStrongRef(view PostView, uri, cid string) PostView {
+	view.postURI = uri
+	view.postCID = cid
 	return view
 }
 
@@ -152,11 +169,13 @@ func NewPostView(post bluesky.Post) PostView {
 		LikeCount:         post.LikeCount,
 		RepostCount:       post.RepostCount,
 		ReplyCount:        post.ReplyCount,
+		Liked:             post.Viewer != nil && post.Viewer.Like != "",
 		Text:              post.Record.Text,
 		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
 		CreatedAt:         post.Record.CreatedAt,
 		replyParentURI:    post.ReplyParentURI(),
 		postURI:             post.URI,
+		postCID:             post.CID,
 		authorDID:           post.Author.DID,
 		threadRootAuthorDID: threadRootAuthorDIDFromPost(post),
 		labels:              moderationLabels(post.AllLabels()),

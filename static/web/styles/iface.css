@@ -36,7 +36,8 @@
     }
 
     &.ui-action--like:hover:not(:disabled):not([aria-disabled="true"]),
-    &.ui-action--like:active:not(:disabled):not([aria-disabled="true"]) {
+    &.ui-action--like:active:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--like.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]) {
       color: var(--action-like-fg);
 
       span {

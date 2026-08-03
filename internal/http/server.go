@@ -14,6 +14,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/simbachu/twisky/internal/actor"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
+	"github.com/simbachu/twisky/internal/command"
+	"github.com/simbachu/twisky/internal/command/like"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	postpage "github.com/simbachu/twisky/internal/components/post"
@@ -33,13 +35,28 @@ import (
 
 type Server struct {
 	queries       *query.Dispatcher
+	commands      *command.Dispatcher
 	suggestions   *suggestions.Handler
 	publicBaseURL string
 	auth          *authoauth.Service
+	// likeWriter, when set, skips OAuth resume for LikePost (tests).
+	likeWriter like.Writer
 }
 
-func NewServer(queries *query.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
-	return &Server{queries: queries, suggestions: suggestionsHandler, publicBaseURL: publicBaseURL, auth: auth}
+func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
+	return &Server{
+		queries:       queries,
+		commands:      commands,
+		suggestions:   suggestionsHandler,
+		publicBaseURL: publicBaseURL,
+		auth:          auth,
+	}
+}
+
+// WithLikeWriter overrides the OAuth session client used for LikePost (tests).
+func (s *Server) WithLikeWriter(w like.Writer) *Server {
+	s.likeWriter = w
+	return s
 }
 
 func (s *Server) suggestedAccounts(ctx context.Context) []ui.AuthorInfo {
@@ -77,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/oauth/login", s.handleOAuthLogin)
 	r.Get("/oauth/callback", s.handleOAuthCallback)
 	r.Post("/oauth/logout", s.handleOAuthLogout)
+	r.Post("/action/like", s.handleLike)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
@@ -117,6 +135,7 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 
 	switch v := resp.(type) {
 	case tag.TagView:
+		s.enrichTagView(r, &v)
 		if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
 			return
 		}
@@ -145,6 +164,7 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 
 		switch v := resp.(type) {
 		case profile.ProfileView:
+			s.enrichProfileView(r, &v)
 			if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
 				return
 			}
@@ -177,6 +197,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
+		s.enrichPageLikes(r, &v)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		now := time.Now().UTC()
 		switch postPagePart(r) {
