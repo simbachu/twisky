@@ -64,6 +64,43 @@
       grid-column: 2;
       align-self: center;
     }
+
+    /* Repost meta: split col B into meta + name beside a spanning avatar. */
+    &:has(> .post-meta:not(.post-meta-reply)) {
+      .byline-avatar {
+        grid-row: 1 / 3;
+        align-self: end;
+
+        img {
+          /* ~meta + byline stack so icon top meets meta and bottom meets name. */
+          width: 2.4rem;
+          max-width: 2.4rem;
+          height: 2.4rem;
+        }
+
+        .byline-avatar-emoji {
+          width: 2.4rem;
+          height: 2.4rem;
+          font-size: 1.15rem;
+        }
+      }
+
+      .byline-avatar-moderated {
+        width: 2.4rem;
+      }
+
+      .author-name {
+        font-size: 1em;
+      }
+
+      .post-meta:not(.post-meta-reply) {
+        margin-block-end: 0.1rem;
+      }
+
+      .byline > span:not(.byline-avatar) {
+        align-self: end;
+      }
+    }
   }
 
   /*
@@ -109,6 +146,42 @@
 
     .byline > span:not(.byline-avatar) {
       margin-block-end: 0.25rem;
+    }
+
+    /* Repost meta: avatar spans meta + byline; track width stays --post-avatar-track. */
+    &:has(> header > .post-meta:not(.post-meta-reply)) {
+      .byline-avatar {
+        grid-row: 1 / 3;
+        align-self: end;
+
+        img {
+          width: 2.4rem;
+          max-width: 2.4rem;
+          height: 2.4rem;
+        }
+
+        .byline-avatar-emoji {
+          width: 2.4rem;
+          height: 2.4rem;
+          font-size: 1.15rem;
+        }
+      }
+
+      .byline-avatar-moderated {
+        width: 2.4rem;
+      }
+
+      .author-name {
+        font-size: 1em;
+      }
+
+      .post-meta:not(.post-meta-reply) {
+        margin-block-end: 0.1rem;
+      }
+
+      .byline > span:not(.byline-avatar) {
+        align-self: end;
+      }
     }
   }
 
