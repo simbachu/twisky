@@ -58,8 +58,8 @@ func TestCountsPollInterval(t *testing.T) {
 func TestBurstCountsPollInterval(t *testing.T) {
 	t.Parallel()
 
-	if got := burstCountsPollInterval(); got != 5*time.Second {
-		t.Fatalf("burstCountsPollInterval() = %s, want 5s", got)
+	if got := burstCountsPollInterval(); got != BurstPollInterval {
+		t.Fatalf("burstCountsPollInterval() = %s, want %s", got, BurstPollInterval)
 	}
 }
 

@@ -1,6 +1,7 @@
 package oauth_test
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/simbachu/twisky/internal/auth/oauth"
@@ -9,11 +10,19 @@ import (
 func TestLocalhostConfig(t *testing.T) {
 	t.Parallel()
 
-	cfg := oauth.NewConfig("", []string{"atproto", "transition:generic"})
-	if cfg.CallbackURL != "http://127.0.0.1:8080/oauth/callback" {
-		t.Fatalf("CallbackURL = %q, want http://127.0.0.1:8080/oauth/callback", cfg.CallbackURL)
+	scopes := []string{"atproto", "transition:generic"}
+	cfg := oauth.NewConfig("", scopes)
+
+	wantCallback := "http://127.0.0.1:8080/oauth/callback"
+	if cfg.CallbackURL != wantCallback {
+		t.Fatalf("CallbackURL = %q, want %q", cfg.CallbackURL, wantCallback)
 	}
-	if cfg.ClientID == "" {
-		t.Fatal("ClientID is empty")
+
+	params := url.Values{}
+	params.Set("redirect_uri", wantCallback)
+	params.Set("scope", "atproto transition:generic")
+	wantClientID := "http://localhost?" + params.Encode()
+	if cfg.ClientID != wantClientID {
+		t.Fatalf("ClientID = %q, want %q", cfg.ClientID, wantClientID)
 	}
 }

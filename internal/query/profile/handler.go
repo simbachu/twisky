@@ -65,10 +65,11 @@ type ProfileView struct {
 func (ProfileView) IsResponse() {}
 
 func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Response {
-	identifier, _, err := actor.ParseSlug(i.Slug)
+	slug, err := actor.ParseSlug(i.Slug)
 	if err != nil {
 		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid slug"}
 	}
+	identifier := slug.Identifier
 
 	profile, err := h.reader.GetProfile(ctx, identifier)
 	if err != nil {

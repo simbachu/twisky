@@ -182,9 +182,9 @@ func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
 	if !ok {
 		t.Fatalf("Handle() type = %T, want TagView", resp)
 	}
-	segment := view.Feed.Posts[0].TextSegments[0]
-	if segment.Mention != "dev.example" {
-		t.Fatalf("mention = %q, want dev.example", segment.Mention)
+	// Mention resolution semantics live in feed/mentions_test; tag only wires it in.
+	if view.Feed.Posts[0].TextSegments[0].Mention != "dev.example" {
+		t.Fatalf("mention = %q, want handler to attach resolved handle", view.Feed.Posts[0].TextSegments[0].Mention)
 	}
 }
 
@@ -221,10 +221,7 @@ func TestHandler_HandleEnrichesReplyParent(t *testing.T) {
 		t.Fatalf("Handle() type = %T, want TagView", resp)
 	}
 	if view.Feed.Posts[0].ReplyParentMaybe == nil {
-		t.Fatal("ReplyParentMaybe = nil, want hydrated parent")
-	}
-	if view.Feed.Posts[0].ReplyParentMaybe.Text != "parent post" {
-		t.Fatalf("parent text = %q, want parent post", view.Feed.Posts[0].ReplyParentMaybe.Text)
+		t.Fatal("ReplyParentMaybe = nil, want handler to call enrich")
 	}
 	if len(reader.lastGetPostsURIs) != 1 || reader.lastGetPostsURIs[0] != parentURI {
 		t.Fatalf("lastGetPostsURIs = %v, want [%s]", reader.lastGetPostsURIs, parentURI)

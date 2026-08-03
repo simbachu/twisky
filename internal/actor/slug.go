@@ -25,25 +25,50 @@ var (
 	handleRegex = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
 )
 
+// Kind classifies a URL path slug as a handle or DID.
+type Kind uint8
+
+const (
+	KindHandle Kind = iota + 1
+	KindDID
+)
+
+func (k Kind) String() string {
+	switch k {
+	case KindHandle:
+		return "handle"
+	case KindDID:
+		return "did"
+	default:
+		return ""
+	}
+}
+
+// Slug is a validated profile path segment (handle or DID).
+type Slug struct {
+	Identifier string
+	Kind       Kind
+}
+
 // ParseSlug classifies a URL path segment as a handle or DID.
 // Single-label strings like "hello" are rejected without an API call.
-func ParseSlug(raw string) (identifier string, kind string, err error) {
+func ParseSlug(raw string) (Slug, error) {
 	slug := strings.TrimSpace(raw)
 	if slug == "" {
-		return "", "", ErrInvalidSlug
+		return Slug{}, ErrInvalidSlug
 	}
 
 	if strings.HasPrefix(slug, "did:") {
 		if !isDID(slug) {
-			return "", "", ErrInvalidSlug
+			return Slug{}, ErrInvalidSlug
 		}
-		return slug, "did", nil
+		return Slug{Identifier: slug, Kind: KindDID}, nil
 	}
 
 	if !isHandle(slug) {
-		return "", "", ErrInvalidSlug
+		return Slug{}, ErrInvalidSlug
 	}
-	return slug, "handle", nil
+	return Slug{Identifier: slug, Kind: KindHandle}, nil
 }
 
 func isDID(value string) bool {

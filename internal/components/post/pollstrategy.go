@@ -7,7 +7,9 @@ const (
 	fastPollInterval = 10 * time.Second
 	slowPollInterval = 30 * time.Second
 
-	burstPollInterval = 5 * time.Second
+	// BurstPollInterval is the shortened counts poll gap used after a reply or
+	// repost count increase (hot-thread signal).
+	BurstPollInterval = 5 * time.Second
 
 	repliesCooldownBase   = 20 * time.Second
 	repliesCooldownAgeRef = 2 * time.Minute
@@ -33,7 +35,7 @@ func countsPollInterval(age time.Duration) time.Duration {
 // burstCountsPollInterval is the shortened counts poll gap used after a
 // reply or repost count increase (hot-thread signal).
 func burstCountsPollInterval() time.Duration {
-	return burstPollInterval
+	return BurstPollInterval
 }
 
 // repliesFetchCooldown returns the minimum gap between GetPostThread reply

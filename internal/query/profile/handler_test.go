@@ -313,50 +313,6 @@ func TestHandler_HandleFeedUpstreamError(t *testing.T) {
 	}
 }
 
-func TestHandler_HandleResolvesMentionHandles(t *testing.T) {
-	t.Parallel()
-
-	reader := &stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
-		feed: &bluesky.AuthorFeedResponse{
-			Feed: []bluesky.FeedItem{{
-				Post: bluesky.Post{
-					Author: bluesky.Author{Handle: "bsky.app"},
-					Record: bluesky.PostRecord{
-						Text: "@dev.example hello",
-						Facets: []bluesky.Facet{{
-							Index: bluesky.FacetIndex{ByteStart: 0, ByteEnd: 12},
-							Features: []bluesky.FacetFeature{{
-								Type: "app.bsky.richtext.facet#mention",
-								DID:  "did:plc:example",
-							}},
-						}},
-					},
-				},
-			}},
-		},
-		profiles: []bluesky.Profile{{
-			DID:    "did:plc:example",
-			Handle: "dev.example",
-		}},
-	}
-	handler := profile.NewHandler(reader, nil)
-
-	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
-
-	view, ok := resp.(profile.ProfileView)
-	if !ok {
-		t.Fatalf("Handle() type = %T, want ProfileView", resp)
-	}
-	if len(view.Feed.Posts) != 1 {
-		t.Fatalf("len(view.Feed.Posts) = %d, want 1", len(view.Feed.Posts))
-	}
-	segment := view.Feed.Posts[0].TextSegments[0]
-	if segment.Mention != "dev.example" {
-		t.Fatalf("mention = %q, want dev.example", segment.Mention)
-	}
-}
-
 func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
 	t.Parallel()
 

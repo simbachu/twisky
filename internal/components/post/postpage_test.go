@@ -12,49 +12,45 @@ import (
 	"github.com/simbachu/twisky/internal/richtext"
 )
 
-func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
+func TestPostPage_RendersReplySettingsControls(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := post.PostPage(feedquery.PostPageView{
+	html := renderPostPage(t, feedquery.PostPageView{
 		Post: feedquery.PostView{
 			ID:           "root",
 			AuthorHandle: "bsky.app",
 			Text:         "hello",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
-		t.Fatalf("Render() err = %v", err)
-	}
+	})
 
-	html := buf.String()
 	for _, want := range []string{
-		`id="post-page-header"`,
-		`id="post-replies"`,
-		`class="post-replies-section"`,
-		`<details`,
-		`<summary`,
 		`aria-label="Reply display settings"`,
-		`⚙`,
 		`name="reply-view"`,
 		`name="reply-sort-order"`,
-		`role="group"`,
-		`aria-label="Threading mode"`,
-		`aria-label="Sort order"`,
 		`value="threaded"`,
 		`value="linear"`,
 		`value="hot"`,
 		`value="new"`,
 		`value="old"`,
 		`value="ratio"`,
-		`🔥`,
-		`↪️`,
 		`post-page-reply-view.js`,
-		`post-share.js`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
 	}
+}
+
+func TestPostPage_KeepsReplySettingsOutOfPageHeader(t *testing.T) {
+	t.Parallel()
+
+	html := renderPostPage(t, feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "hello",
+		},
+	})
 
 	pageHeaderStart := strings.Index(html, `id="post-page-header"`)
 	if pageHeaderStart < 0 {
@@ -78,48 +74,35 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 		t.Fatalf("html = %q, want closing section tag", html)
 	}
 	repliesSection := html[repliesSectionStart : repliesSectionStart+repliesSectionEnd]
-
 	if !strings.Contains(repliesSection, `<details>`) {
 		t.Fatalf("replies section = %q, want details for reply settings", repliesSection)
 	}
-	detailsStart := strings.Index(repliesSection, "<details")
-	detailsEnd := strings.Index(repliesSection[detailsStart:], "</details>")
-	if detailsStart < 0 || detailsEnd < 0 {
-		t.Fatalf("replies section = %q, want details element", repliesSection)
+	if strings.Count(repliesSection, `<menu class="iface-segmented"`) != 2 {
+		t.Fatalf("replies section = %q, want two iface-segmented control groups", repliesSection)
 	}
-	details := repliesSection[detailsStart : detailsStart+detailsEnd]
-	if !strings.Contains(details, "<nav>") {
-		t.Fatalf("details = %q, want nav wrapping control groups", details)
-	}
-	if !strings.Contains(details, `<menu class="iface-segmented"`) {
-		t.Fatalf("details = %q, want iface-segmented menus inside details", details)
-	}
-	if strings.Count(details, `<menu class="iface-segmented"`) != 2 {
-		t.Fatalf("details = %q, want two iface-segmented control groups", details)
-	}
-
 	if strings.Count(repliesSection, `name="reply-view"`) != 2 {
 		t.Fatalf("replies section = %q, want two reply-view radios", repliesSection)
 	}
 	if strings.Count(repliesSection, `name="reply-sort-order"`) != 4 {
 		t.Fatalf("replies section = %q, want four reply-sort-order radios", repliesSection)
 	}
-	if strings.Count(repliesSection, `checked=""`) != 1 {
-		t.Fatalf("replies section = %q, want exactly one checked radio (sort order only)", repliesSection)
-	}
-	if !strings.Contains(repliesSection, `name="reply-view"`) || !strings.Contains(repliesSection, `value="threaded"`) {
-		t.Fatalf("replies section = %q, want threaded reply-view option", repliesSection)
-	}
-	if !strings.Contains(repliesSection, `id="reply-view-threaded"`) {
-		t.Fatalf("replies section = %q, want reply-view-threaded input id", repliesSection)
-	}
-	if strings.Contains(repliesSection, `id="reply-view-threaded"`) {
-		threadedIdx := strings.Index(repliesSection, `id="reply-view-threaded"`)
-		threadedSlice := repliesSection[threadedIdx:]
-		if strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
-			t.Fatalf("replies section = %q, want reply-view unchecked server-side (client cookie owns state)", repliesSection)
-		}
-	}
+}
+
+func TestPostPage_DefaultsHotSortChecked(t *testing.T) {
+	t.Parallel()
+
+	html := renderPostPage(t, feedquery.PostPageView{
+		Post: feedquery.PostView{
+			ID:           "root",
+			AuthorHandle: "bsky.app",
+			Text:         "hello",
+		},
+	})
+
+	repliesSectionStart := strings.Index(html, `id="post-replies"`)
+	repliesSectionEnd := strings.Index(html[repliesSectionStart:], "</section>")
+	repliesSection := html[repliesSectionStart : repliesSectionStart+repliesSectionEnd]
+
 	hotIdx := strings.Index(repliesSection, `id="reply-sort-order-hot"`)
 	if hotIdx < 0 {
 		t.Fatalf("replies section = %q, want reply-sort-order-hot input id", repliesSection)
@@ -128,6 +111,24 @@ func TestPostPage_RendersDefaultSettingsControls(t *testing.T) {
 	if !strings.Contains(hotSlice[:strings.Index(hotSlice, ">")], `checked=""`) {
 		t.Fatalf("replies section = %q, want hot reply-sort-order checked by default", repliesSection)
 	}
+
+	threadedIdx := strings.Index(repliesSection, `id="reply-view-threaded"`)
+	if threadedIdx < 0 {
+		t.Fatalf("replies section = %q, want reply-view-threaded input id", repliesSection)
+	}
+	threadedSlice := repliesSection[threadedIdx:]
+	if strings.Contains(threadedSlice[:strings.Index(threadedSlice, ">")], `checked=""`) {
+		t.Fatalf("replies section = %q, want reply-view unchecked server-side", repliesSection)
+	}
+}
+
+func renderPostPage(t *testing.T, view feedquery.PostPageView) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := post.PostPage(view, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	return buf.String()
 }
 
 func TestPostPage_RendersAncestorsSlot(t *testing.T) {

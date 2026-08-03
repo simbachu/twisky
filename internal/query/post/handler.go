@@ -52,10 +52,11 @@ func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
 }
 
 func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Response {
-	identifier, _, err := actor.ParseSlug(i.Slug)
+	slug, err := actor.ParseSlug(i.Slug)
 	if err != nil {
 		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid slug"}
 	}
+	identifier := slug.Identifier
 
 	postID := strings.TrimSpace(i.ID)
 	if postID == "" {
@@ -77,7 +78,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 		return h.handleReplies(ctx, i.Slug, postID, profile.DID)
 	}
 
-	threadNode, err := h.reader.GetPostThread(ctx, atproto.PostURI(profile.DID, postID))
+	threadNode, err := h.reader.GetPostThread(ctx, atproto.NewPostURI(profile.DID, postID).String())
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
@@ -92,7 +93,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 // the heavier GetPostThread, coalescing concurrent requests for the same post
 // through countsCache.
 func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) response.Response {
-	uri := atproto.PostURI(did, postID)
+	uri := atproto.NewPostURI(did, postID).String()
 	key := slug + "/" + postID
 
 	bskyPost, err := h.countsCache.Get(ctx, key, func(ctx context.Context) (bluesky.Post, error) {
@@ -111,7 +112,7 @@ func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) re
 // handleReplies serves the replies fragment via GetPostThread, coalescing
 // concurrent requests for the same post through threadCache.
 func (h *Handler) handleReplies(ctx context.Context, slug, postID, did string) response.Response {
-	uri := atproto.PostURI(did, postID)
+	uri := atproto.NewPostURI(did, postID).String()
 	key := slug + "/" + postID
 
 	threadNode, err := h.threadCache.Get(ctx, key, func(ctx context.Context) (bluesky.ThreadNode, error) {

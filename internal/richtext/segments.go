@@ -196,7 +196,7 @@ func mentionSpansFromRegex(text string, textBytes []byte) []linkSpan {
 			continue
 		}
 		handle := display[1:]
-		if _, _, err := actor.ParseSlug(handle); err != nil {
+		if _, err := actor.ParseSlug(handle); err != nil {
 			continue
 		}
 

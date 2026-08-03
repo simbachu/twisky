@@ -18,34 +18,34 @@ func TestBlueskyPostPageURL(t *testing.T) {
 	}
 }
 
-func TestShareGroup_RendersCopyTargets(t *testing.T) {
+func TestShareGroup_RendersCopyURLs(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := shareGroup(feedquery.PostView{
-		ID:           "abc123",
-		AuthorHandle: "dev.example",
-	}).Render(&buf); err != nil {
-		t.Fatalf("Render() err = %v", err)
-	}
+	html := renderShareGroup(t)
 
-	html := buf.String()
+	if !strings.Contains(html, `data-copy-url="/dev.example/post/abc123"`) {
+		t.Fatalf("html = %q, want Twisky copy URL", html)
+	}
+	if !strings.Contains(html, `data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`) {
+		t.Fatalf("html = %q, want Bluesky copy URL", html)
+	}
+	if !strings.Contains(html, `aria-label="Copy Twisky link"`) || !strings.Contains(html, `aria-label="Copy Bluesky link"`) {
+		t.Fatalf("html = %q, want copy aria labels", html)
+	}
+}
+
+func TestShareGroup_RendersMenuChrome(t *testing.T) {
+	t.Parallel()
+
+	html := renderShareGroup(t)
+
 	for _, want := range []string{
 		`class="iface-segmented post-share-group"`,
-		`aria-label="Share"`,
 		`class="post-share-open"`,
 		`aria-expanded="false"`,
 		`aria-haspopup="menu"`,
-		`class="post-share-option"`,
-		`data-copy-url="/dev.example/post/abc123"`,
-		`data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`,
-		`aria-label="Copy Twisky link"`,
-		`aria-label="Copy Bluesky link"`,
 		`data-copy-feedback="icon"`,
-		`class="ui-action ui-action--bluesky"`,
 		`href="/static/icons/icons.svg#icon-butterfly-outline"`,
-		`href="/static/icons/icons.svg#icon-butterfly-filled"`,
-		`>🔗<`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -54,4 +54,16 @@ func TestShareGroup_RendersCopyTargets(t *testing.T) {
 	if strings.Contains(html, "🦋") {
 		t.Fatalf("html = %q, want butterfly SVG not emoji", html)
 	}
+}
+
+func renderShareGroup(t *testing.T) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := shareGroup(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	return buf.String()
 }

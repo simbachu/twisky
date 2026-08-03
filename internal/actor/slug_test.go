@@ -1,6 +1,7 @@
 package actor_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -14,20 +15,20 @@ func TestParseSlug(t *testing.T) {
 		name       string
 		slug       string
 		wantID     string
-		wantKind   string
+		wantKind   actor.Kind
 		wantErr    error
 	}{
 		{
 			name:     "valid handle",
 			slug:     "bsky.app",
 			wantID:   "bsky.app",
-			wantKind: "handle",
+			wantKind: actor.KindHandle,
 		},
 		{
 			name:     "valid social handle",
 			slug:     "jay.bsky.team",
 			wantID:   "jay.bsky.team",
-			wantKind: "handle",
+			wantKind: actor.KindHandle,
 		},
 		{
 			name:    "single label is not a handle",
@@ -43,7 +44,7 @@ func TestParseSlug(t *testing.T) {
 			name:     "valid plc did",
 			slug:     "did:plc:ar7c4by46qjdydhdevvrndac",
 			wantID:   "did:plc:ar7c4by46qjdydhdevvrndac",
-			wantKind: "did",
+			wantKind: actor.KindDID,
 		},
 		{
 			name:    "malformed did",
@@ -54,7 +55,7 @@ func TestParseSlug(t *testing.T) {
 			name:     "valid handle with internal hyphen",
 			slug:     "my-handle.bsky.social",
 			wantID:   "my-handle.bsky.social",
-			wantKind: "handle",
+			wantKind: actor.KindHandle,
 		},
 		{
 			name:    "leading dot is not a handle",
@@ -105,7 +106,7 @@ func TestParseSlug(t *testing.T) {
 			name:     "punycode label with doubled hyphen is a valid handle",
 			slug:     "xn--ls8h.test",
 			wantID:   "xn--ls8h.test",
-			wantKind: "handle",
+			wantKind: actor.KindHandle,
 		},
 		{
 			name:    "numeric top-level label is not a handle",
@@ -121,7 +122,7 @@ func TestParseSlug(t *testing.T) {
 			name:     "digit-leading non-final label is a valid handle",
 			slug:     "1.example.com",
 			wantID:   "1.example.com",
-			wantKind: "handle",
+			wantKind: actor.KindHandle,
 		},
 	}
 
@@ -129,9 +130,9 @@ func TestParseSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotID, gotKind, err := actor.ParseSlug(tt.slug)
+			got, err := actor.ParseSlug(tt.slug)
 			if tt.wantErr != nil {
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("ParseSlug() error = %v, want %v", err, tt.wantErr)
 				}
 				return
@@ -139,12 +140,14 @@ func TestParseSlug(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseSlug() unexpected error: %v", err)
 			}
-			if gotID != tt.wantID {
-				t.Fatalf("ParseSlug() id = %q, want %q", gotID, tt.wantID)
+			if got.Identifier != tt.wantID {
+				t.Fatalf("ParseSlug() id = %q, want %q", got.Identifier, tt.wantID)
 			}
-			if gotKind != tt.wantKind {
-				t.Fatalf("ParseSlug() kind = %q, want %q", gotKind, tt.wantKind)
+			if got.Kind != tt.wantKind {
+				t.Fatalf("ParseSlug() kind = %q, want %q", got.Kind, tt.wantKind)
 			}
 		})
 	}
 }
+
+

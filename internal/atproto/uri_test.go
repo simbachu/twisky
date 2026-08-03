@@ -1,29 +1,33 @@
 package atproto_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/simbachu/twisky/internal/atproto"
 )
 
-func TestPostRkey(t *testing.T) {
+func TestParsePostURI(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
 		uri     string
-		want    string
+		wantDID string
+		wantKey string
 		wantErr bool
 	}{
 		{
-			name: "valid post uri",
-			uri:  "at://did:plc:example/app.bsky.feed.post/abc123",
-			want: "abc123",
+			name:    "valid post uri",
+			uri:     "at://did:plc:example/app.bsky.feed.post/abc123",
+			wantDID: "did:plc:example",
+			wantKey: "abc123",
 		},
 		{
-			name: "rkey with special chars",
-			uri:  "at://did:plc:example/app.bsky.feed.post/3jzfcijpj2k2",
-			want: "3jzfcijpj2k2",
+			name:    "rkey with special chars",
+			uri:     "at://did:plc:example/app.bsky.feed.post/3jzfcijpj2k2",
+			wantDID: "did:plc:example",
+			wantKey: "3jzfcijpj2k2",
 		},
 		{
 			name:    "missing at prefix",
@@ -40,47 +44,46 @@ func TestPostRkey(t *testing.T) {
 			uri:     "at://did:plc:example/app.bsky.feed.post/",
 			wantErr: true,
 		},
+		{
+			name:    "missing did",
+			uri:     "at:///app.bsky.feed.post/abc",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := atproto.PostRkey(tt.uri)
+			got, err := atproto.ParsePostURI(tt.uri)
 			if tt.wantErr {
 				if err == nil {
-					t.Fatalf("PostRkey() err = nil, want error")
+					t.Fatal("ParsePostURI() err = nil, want error")
+				}
+				if !errors.Is(err, atproto.ErrInvalidPostURI) {
+					t.Fatalf("ParsePostURI() err = %v, want ErrInvalidPostURI", err)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("PostRkey() err = %v", err)
+				t.Fatalf("ParsePostURI() err = %v", err)
 			}
-			if got != tt.want {
-				t.Fatalf("PostRkey() = %q, want %q", got, tt.want)
+			if got.AuthorDID() != tt.wantDID || got.Rkey() != tt.wantKey {
+				t.Fatalf("ParsePostURI() = {%q %q}, want {%q %q}", got.AuthorDID(), got.Rkey(), tt.wantDID, tt.wantKey)
+			}
+			if got.String() != tt.uri {
+				t.Fatalf("String() = %q, want %q", got.String(), tt.uri)
 			}
 		})
 	}
 }
 
-func TestPostURI(t *testing.T) {
+func TestNewPostURI(t *testing.T) {
 	t.Parallel()
 
-	got := atproto.PostURI("did:plc:example", "abc123")
+	got := atproto.NewPostURI("did:plc:example", "abc123")
 	want := "at://did:plc:example/app.bsky.feed.post/abc123"
-	if got != want {
-		t.Fatalf("PostURI() = %q, want %q", got, want)
-	}
-}
-
-func TestPostAuthorDID(t *testing.T) {
-	t.Parallel()
-
-	got, err := atproto.PostAuthorDID("at://did:plc:example/app.bsky.feed.post/abc123")
-	if err != nil {
-		t.Fatalf("PostAuthorDID() err = %v", err)
-	}
-	if got != "did:plc:example" {
-		t.Fatalf("PostAuthorDID() = %q, want did:plc:example", got)
+	if got.String() != want {
+		t.Fatalf("NewPostURI().String() = %q, want %q", got.String(), want)
 	}
 }

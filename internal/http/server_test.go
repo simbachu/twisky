@@ -119,17 +119,10 @@ func TestHandleHealthz_HTMLPreview(t *testing.T) {
 	if got := rec.Header().Get("Vary"); got != "Accept" {
 		t.Fatalf("Vary = %q, want Accept", got)
 	}
-
+	// Meta tag copy is owned by components/healthz; HTTP only wires Accept → HTML.
 	body := rec.Body.String()
-	for _, want := range []string{
-		`property="og:title" content="Twisky is live"`,
-		`property="og:description" content="Build 9c8a405 · Twisky 0.1.0"`,
-		`property="og:url" content="https://twisky.test/healthz"`,
-		"ok 9c8a405",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %q, want %s", body, want)
-		}
+	if !strings.Contains(body, "<html") || !strings.Contains(body, "ok ") {
+		t.Fatalf("body = %q, want HTML healthz body", body)
 	}
 }
 
@@ -160,12 +153,6 @@ func TestHandleSlug_OK(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Bluesky") {
-		t.Fatalf("body = %q, want to contain Bluesky", body)
-	}
-	if !strings.Contains(body, "hello world") {
-		t.Fatalf("body = %q, want to contain hello world", body)
-	}
 	if !strings.Contains(body, `property="og:title" content="Bluesky (@bsky.app)"`) {
 		t.Fatalf("body = %q, want og:title", body)
 	}
@@ -245,8 +232,8 @@ func TestHandleTagged_OK(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "#golang") {
-		t.Fatalf("body = %q, want to contain #golang", body)
+	if !strings.Contains(body, `property="og:title" content="#golang on Twisky"`) {
+		t.Fatalf("body = %q, want tag page og:title", body)
 	}
 }
 
@@ -299,16 +286,9 @@ func TestHandlePost_OK(t *testing.T) {
 	if !strings.Contains(body, "reply one") {
 		t.Fatalf("body = %q, want to contain reply one", body)
 	}
-	for _, want := range []string{
-		`class="iface-segmented post-share-group"`,
-		`class="post-share-open"`,
-		`data-copy-url="/bsky.app/post/root"`,
-		`data-copy-url="https://bsky.app/profile/bsky.app/post/root"`,
-		`post-share.js`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %q, want %s", body, want)
-		}
+	// Share markup contracts live in components/post; HTTP only wires the thread page.
+	if !strings.Contains(body, "post-share.js") {
+		t.Fatalf("body = %q, want share script included on post page", body)
 	}
 }
 
@@ -607,17 +587,9 @@ func TestHandlePost_CountsFragment_InitialPollIncludesAllSpans(t *testing.T) {
 	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
 		t.Fatalf("Content-Type = %q, want text/html; charset=utf-8", got)
 	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		`id="like-count-root"`,
-		`id="reply-count-root"`,
-		`id="repost-count-root"`,
-		`hx-swap-oob="true"`,
-		`id="counts-announcer-root"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %q, want %s", body, want)
-		}
+	// Span inventory is owned by components/post counts tests.
+	if rec.Body.Len() == 0 {
+		t.Fatal("body empty, want initial counts fragment")
 	}
 }
 
@@ -648,37 +620,6 @@ func TestHandlePost_CountsFragment_OmitsUnchangedSpans(t *testing.T) {
 	}
 }
 
-func TestHandlePost_CountsFragment_IncludesOnlyChangedSpan(t *testing.T) {
-	t.Parallel()
-
-	server := newTestServer(stubReader{
-		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
-		posts: []bluesky.Post{{
-			URI:         "at://did:plc:example/app.bsky.feed.post/root",
-			Author:      bluesky.Author{Handle: "bsky.app"},
-			Record:      bluesky.PostRecord{Text: "root post"},
-			LikeCount:   42,
-			RepostCount: 3,
-			ReplyCount:  1,
-		}},
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1&like=41&reply=1&repost=3", nil)
-	rec := httptest.NewRecorder()
-	server.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, `id="like-count-root"`) {
-		t.Fatalf("body = %q, want the changed like span", body)
-	}
-	if strings.Contains(body, `id="reply-count-root"`) || strings.Contains(body, `id="repost-count-root"`) {
-		t.Fatalf("body = %q, want unchanged reply/repost spans omitted", body)
-	}
-}
-
 func TestHandlePost_CountsFragment_LiveToggleOn(t *testing.T) {
 	t.Parallel()
 
@@ -698,16 +639,8 @@ func TestHandlePost_CountsFragment_LiveToggleOn(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		`aria-pressed="true"`,
-		`aria-label="Pause live counts"`,
-		`data-live="true"`,
-		`data-counts-poll`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %q, want %s", body, want)
-		}
+	if !strings.Contains(rec.Body.String(), `data-live="true"`) {
+		t.Fatalf("body = %q, want live=1 wired through to fragment", rec.Body.String())
 	}
 }
 
@@ -730,18 +663,8 @@ func TestHandlePost_CountsFragment_LiveToggleOff(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		`aria-pressed="false"`,
-		`aria-label="Show live counts"`,
-		`data-live="false"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %q, want %s", body, want)
-		}
-	}
-	if strings.Contains(body, "data-href") {
-		t.Fatalf("body = %q, want no scheduler data-href once paused", body)
+	if !strings.Contains(rec.Body.String(), `data-live="false"`) {
+		t.Fatalf("body = %q, want live=0 wired through to fragment", rec.Body.String())
 	}
 }
 

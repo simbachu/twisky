@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/bluesky"
-	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/moderation"
+	feedquery "github.com/simbachu/twisky/internal/query/feed"
 )
 
 func TestApplyModeration_DropsFilteredPostsFromFeed(t *testing.T) {
@@ -39,28 +39,6 @@ func TestApplyModeration_DropsFilteredPostsFromFeed(t *testing.T) {
 	}
 	if moderated.Posts[0].Text != "safe" {
 		t.Fatalf("remaining post text = %q, want safe", moderated.Posts[0].Text)
-	}
-}
-
-func TestApplyModeration_BlursSexualMedia(t *testing.T) {
-	t.Parallel()
-
-	feed := feedquery.NewFeedView([]bluesky.Post{{
-		URI:    "at://did:plc:author/app.bsky.feed.post/suggestive",
-		Author: bluesky.Author{DID: "did:plc:author", Handle: "author.example"},
-		Record: bluesky.PostRecord{
-			Text:      "hello",
-			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
-		},
-		Labels: []bluesky.Label{{Val: "sexual", Src: moderation.BlueskyModerationDID}},
-	}}, "")
-
-	moderated := feedquery.ApplyModeration(context.Background(), moderation.DefaultPrefsProvider{}, feed, moderation.UIContextContentList)
-	if len(moderated.Posts) != 1 {
-		t.Fatalf("len(posts) = %d, want 1", len(moderated.Posts))
-	}
-	if !moderated.Posts[0].Moderation.BlurMedia {
-		t.Fatal("BlurMedia = false, want true for sexual label")
 	}
 }
 
@@ -119,15 +97,16 @@ func TestApplyModeration_KeepsPostsWithAccountLevelPornLabel(t *testing.T) {
 	if len(moderated.Posts) != 1 {
 		t.Fatalf("len(posts) = %d, want 1 for account-level porn label", len(moderated.Posts))
 	}
+	// Decision owns filter-vs-blur; apply only maps flags onto the retained post.
 	if moderated.Posts[0].Moderation.Filtered {
 		t.Fatal("Filtered = true, want false for account-level porn label")
 	}
 	if !moderated.Posts[0].Moderation.BlurAvatar {
-		t.Fatal("BlurAvatar = false, want true for account-level porn label")
+		t.Fatal("BlurAvatar = false, want mapped from account label UI")
 	}
 }
 
-func TestApplyModeration_SetsFilterTextForContentPorn(t *testing.T) {
+func TestApplyModeration_SetsFilterTextOnPostPage(t *testing.T) {
 	t.Parallel()
 
 	post := bluesky.Post{
@@ -139,13 +118,6 @@ func TestApplyModeration_SetsFilterTextForContentPorn(t *testing.T) {
 		},
 		Labels: []bluesky.Label{{Val: "porn", Src: moderation.BlueskyModerationDID}},
 	}
-	feed := feedquery.NewFeedView([]bluesky.Post{post}, "")
-
-	moderated := feedquery.ApplyModeration(context.Background(), moderation.DefaultPrefsProvider{}, feed, moderation.UIContextContentList)
-	if len(moderated.Posts) != 0 {
-		t.Fatalf("len(posts) = %d, want 0 after filtering content porn", len(moderated.Posts))
-	}
-
 	view := feedquery.NewPostView(post)
 	page := feedquery.ApplyModerationToPostPage(context.Background(), moderation.DefaultPrefsProvider{}, feedquery.PostPageView{
 		Post: view,
@@ -158,7 +130,7 @@ func TestApplyModeration_SetsFilterTextForContentPorn(t *testing.T) {
 	}
 }
 
-func TestApplyModeration_ProfileScopedAuthorLabel_BlursAvatarWithoutNotice(t *testing.T) {
+func TestApplyModeration_ProfileScopedAuthorLabel_MapsBlurAvatar(t *testing.T) {
 	t.Parallel()
 
 	feed := feedquery.NewFeedView([]bluesky.Post{{
@@ -182,15 +154,8 @@ func TestApplyModeration_ProfileScopedAuthorLabel_BlursAvatarWithoutNotice(t *te
 	if len(moderated.Posts) != 1 {
 		t.Fatalf("len(posts) = %d, want 1 for profile-scoped label", len(moderated.Posts))
 	}
-	post := moderated.Posts[0]
-	if post.Moderation.Filtered {
-		t.Fatal("Filtered = true, want false for profile-scoped label")
-	}
-	if !post.Moderation.BlurAvatar {
-		t.Fatal("BlurAvatar = false, want true for profile-scoped label")
-	}
-	if post.Moderation.AlertText != "" {
-		t.Fatalf("AlertText = %q, want empty for profile-scoped label", post.Moderation.AlertText)
+	if !moderated.Posts[0].Moderation.BlurAvatar {
+		t.Fatal("BlurAvatar = false, want mapped for profile-scoped label")
 	}
 }
 

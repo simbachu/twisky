@@ -29,7 +29,6 @@ func TestClickablePostItem_RendersOverlayLink(t *testing.T) {
 		`class="feed-item"`,
 		`href="/dev.example/post/abc123"`,
 		`aria-label="View post"`,
-		"hello",
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -37,7 +36,7 @@ func TestClickablePostItem_RendersOverlayLink(t *testing.T) {
 	}
 }
 
-func TestPost_RendersActionPillGroups(t *testing.T) {
+func TestPost_RendersEngagementActionLabels(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
@@ -58,37 +57,35 @@ func TestPost_RendersActionPillGroups(t *testing.T) {
 		`aria-label="Reply, 2"`,
 		`aria-label="Repost, 3"`,
 		`aria-label="Like, 5"`,
-		`aria-label="Bookmark"`,
-		`aria-label="Share"`,
-		`aria-label="More options"`,
-		`class="iface-segmented post-share-group"`,
-		`class="post-share-open"`,
-		`aria-expanded="false"`,
-		`aria-haspopup="menu"`,
-		`data-copy-url="/dev.example/post/abc123"`,
-		`data-copy-url="https://bsky.app/profile/dev.example/post/abc123"`,
-		`aria-label="Copy Twisky link"`,
-		`aria-label="Copy Bluesky link"`,
-		`data-copy-feedback="icon"`,
 		`ui-action--like`,
-		`ui-action--bluesky`,
 		`icon-heart-outline`,
-		`icon-butterfly-outline`,
-		`>🔗<`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
 	}
-	if strings.Contains(html, "🦋") {
-		t.Fatalf("html = %q, want butterfly SVG not emoji", html)
+}
+
+func TestPost_RendersSegmentedActionGroups(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
 	}
+
+	html := buf.String()
 	if strings.Count(html, `role="group"`) != 4 {
 		t.Fatalf("html has %d role=group, want 4", strings.Count(html, `role="group"`))
 	}
 	if strings.Count(html, `class="iface-segmented"`) != 3 {
 		t.Fatalf("html has %d iface-segmented, want 3", strings.Count(html, `class="iface-segmented"`))
 	}
+	// Share copy targets are owned by share_test; post only wires the group in.
 	if !strings.Contains(html, `class="iface-segmented post-share-group"`) {
 		t.Fatalf("html = %q, want share group menu", html)
 	}

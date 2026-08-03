@@ -59,6 +59,30 @@ func TestCountsRefreshFragment_IncludesOnlyChangedSpan(t *testing.T) {
 	if strings.Contains(html, `id="repost-count-root"`) || strings.Contains(html, `id="reply-count-root"`) {
 		t.Fatalf("html = %q, want unchanged spans omitted", html)
 	}
+}
+
+func TestCountsRefreshFragment_UpdatesAnnouncerAndPollerWhenChanged(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{
+		ID:           "root",
+		AuthorHandle: "bsky.app",
+		LikeCount:    1042,
+		RepostCount:  3,
+		ReplyCount:   1,
+		CreatedAt:    time.Now().Add(-time.Minute),
+	}
+
+	var buf bytes.Buffer
+	if err := post.CountsRefreshFragment(view, post.PreviousCounts{
+		Like:   intPtr(1041),
+		Repost: intPtr(3),
+		Reply:  intPtr(1),
+	}, time.Now(), false).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
 	if !strings.Contains(html, `id="counts-announcer-root"`) {
 		t.Fatalf("html = %q, want the announcer updated when something changed", html)
 	}
@@ -176,7 +200,7 @@ func TestCountsRefreshFragment_ChangeAcrossFuzzyBoundary(t *testing.T) {
 	}
 }
 
-func TestCountsToggleFragment_RendersButtonSpansAndPollerState(t *testing.T) {
+func TestCountsToggleFragment_RendersLiveTogglePressed(t *testing.T) {
 	t.Parallel()
 
 	view := feedquery.PostView{
@@ -197,14 +221,39 @@ func TestCountsToggleFragment_RendersButtonSpansAndPollerState(t *testing.T) {
 	for _, want := range []string{
 		`aria-pressed="true"`,
 		`aria-label="Pause live counts"`,
+		`data-live="true"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+}
+
+func TestCountsToggleFragment_IncludesCountSpansAndPoller(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostView{
+		ID:           "root",
+		AuthorHandle: "bsky.app",
+		LikeCount:    5,
+		RepostCount:  2,
+		ReplyCount:   1,
+		CreatedAt:    time.Now().Add(-time.Hour),
+	}
+
+	var buf bytes.Buffer
+	if err := post.CountsToggleFragment(view, time.Now(), true).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
 		`id="like-count-root"`,
 		`id="repost-count-root"`,
 		`id="reply-count-root"`,
 		`id="counts-poller-root"`,
-		`data-live="true"`,
 		`hx-swap-oob="true"`,
 		`data-replies-href="/bsky.app/post/root?replies=1"`,
-		`data-replies-cooldown-ms`,
 		`data-burst-interval-ms="5000"`,
 	} {
 		if !strings.Contains(html, want) {

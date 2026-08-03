@@ -10,7 +10,8 @@ import (
 
 // Service owns the indigo ClientApp and browser session jar.
 type Service struct {
-	App     *indigooauth.ClientApp
+	App     App
+	Config  *indigooauth.ClientConfig
 	Jar     *session.Jar
 	Store   *SQLiteStore
 	BaseURL string
@@ -44,6 +45,7 @@ func NewService(cfg Config) (*Service, error) {
 	jar.SetSecure(cfg.SecureCookies)
 	return &Service{
 		App:     app,
+		Config:  app.Config,
 		Jar:     jar,
 		Store:   store,
 		BaseURL: strings.TrimRight(strings.TrimSpace(cfg.PublicBaseURL), "/"),
@@ -61,5 +63,5 @@ func (s *Service) ClientMetadata() (indigooauth.ClientMetadata, error) {
 	if s == nil || s.App == nil {
 		return indigooauth.ClientMetadata{}, fmt.Errorf("oauth not configured")
 	}
-	return EnrichMetadata(s.App.Config, s.BaseURL)
+	return EnrichMetadata(s.Config, s.BaseURL)
 }

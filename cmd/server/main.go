@@ -47,7 +47,7 @@ func main() {
 	}
 	if auth != nil {
 		defer auth.Close()
-		log.Printf("oauth enabled (client_id=%s)", auth.App.Config.ClientID)
+		log.Printf("oauth enabled (client_id=%s)", auth.Config.ClientID)
 	}
 
 	server := twiskyhttp.NewServer(queries, suggestions.NewHandler(blueskyClient, nil), publicBaseURL, auth)

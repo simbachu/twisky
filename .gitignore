@@ -7,6 +7,9 @@
 # Logs
 *.log
 
+# Coverage (go test -coverprofile / scripts/crapreport)
+coverage.out
+
 # Environment variables
 .env
 

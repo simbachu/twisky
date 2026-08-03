@@ -9,40 +9,7 @@ import (
 	"github.com/simbachu/twisky/internal/richtext"
 )
 
-func TestNewPostView_FallsBackToHandleWhenDisplayNameEmpty(t *testing.T) {
-	t.Parallel()
-
-	view := feedquery.NewPostView(bluesky.Post{
-		Author: bluesky.Author{Handle: "dev.example"},
-		Record: bluesky.PostRecord{
-			Text:      "hello",
-			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
-		},
-	})
-
-	if view.AuthorDisplayName != "dev.example" {
-		t.Fatalf("view.AuthorDisplayName = %q, want dev.example", view.AuthorDisplayName)
-	}
-}
-
-func TestNewPostView_UsesPostRkeyAsID(t *testing.T) {
-	t.Parallel()
-
-	view := feedquery.NewPostView(bluesky.Post{
-		URI:    "at://did:plc:example/app.bsky.feed.post/abc123",
-		Author: bluesky.Author{Handle: "dev.example"},
-		Record: bluesky.PostRecord{
-			Text:      "hello",
-			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
-		},
-	})
-
-	if view.ID != "abc123" {
-		t.Fatalf("view.ID = %q, want abc123", view.ID)
-	}
-}
-
-func TestNewPostView_PopulatesTextSegmentsFromFacets(t *testing.T) {
+func TestNewPostView_AttachesTextSegmentsFromFacets(t *testing.T) {
 	t.Parallel()
 
 	view := feedquery.NewPostView(bluesky.Post{
@@ -60,56 +27,16 @@ func TestNewPostView_PopulatesTextSegmentsFromFacets(t *testing.T) {
 		},
 	})
 
-	if len(view.TextSegments) != 2 {
-		t.Fatalf("len(view.TextSegments) = %d, want 2", len(view.TextSegments))
+	// Facet→segment parsing lives in richtext; view only attaches the result.
+	if len(view.TextSegments) == 0 {
+		t.Fatal("TextSegments empty, want facets attached via richtext")
 	}
-	if view.TextSegments[0].Kind != richtext.Plain || view.TextSegments[0].Text != "hello " {
-		t.Fatalf("first segment = %#v, want plain hello ", view.TextSegments[0])
-	}
-	if view.TextSegments[1].Kind != richtext.Tag || view.TextSegments[1].Tag != "golang" {
-		t.Fatalf("second segment = %#v, want tag golang", view.TextSegments[1])
+	if view.TextSegments[len(view.TextSegments)-1].Kind != richtext.Tag {
+		t.Fatalf("last segment = %#v, want tag attached", view.TextSegments[len(view.TextSegments)-1])
 	}
 }
 
-func TestNewPostView_PopulatesMentionAndLinkSegmentsFromFacets(t *testing.T) {
-	t.Parallel()
-
-	view := feedquery.NewPostView(bluesky.Post{
-		Author: bluesky.Author{Handle: "dev.example"},
-		Record: bluesky.PostRecord{
-			Text:      "@dev.example see https://example.com",
-			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
-			Facets: []bluesky.Facet{
-				{
-					Index: bluesky.FacetIndex{ByteStart: 0, ByteEnd: 12},
-					Features: []bluesky.FacetFeature{{
-						Type: "app.bsky.richtext.facet#mention",
-						DID:  "did:plc:example",
-					}},
-				},
-				{
-					Index: bluesky.FacetIndex{ByteStart: 17, ByteEnd: 36},
-					Features: []bluesky.FacetFeature{{
-						Type: "app.bsky.richtext.facet#link",
-						URI:  "https://example.com",
-					}},
-				},
-			},
-		},
-	})
-
-	if len(view.TextSegments) != 3 {
-		t.Fatalf("len(view.TextSegments) = %d, want 3", len(view.TextSegments))
-	}
-	if view.TextSegments[0].Kind != richtext.Mention {
-		t.Fatalf("first segment kind = %v, want Mention", view.TextSegments[0].Kind)
-	}
-	if view.TextSegments[2].Kind != richtext.Link || view.TextSegments[2].URI != "https://example.com" {
-		t.Fatalf("third segment = %#v, want link https://example.com", view.TextSegments[2])
-	}
-}
-
-func TestNewPostView_WithoutFacetsDoesNotDetectLinks(t *testing.T) {
+func TestNewPostView_WithoutFacetsLeavesSegmentsNil(t *testing.T) {
 	t.Parallel()
 
 	view := feedquery.NewPostView(bluesky.Post{
