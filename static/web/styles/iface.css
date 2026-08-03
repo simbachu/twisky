@@ -37,7 +37,8 @@
 
     &.ui-action--like:hover:not(:disabled):not([aria-disabled="true"]),
     &.ui-action--like:active:not(:disabled):not([aria-disabled="true"]),
-    &.ui-action--like.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]) {
+    &.ui-action--like.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--like.htmx-request:not(:disabled):not([aria-disabled="true"]) {
       color: var(--action-like-fg);
 
       span {
@@ -159,11 +160,13 @@ body > footer aside .iface-joined {
 }
 
 button:active .ui-icon--toggle .ui-icon-outline,
-button.ui-icon-engaged .ui-icon--toggle .ui-icon-outline {
+button.ui-icon-engaged .ui-icon--toggle .ui-icon-outline,
+button.htmx-request .ui-icon--toggle .ui-icon-outline {
   display: none;
 }
 
 button:active .ui-icon--toggle .ui-icon-filled,
-button.ui-icon-engaged .ui-icon--toggle .ui-icon-filled {
+button.ui-icon-engaged .ui-icon--toggle .ui-icon-filled,
+button.htmx-request .ui-icon--toggle .ui-icon-filled {
   display: inline;
 }
