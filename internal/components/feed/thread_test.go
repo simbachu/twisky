@@ -40,8 +40,14 @@ func TestFeed_RendersReplyMetaInsteadOfParentInset(t *testing.T) {
 	if strings.Contains(html, "parent post") {
 		t.Fatalf("html = %q, want parent text omitted from feed", html)
 	}
-	if !strings.Contains(html, "⤷ Reply to @other.example") {
-		t.Fatalf("html = %q, want reply meta line", html)
+	if !strings.Contains(html, "⤷ Reply to") {
+		t.Fatalf("html = %q, want reply meta prefix", html)
+	}
+	if !strings.Contains(html, `class="author-handle"`) {
+		t.Fatalf("html = %q, want author-handle on reply meta", html)
+	}
+	if !strings.Contains(html, "@other.example") {
+		t.Fatalf("html = %q, want parent handle in reply meta", html)
 	}
 	if !strings.Contains(html, "a reply") {
 		t.Fatalf("html = %q, want reply text", html)
