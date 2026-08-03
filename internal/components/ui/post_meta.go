@@ -15,7 +15,7 @@ func RepostMeta(repostedBy AuthorInfo) g.Node {
 		A(
 			g.Attr("href", "/"+repostedBy.Handle),
 			g.Attr("style", "pointer-events: auto"),
-			g.Text("@"+repostedBy.Handle),
+			AuthorHandle(repostedBy),
 		),
 	)
 }
@@ -27,7 +27,8 @@ func ReplyMeta(parent AuthorInfo, parentPostID string) g.Node {
 		A(
 			g.Attr("href", href),
 			g.Attr("style", "pointer-events: auto"),
-			g.Text("⤷ Reply to @"+parent.Handle),
+			g.Text("⤷ Reply to "),
+			AuthorHandle(parent),
 		),
 	)
 }

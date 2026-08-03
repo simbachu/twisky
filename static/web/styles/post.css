@@ -7,6 +7,10 @@
     line-height: 1.3;
   }
 
+  & > p {
+    font-family: "Ysabeau Infant", serif;
+  }
+
   /* Shared header/meta primitives (focus post keeps header-local grid + body margin). */
   & > :not(header) {
     margin-inline-start: var(--post-indent);

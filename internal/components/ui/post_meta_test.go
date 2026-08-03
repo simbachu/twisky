@@ -27,6 +27,9 @@ func TestRepostMeta_RendersHandle(t *testing.T) {
 	if !strings.Contains(html, "Reposted by") {
 		t.Fatalf("html = %q, want Reposted by", html)
 	}
+	if !strings.Contains(html, `class="author-handle"`) {
+		t.Fatalf("html = %q, want author-handle class", html)
+	}
 	if !strings.Contains(html, "@reposter.example") {
 		t.Fatalf("html = %q, want @reposter.example", html)
 	}
@@ -47,8 +50,14 @@ func TestReplyMeta_RendersHandleAndLink(t *testing.T) {
 	if !strings.Contains(html, `class="post-meta post-meta-reply"`) {
 		t.Fatalf("html = %q, want reply meta class", html)
 	}
-	if !strings.Contains(html, "⤷ Reply to @parent.example") {
-		t.Fatalf("html = %q, want reply meta text", html)
+	if !strings.Contains(html, "⤷ Reply to") {
+		t.Fatalf("html = %q, want reply meta prefix", html)
+	}
+	if !strings.Contains(html, `class="author-handle"`) {
+		t.Fatalf("html = %q, want author-handle class", html)
+	}
+	if !strings.Contains(html, "@parent.example") {
+		t.Fatalf("html = %q, want @parent.example", html)
 	}
 	if !strings.Contains(html, `href="/parent.example/post/parent-id"`) {
 		t.Fatalf("html = %q, want parent post link", html)
@@ -108,8 +117,11 @@ func TestPostHeader_RendersRepostAndReplyMeta(t *testing.T) {
 	if !strings.Contains(html, "Reposted by") {
 		t.Fatalf("html = %q, want repost meta", html)
 	}
-	if !strings.Contains(html, "⤷ Reply to @parent.example") {
+	if !strings.Contains(html, "⤷ Reply to") {
 		t.Fatalf("html = %q, want reply meta", html)
+	}
+	if !strings.Contains(html, `class="author-handle"`) {
+		t.Fatalf("html = %q, want author-handle class on meta handles", html)
 	}
 }
 

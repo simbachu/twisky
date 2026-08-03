@@ -1,0 +1,39 @@
+@font-face {
+  font-family: "Ysabeau";
+  src: url("/static/fonts/Ysabeau-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ysabeau";
+  src: url("/static/fonts/Ysabeau-Italic-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ysabeau Infant";
+  src: url("/static/fonts/YsabeauInfant-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ysabeau Infant";
+  src: url("/static/fonts/YsabeauInfant-Italic-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ysabeau SC";
+  src: url("/static/fonts/YsabeauSC-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}

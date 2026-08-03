@@ -10,6 +10,7 @@ import (
 
 // Concatenation order for partials in static/web/styles/.
 var partials = []string{
+	"fonts.css",
 	"tokens.css",
 	"base.css",
 	"author.css",

@@ -41,8 +41,9 @@
 }
 
 .author-handle {
+  font-family: "Ysabeau SC", sans-serif;
   font-size: 0.9em;
-  font-weight: lighter;
+  font-weight: 400;
 }
 
 .byline {
