@@ -319,7 +319,7 @@ func TestPost_RendersBlurredAvatarForAccountModeration(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="byline-avatar byline-avatar-moderated"`) {
+	if !strings.Contains(html, `class="profile-icon profile-icon-moderated"`) {
 		t.Fatalf("html = %q, want moderated avatar placeholder", html)
 	}
 	if strings.Contains(html, "https://example.com/avatar.jpg") {

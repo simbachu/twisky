@@ -5,22 +5,19 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// MiniProfile renders a compact profile link (avatar, name, handle).
-func MiniProfile(author AuthorInfo) g.Node {
+// MiniProfile renders compact author chrome (avatar, name, handle) for the given mode.
+// It is layout only — it does not wrap itself in a profile link.
+func MiniProfile(author AuthorInfo, mode AuthorInteractive) g.Node {
 	children := []g.Node{
-		g.Attr("href", "/"+author.Handle),
 		g.Attr("class", "mini-profile"),
 	}
-	if glyph := AvatarGlyph(author.Avatar, author.Handle, author.DID, author.IsLabeler); glyph != nil {
-		children = append(children, Span(
-			g.Attr("class", "byline-avatar"),
-			glyph,
-		))
+	if avatar := ActionableAvatar(author, mode); avatar != nil {
+		children = append(children, avatar)
 	}
 	children = append(children, Span(
 		g.Attr("class", "mini-profile-info"),
-		AuthorName(author),
-		AuthorHandle(author),
+		AuthorName(author, mode),
+		AuthorHandle(author, mode),
 	))
-	return A(children...)
+	return Span(children...)
 }

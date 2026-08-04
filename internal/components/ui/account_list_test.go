@@ -26,7 +26,13 @@ func TestAccountList_RendersAllItems(t *testing.T) {
 		t.Fatalf("html = %q, want account-list class", html)
 	}
 	if strings.Count(html, `class="mini-profile"`) != 2 {
-		t.Fatalf("html = %q, want two mini-profile links", html)
+		t.Fatalf("html = %q, want two mini-profiles", html)
+	}
+	if strings.Count(html, `class="account-list-item-overlay"`) != 2 {
+		t.Fatalf("html = %q, want two row overlays", html)
+	}
+	if !strings.Contains(html, `href="/one.example"`) {
+		t.Fatalf("html = %q, want overlay/profile href for one", html)
 	}
 	if strings.Count(html, `class="iface-pill"`) != 2 {
 		t.Fatalf("html = %q, want two iface-pill buttons", html)
@@ -39,6 +45,9 @@ func TestAccountList_RendersAllItems(t *testing.T) {
 	}
 	if !strings.Contains(html, "One") || !strings.Contains(html, "Two") {
 		t.Fatalf("html = %q, want both display names", html)
+	}
+	if !strings.Contains(html, `data-author-interactive="peekable"`) {
+		t.Fatalf("html = %q, want peekable author controls", html)
 	}
 }
 

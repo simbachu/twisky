@@ -81,8 +81,11 @@ func TestProfile_LabelerAvatarHasDataKind(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="byline-avatar"`) {
-		t.Fatalf("html = %q, want byline-avatar", html)
+	if !strings.Contains(html, `class="profile-icon"`) {
+		t.Fatalf("html = %q, want profile-icon", html)
+	}
+	if !strings.Contains(html, `<span class="profile-icon" data-kind="labeler">`) {
+		t.Fatalf("html = %q, want static profile-icon span (not a self-link)", html)
 	}
 	if !strings.Contains(html, `data-kind="labeler"`) {
 		t.Fatalf("html = %q, want data-kind=labeler on profile avatar", html)
@@ -180,7 +183,7 @@ func TestProfile_RendersLabelsIndicator(t *testing.T) {
 		`href="/moderation.bsky.app"`,
 		`title="Bluesky Moderation: Suggestive content"`,
 		`title="Bluesky Moderation: Non-sexual nudity"`,
-		`class="byline-avatar-emoji"`,
+		`class="profile-icon-emoji"`,
 		actor.AvatarEmojiButterfly,
 		`Suggestive content`,
 		`Non-sexual nudity`,

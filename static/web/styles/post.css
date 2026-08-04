@@ -41,7 +41,7 @@
       display: contents;
     }
 
-    .byline-avatar {
+    .profile-icon {
       grid-column: 1;
       grid-row: 1;
       align-self: start;
@@ -57,21 +57,21 @@
         margin: 0;
       }
 
-      .byline-avatar-emoji {
+      .profile-icon-emoji {
         width: var(--post-avatar-size);
         height: var(--post-avatar-size);
         font-size: 1.25rem;
       }
     }
 
-    .byline > span:not(.byline-avatar) {
+    .byline > span:not(.profile-icon) {
       grid-column: 2;
       align-self: center;
     }
 
     /* Repost meta: split col B into meta + name beside a spanning avatar. */
     &:has(> .post-meta:not(.post-meta-reply)) {
-      .byline-avatar {
+      .profile-icon {
         grid-row: 1 / 3;
         align-self: end;
 
@@ -82,14 +82,14 @@
           height: 2.4rem;
         }
 
-        .byline-avatar-emoji {
+        .profile-icon-emoji {
           width: 2.4rem;
           height: 2.4rem;
           font-size: 1.15rem;
         }
       }
 
-      .byline-avatar-moderated {
+      .profile-icon-moderated {
         width: 2.4rem;
       }
 
@@ -101,7 +101,7 @@
         margin-block-end: 0.1rem;
       }
 
-      .byline > span:not(.byline-avatar) {
+      .byline > span:not(.profile-icon) {
         align-self: end;
       }
     }
@@ -136,25 +136,25 @@
       padding-inline-end: 0;
     }
 
-    .byline-avatar {
+    .profile-icon {
       grid-column: 1;
       grid-row: 1;
       align-self: start;
     }
 
     .post-meta,
-    .byline > span:not(.byline-avatar) {
+    .byline > span:not(.profile-icon) {
       grid-column: 2;
       align-self: start;
     }
 
-    .byline > span:not(.byline-avatar) {
+    .byline > span:not(.profile-icon) {
       margin-block-end: 0.25rem;
     }
 
     /* Repost meta: avatar spans meta + byline; track width stays --post-avatar-track. */
     &:has(> header > .post-meta:not(.post-meta-reply)) {
-      .byline-avatar {
+      .profile-icon {
         grid-row: 1 / 3;
         align-self: end;
 
@@ -164,14 +164,14 @@
           height: 2.4rem;
         }
 
-        .byline-avatar-emoji {
+        .profile-icon-emoji {
           width: 2.4rem;
           height: 2.4rem;
           font-size: 1.15rem;
         }
       }
 
-      .byline-avatar-moderated {
+      .profile-icon-moderated {
         width: 2.4rem;
       }
 
@@ -183,7 +183,7 @@
         margin-block-end: 0.1rem;
       }
 
-      .byline > span:not(.byline-avatar) {
+      .byline > span:not(.profile-icon) {
         align-self: end;
       }
     }
@@ -336,13 +336,13 @@
     .byline {
       font-size: 0.875em;
 
-      .byline-avatar img {
+      .profile-icon img {
         width: auto;
         max-width: none;
         max-height: 1.5em;
       }
 
-      .byline-avatar-emoji {
+      .profile-icon-emoji {
         width: 1.5em;
         height: 1.5em;
         font-size: 1em;

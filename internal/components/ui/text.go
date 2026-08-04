@@ -24,6 +24,7 @@ func SegmentNode(segment richtext.Segment) g.Node {
 		return A(
 			g.Attr("href", "/"+url.PathEscape(segment.Mention)),
 			g.Attr("style", "pointer-events: auto"),
+			g.Attr("data-author-interactive", "peekable"),
 			Span(g.Attr("class", "facet-mention"), g.Text(segment.Text)),
 		)
 	case richtext.Link:

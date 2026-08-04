@@ -25,7 +25,7 @@ func AccountMenu(view AccountMenuView) g.Node {
 	}
 
 	children := []g.Node{
-		Summary(MiniProfile(*view.Current)),
+		Summary(MiniProfile(*view.Current, AuthorStatic)),
 		Ul(
 			Li(
 				Form(
@@ -54,5 +54,5 @@ func accountSwitcher(accounts []AuthorInfo) g.Node {
 }
 
 func accountSwitcherItem(account AuthorInfo) g.Node {
-	return Li(MiniProfile(account))
+	return Li(MiniProfile(account, AuthorStatic))
 }

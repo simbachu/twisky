@@ -4,6 +4,7 @@
     flex-direction: column;
 
     .account-list-item {
+      position: relative;
       padding: 0.5em 0.75em;
       display: flex;
       align-items: center;
@@ -12,18 +13,30 @@
       &:hover {
         background-color: rgba(0, 0, 0, 0.05);
       }
+
+      .account-list-item-overlay {
+        position: absolute;
+        inset: 0;
+      }
+
+      .profile-icon,
+      .mini-profile-info a,
+      .iface-pill {
+        position: relative;
+        z-index: 1;
+      }
     }
   }
 
   .mini-profile {
     flex: 1;
 
-    .byline-avatar img {
+    .profile-icon img {
       max-width: 2.5rem;
       max-height: 2.5rem;
     }
 
-    .byline-avatar-emoji {
+    .profile-icon-emoji {
       width: 2.5rem;
       height: 2.5rem;
       font-size: 1.25rem;
@@ -33,12 +46,12 @@
 
 .account-menu {
   .mini-profile {
-    .byline-avatar img {
+    .profile-icon img {
       max-width: 2.5rem;
       max-height: 2.5rem;
     }
 
-    .byline-avatar-emoji {
+    .profile-icon-emoji {
       width: 2.5rem;
       height: 2.5rem;
       font-size: 1.25rem;
@@ -84,8 +97,8 @@
     margin-inline: var(--content-padding-inline);
   }
 
-  > .byline-avatar,
-  > .byline-avatar-moderated {
+  > .profile-icon,
+  > .profile-icon-moderated {
     margin-block-start: calc(-1 * var(--profile-avatar-overlap) * var(--profile-avatar-size) - 0.5rem);
     z-index: 1;
     position: relative;
@@ -96,20 +109,20 @@
     margin: 0;
   }
 
-  .byline-avatar img,
-  .byline-avatar-emoji {
+  .profile-icon img,
+  .profile-icon-emoji {
     width: var(--profile-avatar-size);
     max-width: none;
     max-height: none;
     box-shadow: 0 0 0 var(--profile-avatar-knockout) canvas;
   }
 
-  .byline-avatar-emoji {
+  .profile-icon-emoji {
     font-size: calc(var(--profile-avatar-size) * 0.55);
     height: var(--profile-avatar-size);
   }
 
-  .byline-avatar-moderated {
+  .profile-icon-moderated {
     width: var(--profile-avatar-size);
     box-shadow: 0 0 0 var(--profile-avatar-knockout) canvas;
   }
@@ -144,7 +157,7 @@
     object-fit: cover;
   }
 
-  .byline-avatar-emoji {
+  .profile-icon-emoji {
     width: 1rem;
     height: 1rem;
     font-size: 0.75rem;

@@ -10,20 +10,20 @@ import (
 	"github.com/simbachu/twisky/internal/components/ui"
 )
 
-func TestAvatar_RendersShieldFallbackForLabeler(t *testing.T) {
+func TestActionableAvatar_PeekableRendersShieldFallbackForLabeler(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.Avatar(ui.AuthorInfo{
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
 		Handle:      "labeler.example.com",
 		DisplayName: "Example Labeler Service",
 		IsLabeler:   true,
-	}).Render(&buf); err != nil {
+	}, ui.AuthorPeekable).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `class="byline-avatar-emoji"`) {
+	if !strings.Contains(html, `class="profile-icon-emoji"`) {
 		t.Fatalf("html = %q, want emoji avatar", html)
 	}
 	if !strings.Contains(html, actor.AvatarEmojiShield) {
@@ -32,17 +32,71 @@ func TestAvatar_RendersShieldFallbackForLabeler(t *testing.T) {
 	if !strings.Contains(html, `data-kind="labeler"`) {
 		t.Fatalf("html = %q, want data-kind=labeler", html)
 	}
+	if !strings.Contains(html, `href="/labeler.example.com"`) {
+		t.Fatalf("html = %q, want profile href", html)
+	}
+	if !strings.Contains(html, `data-author-interactive="peekable"`) {
+		t.Fatalf("html = %q, want peekable marker", html)
+	}
 }
 
-func TestAvatar_OmitsDataKindForNonLabeler(t *testing.T) {
+func TestActionableAvatar_StaticOmitsLinkAndPeekMarker(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.Avatar(ui.AuthorInfo{
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
 		Handle:      "dev.example",
 		DisplayName: "Dev",
 		Avatar:      "https://cdn.example/a.jpg",
-	}).Render(&buf); err != nil {
+	}, ui.AuthorStatic).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if strings.Contains(html, `href=`) {
+		t.Fatalf("html = %q, want no href for static", html)
+	}
+	if strings.Contains(html, `data-author-interactive=`) {
+		t.Fatalf("html = %q, want no interactive marker for static", html)
+	}
+	if !strings.Contains(html, `class="profile-icon"`) {
+		t.Fatalf("html = %q, want profile-icon", html)
+	}
+}
+
+func TestActionableAvatar_LinkedMarksWithoutPeek(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
+		Handle:      "dev.example",
+		DisplayName: "Dev",
+		Avatar:      "https://cdn.example/a.jpg",
+	}, ui.AuthorLinked).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `href="/dev.example"`) {
+		t.Fatalf("html = %q, want profile href", html)
+	}
+	if !strings.Contains(html, `data-author-interactive="linked"`) {
+		t.Fatalf("html = %q, want linked marker", html)
+	}
+	if strings.Contains(html, `data-author-interactive="peekable"`) {
+		t.Fatalf("html = %q, want no peekable marker", html)
+	}
+}
+
+func TestActionableAvatar_OmitsDataKindForNonLabeler(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
+		Handle:      "dev.example",
+		DisplayName: "Dev",
+		Avatar:      "https://cdn.example/a.jpg",
+	}, ui.AuthorPeekable).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -51,15 +105,15 @@ func TestAvatar_OmitsDataKindForNonLabeler(t *testing.T) {
 	}
 }
 
-func TestAvatar_LabelerKindOnModeratedPlaceholder(t *testing.T) {
+func TestActionableAvatar_LabelerKindOnModeratedPlaceholder(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.Avatar(ui.AuthorInfo{
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
 		Handle:     "labeler.example.com",
 		IsLabeler:  true,
 		BlurAvatar: true,
-	}).Render(&buf); err != nil {
+	}, ui.AuthorPeekable).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -67,25 +121,70 @@ func TestAvatar_LabelerKindOnModeratedPlaceholder(t *testing.T) {
 	if !strings.Contains(html, `data-kind="labeler"`) {
 		t.Fatalf("html = %q, want data-kind=labeler on moderated avatar", html)
 	}
-	if !strings.Contains(html, `byline-avatar-moderated`) {
+	if !strings.Contains(html, `profile-icon-moderated`) {
 		t.Fatalf("html = %q, want moderated avatar", html)
 	}
 }
 
-func TestAvatar_RendersButterflyFallbackForBskyApp(t *testing.T) {
+func TestActionableAvatar_RendersButterflyFallbackForBskyApp(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := ui.Avatar(ui.AuthorInfo{
+	if err := ui.ActionableAvatar(ui.AuthorInfo{
 		Handle:      "user.bsky.app",
 		DisplayName: "Bluesky User",
-	}).Render(&buf); err != nil {
+	}, ui.AuthorPeekable).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	html := buf.String()
 	if !strings.Contains(html, actor.AvatarEmojiButterfly) {
 		t.Fatalf("html = %q, want butterfly emoji", html)
+	}
+}
+
+func TestAuthorName_PeekableIsLink(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.AuthorName(ui.AuthorInfo{
+		Handle:      "dev.example",
+		DisplayName: "Dev User",
+	}, ui.AuthorPeekable).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.HasPrefix(html, "<a ") {
+		t.Fatalf("html = %q, want link", html)
+	}
+	if !strings.Contains(html, `data-author-interactive="peekable"`) {
+		t.Fatalf("html = %q, want peekable marker", html)
+	}
+	if !strings.Contains(html, "Dev User") {
+		t.Fatalf("html = %q, want display name", html)
+	}
+}
+
+func TestAuthorHandle_StaticIsSpan(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.AuthorHandle(ui.AuthorInfo{
+		Handle: "dev.example",
+	}, ui.AuthorStatic).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.HasPrefix(html, "<span ") {
+		t.Fatalf("html = %q, want span", html)
+	}
+	if strings.Contains(html, `href=`) {
+		t.Fatalf("html = %q, want no href", html)
+	}
+	if !strings.Contains(html, "@dev.example") {
+		t.Fatalf("html = %q, want handle", html)
 	}
 }
 
@@ -109,6 +208,9 @@ func TestAuthorLink_ShowsNameAndHandle(t *testing.T) {
 	}
 	if !strings.Contains(html, "@dev.example") {
 		t.Fatalf("html = %q, want handle", html)
+	}
+	if strings.Count(html, `data-author-interactive="peekable"`) != 2 {
+		t.Fatalf("html = %q, want peekable name and handle", html)
 	}
 }
 

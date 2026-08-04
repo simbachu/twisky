@@ -33,9 +33,9 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 		Header(
 			g.Attr("class", "profile"),
 			profileBanner(view.Banner),
-			ui.Avatar(author),
-			H1(ui.AuthorName(author)),
-			H2(ui.AuthorHandle(author)),
+			ui.ActionableAvatar(author, ui.AuthorStatic),
+			H1(ui.AuthorName(author, ui.AuthorStatic)),
+			H2(ui.AuthorHandle(author, ui.AuthorStatic)),
 			profileStats(view),
 			profileLabels(view.Labels),
 			g.If(view.Description != "", profileDescription(view)),

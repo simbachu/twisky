@@ -104,8 +104,11 @@ func TestAccountMenu_RendersAdditionalSwitcher(t *testing.T) {
 	if !strings.Contains(html, "Switch account") {
 		t.Fatalf("html = %q, want Switch account label", html)
 	}
-	if !strings.Contains(html, `href="/bob.test"`) {
-		t.Fatalf("html = %q, want additional profile href stub", html)
+	if strings.Contains(html, `href="/bob.test"`) {
+		t.Fatalf("html = %q, want no profile href on switcher chrome", html)
+	}
+	if strings.Contains(html, `href="/alice.test"`) {
+		t.Fatalf("html = %q, want no profile href on summary chrome", html)
 	}
 	if !strings.Contains(html, "Bob") {
 		t.Fatalf("html = %q, want additional account name", html)

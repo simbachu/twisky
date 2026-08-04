@@ -20,7 +20,13 @@ func AccountList(accounts []AuthorInfo) g.Node {
 func accountListItem(author AuthorInfo) g.Node {
 	return Li(
 		g.Attr("class", "account-list-item"),
-		MiniProfile(author),
+		A(
+			g.Attr("class", "account-list-item-overlay"),
+			g.Attr("href", "/"+author.Handle),
+			g.Attr("tabindex", "-1"),
+			g.Attr("aria-hidden", "true"),
+		),
+		MiniProfile(author, AuthorPeekable),
 		PillButton(ActionButtonConfig{
 			Icon:  IconFollow,
 			Label: "Follow " + author.DisplayName,

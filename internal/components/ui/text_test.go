@@ -29,6 +29,9 @@ func TestRichText_RendersFacetSpanClasses(t *testing.T) {
 			t.Fatalf("html = %q, want %s", html, class)
 		}
 	}
+	if !strings.Contains(html, `data-author-interactive="peekable"`) {
+		t.Fatalf("html = %q, want peekable mention", html)
+	}
 	if !strings.Contains(html, "🡕") {
 		t.Fatalf("html = %q, want external link indicator", html)
 	}

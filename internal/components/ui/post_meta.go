@@ -12,11 +12,7 @@ func RepostMeta(repostedBy AuthorInfo) g.Node {
 	return P(
 		g.Attr("class", "post-meta"),
 		g.Text("Reposted by "),
-		A(
-			g.Attr("href", "/"+repostedBy.Handle),
-			g.Attr("style", "pointer-events: auto"),
-			AuthorHandle(repostedBy),
-		),
+		AuthorHandle(repostedBy, AuthorPeekable),
 	)
 }
 
@@ -28,7 +24,7 @@ func ReplyMeta(parent AuthorInfo, parentPostID string) g.Node {
 			g.Attr("href", href),
 			g.Attr("style", "pointer-events: auto"),
 			g.Text("⤷ Reply to "),
-			AuthorHandle(parent),
+			AuthorHandle(parent, AuthorStatic),
 		),
 	)
 }
@@ -55,7 +51,7 @@ func postBylineContent(author AuthorInfo, createdAt, now time.Time, includeTimes
 	}
 	return Div(
 		g.Attr("class", "byline"),
-		Avatar(author),
+		ActionableAvatar(author, AuthorPeekable),
 		Span(g.Group(authorSpan)),
 	)
 }
