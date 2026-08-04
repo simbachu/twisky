@@ -140,7 +140,8 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tagpage.Tag(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+		suggested := s.suggestedAccounts(r.Context())
+		_ = tagpage.Tag(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)
 	default:
@@ -169,7 +170,9 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_ = profilepage.Profile(v, time.Now().UTC(), s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+			suggested := s.suggestedAccounts(r.Context())
+			known := append([]ui.AuthorInfo{authorInfoFromProfileView(v)}, suggested...)
+			_ = profilepage.Profile(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, known...), s.publicBaseURL).Render(w)
 		case response.ErrorResponse:
 			http.Error(w, v.Message, v.Status)
 		default:
@@ -213,7 +216,8 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			_ = postpage.RepliesRefreshFragment(v, parseKnownParam(r), now).Render(w)
 		default:
 			v.ExplicitLive = wantsLive(r)
-			_ = postpage.PostPage(v, now, s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+			suggested := s.suggestedAccounts(r.Context())
+			_ = postpage.PostPage(v, now, suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		}
 	case response.ErrorResponse:
 		http.Error(w, v.Message, v.Status)

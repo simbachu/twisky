@@ -9,13 +9,15 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/simbachu/twisky/internal/actor"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/auth/session"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
 	"github.com/simbachu/twisky/internal/components/ui"
+	profilequery "github.com/simbachu/twisky/internal/query/profile"
 )
 
-func (s *Server) accountMenuView(r *http.Request) ui.AccountMenuView {
+func (s *Server) accountMenuView(w http.ResponseWriter, r *http.Request, known ...ui.AuthorInfo) ui.AccountMenuView {
 	if s.auth == nil {
 		return ui.AccountMenuView{}
 	}
@@ -24,7 +26,35 @@ func (s *Server) accountMenuView(r *http.Request) ui.AccountMenuView {
 	if err != nil {
 		return view
 	}
+	state = s.syncSessionAuthorChrome(w, state, known...)
 	return accountMenuViewFromState(state)
+}
+
+// syncSessionAuthorChrome updates cookied accounts from AuthorInfo already loaded for the page.
+// Saves only when chrome fields change. Returns the state to use for this response's menu.
+func (s *Server) syncSessionAuthorChrome(w http.ResponseWriter, state session.State, known ...ui.AuthorInfo) session.State {
+	if s.auth == nil {
+		return state
+	}
+	changed := false
+	for _, author := range known {
+		if author.DID == "" {
+			continue
+		}
+		next, ok := state.UpdateAuthorChrome(author.DID, author.Handle, author.DisplayName, author.Avatar)
+		if !ok {
+			continue
+		}
+		state = next
+		changed = true
+	}
+	if !changed {
+		return state
+	}
+	if err := s.auth.Jar.Save(w, state); err != nil {
+		slog.Warn("session author chrome save failed", "err", err)
+	}
+	return state
 }
 
 func accountMenuViewFromState(state session.State) ui.AccountMenuView {
@@ -46,8 +76,20 @@ func accountMenuViewFromState(state session.State) ui.AccountMenuView {
 
 func authorInfoFromSession(account session.Account) ui.AuthorInfo {
 	return ui.AuthorInfo{
-		Handle: account.Handle,
-		DID:    account.DID,
+		Handle:      account.Handle,
+		DisplayName: actor.Name(account.DisplayName, account.Handle),
+		DID:         account.DID,
+		Avatar:      account.Avatar,
+	}
+}
+
+func authorInfoFromProfileView(view profilequery.ProfileView) ui.AuthorInfo {
+	return ui.AuthorInfo{
+		Handle:      view.Handle,
+		DisplayName: view.DisplayName,
+		DID:         view.DID,
+		Avatar:      view.Avatar,
+		IsLabeler:   view.IsLabeler,
 	}
 }
 
@@ -79,7 +121,8 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginpage.Page("", s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+		suggested := s.suggestedAccounts(r.Context())
+		_ = loginpage.Page("", suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		return
 	}
 
@@ -91,7 +134,8 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 	if username == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page("Handle or DID is required.", s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+		suggested := s.suggestedAccounts(r.Context())
+		_ = loginpage.Page("Handle or DID is required.", suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		return
 	}
 
@@ -100,7 +144,8 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("oauth login failed", "err", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
+		suggested := s.suggestedAccounts(r.Context())
+		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		return
 	}
 	http.Redirect(w, r, redirectURL, http.StatusFound)

@@ -21,9 +21,11 @@ var (
 
 // Account is one logged-in ATProto account bound to an indigo OAuth session id.
 type Account struct {
-	DID       string `json:"did"`
-	SessionID string `json:"session_id"`
-	Handle    string `json:"handle,omitempty"`
+	DID         string `json:"did"`
+	SessionID   string `json:"session_id"`
+	Handle      string `json:"handle,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
 }
 
 // State is the signed browser session payload (multi-account).
@@ -59,6 +61,37 @@ func (s State) AddAccount(account Account) State {
 	s.Accounts = accounts
 	s.ActiveDID = account.DID
 	return s
+}
+
+// UpdateAuthorChrome sets display name and avatar for a cookied DID when they differ.
+// ok is false when the DID is absent or chrome is already current (no save needed).
+func (s State) UpdateAuthorChrome(did, handle, displayName, avatar string) (State, bool) {
+	changed := false
+	accounts := make([]Account, len(s.Accounts))
+	copy(accounts, s.Accounts)
+	for i, account := range accounts {
+		if account.DID != did {
+			continue
+		}
+		if handle != "" && account.Handle != handle {
+			accounts[i].Handle = handle
+			changed = true
+		}
+		if account.DisplayName != displayName {
+			accounts[i].DisplayName = displayName
+			changed = true
+		}
+		if account.Avatar != avatar {
+			accounts[i].Avatar = avatar
+			changed = true
+		}
+		if !changed {
+			return s, false
+		}
+		s.Accounts = accounts
+		return s, true
+	}
+	return s, false
 }
 
 // RemoveAccount drops a DID; if it was active, promotes the first remaining account.

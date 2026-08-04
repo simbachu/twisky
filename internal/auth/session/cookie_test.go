@@ -18,7 +18,13 @@ func TestCookie_RoundTripMultiAccount(t *testing.T) {
 	state := session.State{
 		ActiveDID: "did:plc:alice",
 		Accounts: []session.Account{
-			{DID: "did:plc:alice", SessionID: "sess-a", Handle: "alice.bsky.social"},
+			{
+				DID:         "did:plc:alice",
+				SessionID:   "sess-a",
+				Handle:      "alice.bsky.social",
+				DisplayName: "Alice",
+				Avatar:      "https://cdn.example/alice.jpg",
+			},
 			{DID: "did:plc:bob", SessionID: "sess-b", Handle: "bob.bsky.social"},
 		},
 	}
@@ -41,6 +47,9 @@ func TestCookie_RoundTripMultiAccount(t *testing.T) {
 	}
 	if len(got.Accounts) != 2 {
 		t.Fatalf("len(Accounts) = %d, want 2", len(got.Accounts))
+	}
+	if got.Accounts[0].DisplayName != "Alice" || got.Accounts[0].Avatar != "https://cdn.example/alice.jpg" {
+		t.Fatalf("Accounts[0] chrome = %+v, want DisplayName/Avatar", got.Accounts[0])
 	}
 	if got.Accounts[1].Handle != "bob.bsky.social" {
 		t.Fatalf("Accounts[1].Handle = %q", got.Accounts[1].Handle)
@@ -122,6 +131,39 @@ func TestState_ActiveAccount(t *testing.T) {
 	}
 	if account.Handle != "bob.test" {
 		t.Fatalf("Handle = %q", account.Handle)
+	}
+}
+
+func TestState_UpdateAuthorChrome(t *testing.T) {
+	t.Parallel()
+
+	state := session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts: []session.Account{
+			{DID: "did:plc:alice", SessionID: "a", Handle: "alice.test"},
+			{DID: "did:plc:bob", SessionID: "b", Handle: "bob.test"},
+		},
+	}
+
+	updated, ok := state.UpdateAuthorChrome("did:plc:alice", "alice.test", "Alice", "https://cdn.example/a.jpg")
+	if !ok {
+		t.Fatal("UpdateAuthorChrome = false, want true")
+	}
+	if updated.Accounts[0].DisplayName != "Alice" || updated.Accounts[0].Avatar != "https://cdn.example/a.jpg" {
+		t.Fatalf("Accounts[0] = %+v, want chrome fields", updated.Accounts[0])
+	}
+	if updated.Accounts[0].SessionID != "a" {
+		t.Fatalf("SessionID = %q, want preserved", updated.Accounts[0].SessionID)
+	}
+
+	_, ok = updated.UpdateAuthorChrome("did:plc:alice", "alice.test", "Alice", "https://cdn.example/a.jpg")
+	if ok {
+		t.Fatal("UpdateAuthorChrome unchanged = true, want false")
+	}
+
+	_, ok = state.UpdateAuthorChrome("did:plc:missing", "x", "X", "https://cdn.example/x.jpg")
+	if ok {
+		t.Fatal("UpdateAuthorChrome missing DID = true, want false")
 	}
 }
 
