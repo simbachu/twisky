@@ -12,7 +12,7 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo, auth page.AuthChrome, publicBaseURL string) g.Node {
+func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, publicBaseURL string) g.Node {
 	title := "#" + view.Tag
 	feedURL := "/tagged/" + url.PathEscape(view.Tag)
 
@@ -29,7 +29,7 @@ func Tag(view tagquery.TagView, now time.Time, suggested []ui.AuthorInfo, auth p
 	return page.Page(
 		tagPageMeta(view, publicBaseURL),
 		suggested,
-		auth,
+		accounts,
 		children...,
 	)
 }

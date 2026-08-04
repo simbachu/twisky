@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/simbachu/twisky/internal/components/page"
 	"github.com/simbachu/twisky/internal/components/post"
+	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/richtext"
 )
@@ -125,7 +125,7 @@ func TestPostPage_DefaultsHotSortChecked(t *testing.T) {
 func renderPostPage(t *testing.T, view feedquery.PostPageView) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := post.PostPage(view, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	if err := post.PostPage(view, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 	return buf.String()
@@ -143,7 +143,7 @@ func TestPostPage_RendersAncestorsSlot(t *testing.T) {
 			Text:              "linked post",
 		},
 		HasAncestors: true,
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestPostPage_RootPostRendersLiveCountsFeatures(t *testing.T) {
 			CreatedAt:    time.Now().UTC(),
 			LikeCount:    5,
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -235,7 +235,7 @@ func TestPostPage_RendersFooterTimestamp(t *testing.T) {
 			Text:         "hello",
 			CreatedAt:    createdAt,
 		},
-	}, now, nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, now, nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -273,7 +273,7 @@ func TestPostPage_RootPostAutoStartsLiveOnlyWhenFresh(t *testing.T) {
 			AuthorHandle: "bsky.app",
 			CreatedAt:    time.Now().Add(-time.Hour).UTC(),
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -297,7 +297,7 @@ func TestPostPage_ExplicitLiveStartsOldPostLive(t *testing.T) {
 			CreatedAt:    time.Now().Add(-time.Hour).UTC(),
 		},
 		ExplicitLive: true,
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -317,7 +317,7 @@ func TestPostPage_OmitsAncestorsWithoutThreadContext(t *testing.T) {
 			AuthorHandle:      "bsky.app",
 			AuthorDisplayName: "Bluesky",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -459,7 +459,7 @@ func TestPostPage_RendersNestedReplyTree(t *testing.T) {
 				},
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -521,7 +521,7 @@ func TestPostPage_ReplyWithQuotedPostLinksToQuotedPost(t *testing.T) {
 				},
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -583,7 +583,7 @@ func TestPostPage_ReplyBylineShowsOPWhenAuthorMatchesRoot(t *testing.T) {
 				}, "did:plc:other"),
 			},
 		},
-	}, now, nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, now, nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -667,7 +667,7 @@ func TestPostPage_ReplyBylineShowsOPWhenAuthorMatchesThreadRoot(t *testing.T) {
 				CreatedAt:    now.Add(time.Minute),
 			}, kellyDID)},
 		},
-	}, now, nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, now, nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -703,7 +703,7 @@ func TestPostPage_RendersEmptyRepliesContainer(t *testing.T) {
 			AuthorHandle: "bsky.app",
 			Text:         "lonely post",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -808,7 +808,7 @@ func TestPostPage_RendersSocialMetaFromPostText(t *testing.T) {
 				{Kind: richtext.Tag, Text: "#bluesky", Tag: "bluesky"},
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -850,7 +850,7 @@ func TestPostPage_PrefersPostImageOverLinkPreview(t *testing.T) {
 			},
 			AuthorAvatar: "https://cdn.example/avatar.jpg",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -880,7 +880,7 @@ func TestPostPage_UsesModerationFallbackForFilteredPost(t *testing.T) {
 			Text:              "hidden content",
 			Moderation:        feedquery.ModerationView{Filtered: true},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -913,7 +913,7 @@ func TestPostPage_RendersFilterTextForFilteredPost(t *testing.T) {
 				FilterText: "Adult content",
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -948,7 +948,7 @@ func TestPostPage_RendersReplyContextInSocialMeta(t *testing.T) {
 			Handle:      "bob.example",
 			DisplayName: "Bob",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -985,7 +985,7 @@ func TestPostPage_RendersQuoteAndLinkContextInSocialMeta(t *testing.T) {
 				Title: "Example Site Title",
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -1008,7 +1008,7 @@ func TestPostPage_UsesAvatarAsLargeImageCard(t *testing.T) {
 			Text:              "text only",
 			AuthorAvatar:      "https://cdn.example/avatar.jpg",
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -1044,7 +1044,7 @@ func TestPostPage_UsesQuotedImageWhenNoOwnMedia(t *testing.T) {
 			AuthorAvatar:      "https://cdn.example/avatar.jpg",
 			QuotedPostMaybe:   &quoted,
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -1066,7 +1066,7 @@ func TestPostPage_UsesThreadFallbackWhenParentUnavailable(t *testing.T) {
 			Text:              "still here",
 		},
 		HasAncestors: true,
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

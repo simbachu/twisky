@@ -68,3 +68,21 @@
     font-size: 0.9em;
   }
 }
+
+/* Thin profile structure; parents set density (.account-list, .account-menu, .profile-card). */
+.mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: dimgrey;
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+.mini-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}

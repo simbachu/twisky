@@ -118,7 +118,7 @@ func TestOAuthLogin_DisabledWithoutSecret(t *testing.T) {
 	}
 }
 
-func TestAuthChrome_ShowsHandleWhenCookied(t *testing.T) {
+func TestAccountMenuView_ShowsHandleWhenCookied(t *testing.T) {
 	t.Parallel()
 
 	handler, auth := newAuthTestServer(t, "https://dev.twisky.app")

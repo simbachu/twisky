@@ -7,7 +7,7 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Page(errorMessage string, suggested []ui.AuthorInfo, auth page.AuthChrome, publicBaseURL string) g.Node {
+func Page(errorMessage string, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, publicBaseURL string) g.Node {
 	children := []g.Node{
 		Header(H1(g.Text("Log in"))),
 		P(g.Text("Sign in with your Bluesky handle or DID.")),
@@ -41,7 +41,7 @@ func Page(errorMessage string, suggested []ui.AuthorInfo, auth page.AuthChrome, 
 			CanonicalURL: page.AbsoluteURL(publicBaseURL, "/oauth/login"),
 		},
 		suggested,
-		auth,
+		accounts,
 		children...,
 	)
 }

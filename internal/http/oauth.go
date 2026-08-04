@@ -12,25 +12,43 @@ import (
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/auth/session"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
-	"github.com/simbachu/twisky/internal/components/page"
+	"github.com/simbachu/twisky/internal/components/ui"
 )
 
-func (s *Server) authChrome(r *http.Request) page.AuthChrome {
+func (s *Server) accountMenuView(r *http.Request) ui.AccountMenuView {
 	if s.auth == nil {
-		return page.AuthChrome{}
+		return ui.AccountMenuView{}
 	}
-	chrome := page.AuthChrome{Enabled: true}
+	view := ui.AccountMenuView{Enabled: true}
 	state, err := s.auth.Jar.Load(r)
 	if err != nil {
-		return chrome
+		return view
 	}
-	account, ok := state.ActiveAccount()
+	return accountMenuViewFromState(state)
+}
+
+func accountMenuViewFromState(state session.State) ui.AccountMenuView {
+	view := ui.AccountMenuView{Enabled: true}
+	active, ok := state.ActiveAccount()
 	if !ok {
-		return chrome
+		return view
 	}
-	chrome.DID = account.DID
-	chrome.Handle = account.Handle
-	return chrome
+	current := authorInfoFromSession(active)
+	view.Current = &current
+	for _, account := range state.Accounts {
+		if account.DID == active.DID {
+			continue
+		}
+		view.Additional = append(view.Additional, authorInfoFromSession(account))
+	}
+	return view
+}
+
+func authorInfoFromSession(account session.Account) ui.AuthorInfo {
+	return ui.AuthorInfo{
+		Handle: account.Handle,
+		DID:    account.DID,
+	}
 }
 
 func (s *Server) requireAuth() bool {
@@ -61,7 +79,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginpage.Page("", s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		_ = loginpage.Page("", s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
 		return
 	}
 
@@ -73,7 +91,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 	if username == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page("Handle or DID is required.", s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		_ = loginpage.Page("Handle or DID is required.", s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
 		return
 	}
 
@@ -82,7 +100,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("oauth login failed", "err", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.suggestedAccounts(r.Context()), s.authChrome(r), s.publicBaseURL).Render(w)
+		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.suggestedAccounts(r.Context()), s.accountMenuView(r), s.publicBaseURL).Render(w)
 		return
 	}
 	http.Redirect(w, r, redirectURL, http.StatusFound)

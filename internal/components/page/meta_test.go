@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/simbachu/twisky/internal/components/page"
+	"github.com/simbachu/twisky/internal/components/ui"
 )
 
 func TestTruncateDescription_TruncatesLongText(t *testing.T) {
@@ -59,7 +60,7 @@ func TestPage_RendersSocialMetaTags(t *testing.T) {
 		OGType:         "profile",
 		LargeImageCard: false,
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -90,7 +91,7 @@ func TestPage_OmitsCanonicalAndImageWhenUnset(t *testing.T) {
 		Description: "Recent posts",
 		OGType:      "website",
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -120,7 +121,7 @@ func TestPage_UsesLargeImageTwitterCard(t *testing.T) {
 		OGType:         "article",
 		LargeImageCard: true,
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -149,7 +150,7 @@ func TestPage_RendersArticleAndImageStructuredMeta(t *testing.T) {
 		ImageHeight:    675,
 		LargeImageCard: true,
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -186,7 +187,7 @@ func TestPage_RendersProfileUsername(t *testing.T) {
 		AuthorHandle: "simbachu.com",
 		ImageAlt:     "Spectral (@simbachu.com)",
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -211,7 +212,7 @@ func TestPage_OmitsOptionalArticleFieldsWhenUnset(t *testing.T) {
 		Description: "Recent posts",
 		OGType:      "website",
 	}
-	if err := page.Page(meta, nil, page.AuthChrome{}).Render(&buf); err != nil {
+	if err := page.Page(meta, nil, ui.AccountMenuView{}).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

@@ -14,36 +14,41 @@
       }
     }
   }
-}
 
-.mini-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-  color: dimgrey;
-  text-decoration: none;
-  font-size: 0.9em;
+  .mini-profile {
+    flex: 1;
 
-  .byline-avatar img {
-    max-width: 2.5rem;
-    max-height: 2.5rem;
-  }
+    .byline-avatar img {
+      max-width: 2.5rem;
+      max-height: 2.5rem;
+    }
 
-  .byline-avatar-emoji {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1.25rem;
+    .byline-avatar-emoji {
+      width: 2.5rem;
+      height: 2.5rem;
+      font-size: 1.25rem;
+    }
   }
 }
 
-.mini-profile-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
+.account-menu {
+  .mini-profile {
+    .byline-avatar img {
+      max-width: 2.5rem;
+      max-height: 2.5rem;
+    }
+
+    .byline-avatar-emoji {
+      width: 2.5rem;
+      height: 2.5rem;
+      font-size: 1.25rem;
+    }
+  }
 }
+
+/* Reserved for floating ProfileCard (fat hover tier).
+.profile-card .mini-profile { }
+*/
 
 .profile {
   --profile-avatar-size: min(12cqw, 6rem);

@@ -14,7 +14,7 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo, auth page.AuthChrome, publicBaseURL string) g.Node {
+func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, publicBaseURL string) g.Node {
 	author := ui.AuthorInfo{
 		Handle:      view.Handle,
 		DisplayName: view.DisplayName,
@@ -54,7 +54,7 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 	return page.Page(
 		profilePageMeta(view, publicBaseURL),
 		suggested,
-		auth,
+		accounts,
 		children...,
 	)
 }

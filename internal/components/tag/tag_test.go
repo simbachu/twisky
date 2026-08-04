@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/simbachu/twisky/internal/components/page"
 	"github.com/simbachu/twisky/internal/components/tag"
+	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	tagquery "github.com/simbachu/twisky/internal/query/tag"
 )
@@ -18,7 +18,7 @@ func TestTag_RendersSocialMetaTags(t *testing.T) {
 	var buf bytes.Buffer
 	if err := tag.Tag(tagquery.TagView{
 		Tag: "art",
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestTag_UsesFirstVisiblePostImage(t *testing.T) {
 				},
 			},
 		},
-	}, time.Now().UTC(), nil, page.AuthChrome{}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
