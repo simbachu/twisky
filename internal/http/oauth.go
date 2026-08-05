@@ -121,8 +121,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		suggested := s.suggestedAccounts(r.Context())
-		_ = loginpage.Page("", suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
+		_ = loginpage.Page("", s.publicBaseURL, "/oauth/login").Render(w)
 		return
 	}
 
@@ -134,8 +133,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 	if username == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		suggested := s.suggestedAccounts(r.Context())
-		_ = loginpage.Page("Handle or DID is required.", suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
+		_ = loginpage.Page("Handle or DID is required.", s.publicBaseURL, "/oauth/login").Render(w)
 		return
 	}
 
@@ -144,8 +142,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("oauth login failed", "err", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		suggested := s.suggestedAccounts(r.Context())
-		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
+		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.publicBaseURL, "/oauth/login").Render(w)
 		return
 	}
 	http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -179,10 +176,7 @@ func (s *Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectTo := "/oauth/login"
-	if handle != "" {
-		redirectTo = "/" + handle
-	}
+	redirectTo := "/"
 	http.Redirect(w, r, redirectTo, http.StatusFound)
 }
 

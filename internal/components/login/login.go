@@ -7,9 +7,18 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func Page(errorMessage string, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, publicBaseURL string) g.Node {
+// Page renders the chrome-less Bluesky OAuth login form.
+// canonicalPath is the path used for the canonical URL (e.g. "/" or "/oauth/login").
+func Page(errorMessage, publicBaseURL, canonicalPath string) g.Node {
 	children := []g.Node{
-		Header(H1(g.Text("Log in"))),
+		H1(
+			A(
+				g.Attr("href", "/"),
+				g.Attr("aria-label", page.AppName),
+				Figure(ui.Icon(ui.IconBrand)),
+			),
+		),
+		H2(g.Text("Login with Bluesky")),
 		P(g.Text("Sign in with your Bluesky handle or DID.")),
 	}
 	if errorMessage != "" {
@@ -31,17 +40,15 @@ func Page(errorMessage string, suggested []ui.AuthorInfo, accounts ui.AccountMen
 				g.Attr("required", ""),
 				g.Attr("placeholder", "you.bsky.social"),
 			),
-			Button(g.Attr("type", "submit"), g.Text("Continue")),
+			Button(g.Attr("type", "submit"), g.Text("Login with Bluesky")),
 		),
 	)
-	return page.Page(
+	return page.Bare(
 		page.PageMeta{
-			Title:        "Log in · Twisky",
+			Title:        "Login with Bluesky · Twisky",
 			Description:  "Sign in to Twisky with Bluesky OAuth.",
-			CanonicalURL: page.AbsoluteURL(publicBaseURL, "/oauth/login"),
+			CanonicalURL: page.AbsoluteURL(publicBaseURL, canonicalPath),
 		},
-		suggested,
-		accounts,
 		children...,
 	)
 }

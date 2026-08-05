@@ -215,6 +215,11 @@ type AuthorFeedResponse struct {
 	Cursor string
 }
 
+type TimelineRequest struct {
+	Limit  int
+	Cursor string
+}
+
 type authorFeedResponse struct {
 	Feed   []FeedItem `json:"feed"`
 	Cursor string     `json:"cursor,omitempty"`

@@ -69,6 +69,51 @@ func (c *SessionClient) GetPosts(ctx context.Context, uris []string) ([]bluesky.
 	return out, nil
 }
 
+// GetTimeline fetches the authenticated user's following feed via the AppView proxy.
+func (c *SessionClient) GetTimeline(ctx context.Context, req bluesky.TimelineRequest) (*bluesky.AuthorFeedResponse, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	appview := c.client.WithService(appViewService)
+	params := map[string]any{}
+	if req.Limit > 0 {
+		params["limit"] = req.Limit
+	}
+	if req.Cursor != "" {
+		params["cursor"] = req.Cursor
+	}
+	var resp struct {
+		Feed   []bluesky.FeedItem `json:"feed"`
+		Cursor string             `json:"cursor,omitempty"`
+	}
+	if err := appview.Get(ctx, "app.bsky.feed.getTimeline", params, &resp); err != nil {
+		return nil, err
+	}
+	return &bluesky.AuthorFeedResponse{
+		Feed:   resp.Feed,
+		Cursor: resp.Cursor,
+	}, nil
+}
+
+// GetProfiles fetches actor profiles via the AppView proxy.
+func (c *SessionClient) GetProfiles(ctx context.Context, actors []string) ([]bluesky.Profile, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	if len(actors) == 0 {
+		return nil, nil
+	}
+	appview := c.client.WithService(appViewService)
+	var resp struct {
+		Profiles []bluesky.Profile `json:"profiles"`
+	}
+	params := map[string]any{"actors": actors}
+	if err := appview.Get(ctx, "app.bsky.actor.getProfiles", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Profiles, nil
+}
+
 // IsDuplicateLike reports whether err indicates the like already exists.
 func IsDuplicateLike(err error) bool {
 	if err == nil {

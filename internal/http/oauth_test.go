@@ -99,6 +99,12 @@ func TestOAuthLogin_GETRendersForm(t *testing.T) {
 	if !strings.Contains(body, `method="post"`) {
 		t.Fatalf("body missing post method: %s", body)
 	}
+	if !strings.Contains(body, "Login with Bluesky") {
+		t.Fatalf("body missing Login with Bluesky: %s", body)
+	}
+	if strings.Contains(body, `aria-label="Site"`) {
+		t.Fatalf("login page should not include site nav: %s", body)
+	}
 }
 
 func TestOAuthLogin_DisabledWithoutSecret(t *testing.T) {
@@ -121,7 +127,27 @@ func TestOAuthLogin_DisabledWithoutSecret(t *testing.T) {
 func TestAccountMenuView_ShowsHandleWhenCookied(t *testing.T) {
 	t.Parallel()
 
-	handler, auth := newAuthTestServer(t, "https://dev.twisky.app")
+	queries := query.NewDispatcher(
+		profile.NewHandler(stubReader{
+			profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:bsky", DisplayName: "Bluesky"},
+			feed:    &bluesky.AuthorFeedResponse{},
+		}, nil),
+		tag.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil),
+	)
+	auth, err := authoauth.NewService(authoauth.Config{
+		PublicBaseURL: "https://dev.twisky.app",
+		SessionSecret: "test-secret-at-least-32-bytes-long!!",
+		StorePath:     filepath.Join(t.TempDir(), "oauth.db"),
+		SecureCookies: true,
+	})
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	t.Cleanup(func() { _ = auth.Close() })
+
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), "https://dev.twisky.app", auth).Handler()
+
 	recCookie := httptest.NewRecorder()
 	if err := auth.Jar.Save(recCookie, session.State{
 		ActiveDID: "did:plc:alice",
@@ -132,7 +158,7 @@ func TestAccountMenuView_ShowsHandleWhenCookied(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app", nil)
 	req.AddCookie(recCookie.Result().Cookies()[0])
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -324,8 +350,9 @@ func TestOAuthCallback_SuccessSetsCookieAndRedirects(t *testing.T) {
 		t.Fatalf("status = %d, want 302", rec.Code)
 	}
 	// Directory lookup is best-effort; without a live directory, handle is empty.
-	if got := rec.Header().Get("Location"); got != "/oauth/login" {
-		t.Fatalf("Location = %q, want /oauth/login", got)
+	// Successful login always lands on home.
+	if got := rec.Header().Get("Location"); got != "/" {
+		t.Fatalf("Location = %q, want /", got)
 	}
 	if app.callbackCalls != 1 {
 		t.Fatalf("ProcessCallback calls = %d, want 1", app.callbackCalls)

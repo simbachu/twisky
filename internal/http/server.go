@@ -18,13 +18,17 @@ import (
 	"github.com/simbachu/twisky/internal/command/like"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
+	homepage "github.com/simbachu/twisky/internal/components/home"
+	loginpage "github.com/simbachu/twisky/internal/components/login"
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
 	"github.com/simbachu/twisky/internal/components/ui"
 	"github.com/simbachu/twisky/internal/intent"
+	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/query"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
+	homequery "github.com/simbachu/twisky/internal/query/home"
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
@@ -39,8 +43,11 @@ type Server struct {
 	suggestions   *suggestions.Handler
 	publicBaseURL string
 	auth          *authoauth.Service
+	prefs         moderation.PrefsProvider
 	// likeWriter, when set, skips OAuth resume for LikePost (tests).
 	likeWriter like.Writer
+	// homeReader, when set, is used for the home timeline instead of the session client (tests).
+	homeReader homequery.Reader
 }
 
 func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
@@ -50,12 +57,19 @@ func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggesti
 		suggestions:   suggestionsHandler,
 		publicBaseURL: publicBaseURL,
 		auth:          auth,
+		prefs:         moderation.DefaultPrefsProvider{},
 	}
 }
 
 // WithLikeWriter overrides the OAuth session client used for LikePost (tests).
 func (s *Server) WithLikeWriter(w like.Writer) *Server {
 	s.likeWriter = w
+	return s
+}
+
+// WithHomeReader overrides the session client used for the home timeline (tests).
+func (s *Server) WithHomeReader(r homequery.Reader) *Server {
+	s.homeReader = r
 	return s
 }
 
@@ -95,11 +109,59 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/oauth/callback", s.handleOAuthCallback)
 	r.Post("/oauth/logout", s.handleOAuthLogout)
 	r.Post("/action/like", s.handleLike)
+	r.Get("/", s.handleHome)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
 	r.Get("/{slug}", s.handleProfile(intent.ProfileTabPosts))
 	return r
+}
+
+func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+
+	reader, ok := s.homeTimelineReader(r)
+	if !ok {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = loginpage.Page("", s.publicBaseURL, "/").Render(w)
+		return
+	}
+
+	cursor, since, refresh := feedFragmentParams(r)
+	resp := homequery.NewHandler(reader, s.prefs).Handle(r.Context(), intent.ViewHome{Cursor: cursor})
+	switch v := resp.(type) {
+	case homequery.HomeView:
+		s.enrichFeedLikes(r, &v.Feed)
+		if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		suggested := s.suggestedAccounts(r.Context())
+		_ = homepage.Home(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
+	case response.ErrorResponse:
+		http.Error(w, v.Message, v.Status)
+	default:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}
+
+// homeTimelineReader returns the timeline reader for a logged-in request.
+// ok is false when there is no active session (caller should render login).
+func (s *Server) homeTimelineReader(r *http.Request) (homequery.Reader, bool) {
+	if s.homeReader != nil {
+		if _, err := s.loadActiveAccount(r); err != nil {
+			return nil, false
+		}
+		return s.homeReader, true
+	}
+	_, client, err := s.ResumeActiveClient(r)
+	if err != nil {
+		return nil, false
+	}
+	return client, true
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {

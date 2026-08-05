@@ -81,7 +81,7 @@ func pageFooter(suggested []ui.AuthorInfo) g.Node {
 	)
 }
 
-func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, children ...g.Node) g.Node {
+func pageHead(meta PageMeta) []g.Node {
 	headNodes := []g.Node{
 		TitleEl(g.Text(meta.Title)),
 		Meta(
@@ -90,7 +90,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView,
 		),
 	}
 	headNodes = append(headNodes, socialMetaNodes(meta)...)
-	headNodes = append(headNodes,
+	return append(headNodes,
 		Script(g.Raw(`(function(){var m=document.cookie.match(/(?:^|; )twisky-reply-view=([^;]*)/);if(!m)return;var v=decodeURIComponent(m[1]);if(v==="linear")document.documentElement.dataset.replyView="linear";})();`)),
 		Link(
 			g.Attr("rel", "stylesheet"),
@@ -121,15 +121,29 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView,
 		),
 		Script(g.Attr("src", "/static/scripts/favicon-notify.js")),
 	)
+}
 
+func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, children ...g.Node) g.Node {
 	return HTML(
 		Doctype(
-			Head(g.Group(headNodes)),
+			Head(g.Group(pageHead(meta))),
 		),
 		Body(
 			pageHeader(meta.Path, accounts),
 			Main(children...),
 			pageFooter(suggested),
+		),
+	)
+}
+
+// Bare renders a full document without site chrome (no sidebars / tab bar).
+func Bare(meta PageMeta, children ...g.Node) g.Node {
+	return HTML(
+		Doctype(
+			Head(g.Group(pageHead(meta))),
+		),
+		Body(
+			Main(children...),
 		),
 	)
 }
