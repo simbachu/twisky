@@ -50,9 +50,17 @@ func versionInfo() g.Node {
 
 func pageHeader(currentPath string, accounts ui.AccountMenuView) g.Node {
 	return Header(
-		H1(A(g.Attr("href", "/"), g.Text(AppName))),
-		ui.SiteNav(currentPath),
-		ui.AccountMenu(accounts),
+		H1(
+			A(
+				g.Attr("href", "/"),
+				g.Attr("aria-label", AppName),
+				Figure(ui.Icon(ui.IconBrand)),
+			),
+		),
+		Div(
+			ui.SiteNav(currentPath),
+			ui.AccountMenu(accounts),
+		),
 	)
 }
 

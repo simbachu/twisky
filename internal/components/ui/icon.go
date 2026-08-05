@@ -19,6 +19,7 @@ const (
 	IconPlay     IconName = "play"
 	IconPause    IconName = "pause"
 	IconBluesky  IconName = "bluesky"
+	IconBrand    IconName = "brand"
 )
 
 const iconsSpritePath = "/static/icons/icons.svg"
@@ -27,6 +28,14 @@ const iconsSpritePath = "/static/icons/icons.svg"
 var iconAtlas = map[IconName]string{
 	IconLike:    "heart",
 	IconBluesky: "butterfly",
+}
+
+// iconStatic maps IconName to a single sprite symbol (id + viewBox).
+var iconStatic = map[IconName]struct {
+	ID      string
+	ViewBox string
+}{
+	IconBrand: {ID: "icon-brand", ViewBox: "0 0 256 128"},
 }
 
 var iconGlyphs = map[IconName]string{
@@ -42,6 +51,7 @@ var iconGlyphs = map[IconName]string{
 	IconPlay:     "▶",
 	IconPause:    "⏸",
 	IconBluesky:  "🦋",
+	IconBrand:    "Twisky",
 }
 
 // ActionClass returns a CSS modifier for per-action hover colors, or empty.
@@ -56,11 +66,14 @@ func ActionClass(name IconName) string {
 	}
 }
 
-// Icon renders an icon by name. Atlas icons use the packed SVG sprite
-// (outline + filled layers); others fall back to emoji placeholders.
+// Icon renders an icon by name. Toggle atlas icons use outline + filled
+// layers; static atlas icons use a single symbol; others fall back to glyphs.
 func Icon(name IconName) g.Node {
 	if base, ok := iconAtlas[name]; ok {
 		return svgToggleIcon(base)
+	}
+	if sym, ok := iconStatic[name]; ok {
+		return svgStaticIcon(sym.ID, sym.ViewBox)
 	}
 	return g.Text(iconGlyphs[name])
 }
@@ -82,6 +95,20 @@ func svgToggleIcon(base string) g.Node {
 		g.El("use",
 			g.Attr("class", "ui-icon-filled"),
 			g.Attr("href", iconsSpritePath+"#"+filledID),
+		),
+	)
+}
+
+func svgStaticIcon(symbolID, viewBox string) g.Node {
+	return g.El("svg",
+		g.Attr("class", "ui-icon"),
+		g.Attr("viewBox", viewBox),
+		g.Attr("width", "1em"),
+		g.Attr("height", "1em"),
+		g.Attr("aria-hidden", "true"),
+		g.Attr("focusable", "false"),
+		g.El("use",
+			g.Attr("href", iconsSpritePath+"#"+symbolID),
 		),
 	)
 }

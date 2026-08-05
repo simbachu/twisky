@@ -101,7 +101,8 @@
        height="128"
        id="page4"
        margin="4"
-       bleed="0" />
+       bleed="0"
+       inkscape:label="icon-brand" />
   </sodipodi:namedview>
   <defs
      id="defs1">

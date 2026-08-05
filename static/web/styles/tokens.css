@@ -1,6 +1,22 @@
 :root {
   --content-width: 50rem;
   --content-padding-inline: 1rem;
+  --layout-wide-min: 75rem;
+  --layout-tall-min: 40rem;
+  --site-tabbar-height: 3.5rem;
+
+  /* Brand wordmark — twilight sky */
+  --brand-twilight-1: #8e7ab5;
+  --brand-twilight-2: #b784b7;
+  --brand-twilight-3: #e493b3;
+  --brand-twilight-4: #eea5a6;
+  --brand-twilight: linear-gradient(
+    165deg,
+    var(--brand-twilight-1) 0%,
+    var(--brand-twilight-2) 32%,
+    var(--brand-twilight-3) 68%,
+    var(--brand-twilight-4) 100%
+  );
 
 
   /* Avatar gutter (column A): size + asymmetric margins define the track. */
