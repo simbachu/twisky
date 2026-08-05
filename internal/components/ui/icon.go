@@ -121,10 +121,12 @@ const brandMaskID = "twisky-brand-fill-mask"
 
 func svgBrandIcon() g.Node {
 	sym := iconStatic[IconBrand]
+	// Wordmark viewBox is 256×128 (2:1). Equal width/height attrs would force a
+	// square intrinsic ratio and letterbox the mark; keep other icons on 1em².
 	return g.El("svg",
 		g.Attr("class", "ui-icon ui-icon--brand"),
 		g.Attr("viewBox", sym.ViewBox),
-		g.Attr("width", "1em"),
+		g.Attr("width", "2em"),
 		g.Attr("height", "1em"),
 		g.Attr("aria-hidden", "true"),
 		g.Attr("focusable", "false"),
@@ -134,7 +136,7 @@ func svgBrandIcon() g.Node {
 				g.Attr("gradientUnits", "userSpaceOnUse"),
 				g.Attr("x1", "0"),
 				g.Attr("y1", "0"),
-				g.Attr("x2", "90"),
+				g.Attr("x2", "0"),
 				g.Attr("y2", "128"),
 				g.El("stop", g.Attr("offset", "0%"), g.Attr("stop-color", "var(--brand-twilight-1)")),
 				g.El("stop", g.Attr("offset", "32%"), g.Attr("stop-color", "var(--brand-twilight-2)")),

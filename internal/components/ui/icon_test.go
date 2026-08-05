@@ -41,6 +41,8 @@ func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	for _, want := range []string{
 		`class="ui-icon ui-icon--brand"`,
 		`viewBox="0 0 256 128"`,
+		`width="2em"`,
+		`height="1em"`,
 		`gradientUnits="userSpaceOnUse"`,
 		`id="twisky-brand-fill"`,
 		`id="twisky-brand-fill-mask"`,
@@ -55,6 +57,9 @@ func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, `width="1em"`) {
+		t.Fatalf("html = %q, brand must not use square 1em width", html)
 	}
 	if strings.Contains(html, "ui-icon--toggle") {
 		t.Fatalf("html = %q, want static icon not toggle", html)
