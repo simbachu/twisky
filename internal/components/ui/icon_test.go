@@ -39,9 +39,12 @@ func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	}
 	html := buf.String()
 	for _, want := range []string{
-		`class="ui-icon"`,
+		`class="ui-icon ui-icon--brand"`,
 		`viewBox="0 0 256 128"`,
 		`href="/static/icons/icons.svg#icon-brand"`,
+		`fill="url(#twisky-brand-fill)"`,
+		`id="twisky-brand-fill"`,
+		`stop-color="var(--brand-twilight-1)"`,
 		`aria-hidden="true"`,
 	} {
 		if !strings.Contains(html, want) {
@@ -50,9 +53,6 @@ func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	}
 	if strings.Contains(html, "ui-icon--toggle") {
 		t.Fatalf("html = %q, want static icon not toggle", html)
-	}
-	if strings.Contains(html, "Twisky") {
-		t.Fatalf("html = %q, want SVG sprite not glyph text", html)
 	}
 }
 

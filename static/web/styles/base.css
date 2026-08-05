@@ -139,23 +139,12 @@ body {
       }
 
       figure {
-        display: inline-grid;
         margin: 0;
-        isolation: isolate;
-
-        &::before {
-          content: "";
-          grid-area: 1 / 1;
-          background: var(--brand-twilight);
-        }
 
         svg {
-          grid-area: 1 / 1;
           display: block;
           inline-size: 7rem;
           block-size: auto;
-          color: #000;
-          mix-blend-mode: destination-in;
         }
       }
     }

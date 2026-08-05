@@ -235,7 +235,7 @@ func matchIconGroup(layers []*element, page page) (group, layer *element, err er
 }
 
 func buildSymbol(page page, layer, group *element) (*element, error) {
-	cleanedGroup := cleanElement(group)
+	cleanedGroup := cleanElement(group, paintRewriteForLabel(page.label))
 	if cleanedGroup == nil || !hasDrawable(cleanedGroup) {
 		return nil, fmt.Errorf("labeled page %q has no drawable content", page.label)
 	}
@@ -285,7 +285,15 @@ func hasDrawable(el *element) bool {
 	return false
 }
 
-func cleanElement(el *element) *element {
+func paintRewriteForLabel(label string) string {
+	// Brand inherits fill from the referencing <use> so the page can apply a gradient.
+	if label == "icon-brand" {
+		return "inherit"
+	}
+	return "currentColor"
+}
+
+func cleanElement(el *element, paintRewrite string) *element {
 	if el == nil {
 		return nil
 	}
@@ -313,36 +321,77 @@ func cleanElement(el *element) *element {
 		}
 		out.attrs = append(out.attrs, xml.Attr{
 			Name:  xml.Name{Local: a.Name.Local},
-			Value: rewritePaintToCurrentColor(a.Name.Local, a.Value),
+			Value: rewritePaint(a.Name.Local, a.Value, paintRewrite),
 		})
 	}
 	for _, c := range el.children {
-		cleaned := cleanElement(c)
+		cleaned := cleanElement(c, paintRewrite)
 		if cleaned != nil {
 			out.children = append(out.children, cleaned)
 		}
 	}
+	if paintRewrite == "inherit" {
+		ensureFillInherit(out)
+	}
 	return out
 }
 
-// rewritePaintToCurrentColor replaces solid black fills/strokes with
-// currentColor so CSS color on the referencing element controls the icon.
+func ensureFillInherit(el *element) {
+	switch el.name.Local {
+	case "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan":
+	default:
+		return
+	}
+	if hasPaint(el, "fill") {
+		return
+	}
+	el.attrs = append(el.attrs, xml.Attr{
+		Name:  xml.Name{Local: "fill"},
+		Value: "inherit",
+	})
+}
+
+func hasPaint(el *element, prop string) bool {
+	for _, a := range el.attrs {
+		if a.Name.Local == prop {
+			return true
+		}
+		if a.Name.Local == "style" && styleHasProp(a.Value, prop) {
+			return true
+		}
+	}
+	return false
+}
+
+func styleHasProp(style, prop string) bool {
+	for _, part := range strings.Split(style, ";") {
+		part = strings.TrimSpace(part)
+		key, _, ok := strings.Cut(part, ":")
+		if ok && strings.TrimSpace(key) == prop {
+			return true
+		}
+	}
+	return false
+}
+
+// rewritePaint replaces solid black fills/strokes with paintRewrite (typically
+// currentColor, or inherit for icons that take a gradient from <use>).
 // Values that are already none/transparent are left alone.
-func rewritePaintToCurrentColor(attrName, value string) string {
+func rewritePaint(attrName, value, paintRewrite string) string {
 	switch attrName {
 	case "fill", "stroke":
 		if isBlackPaint(value) {
-			return "currentColor"
+			return paintRewrite
 		}
 		return value
 	case "style":
-		return rewriteStylePaints(value)
+		return rewriteStylePaints(value, paintRewrite)
 	default:
 		return value
 	}
 }
 
-func rewriteStylePaints(style string) string {
+func rewriteStylePaints(style, paintRewrite string) string {
 	parts := strings.Split(style, ";")
 	for i, part := range parts {
 		part = strings.TrimSpace(part)
@@ -356,7 +405,7 @@ func rewriteStylePaints(style string) string {
 		key = strings.TrimSpace(key)
 		val = strings.TrimSpace(val)
 		if (key == "fill" || key == "stroke") && isBlackPaint(val) {
-			parts[i] = key + ":currentColor"
+			parts[i] = key + ":" + paintRewrite
 		}
 	}
 	return strings.Join(parts, ";")

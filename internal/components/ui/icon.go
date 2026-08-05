@@ -72,6 +72,9 @@ func Icon(name IconName) g.Node {
 	if base, ok := iconAtlas[name]; ok {
 		return svgToggleIcon(base)
 	}
+	if name == IconBrand {
+		return svgBrandIcon()
+	}
 	if sym, ok := iconStatic[name]; ok {
 		return svgStaticIcon(sym.ID, sym.ViewBox)
 	}
@@ -109,6 +112,37 @@ func svgStaticIcon(symbolID, viewBox string) g.Node {
 		g.Attr("focusable", "false"),
 		g.El("use",
 			g.Attr("href", iconsSpritePath+"#"+symbolID),
+		),
+	)
+}
+
+const brandGradientID = "twisky-brand-fill"
+
+func svgBrandIcon() g.Node {
+	sym := iconStatic[IconBrand]
+	return g.El("svg",
+		g.Attr("class", "ui-icon ui-icon--brand"),
+		g.Attr("viewBox", sym.ViewBox),
+		g.Attr("width", "1em"),
+		g.Attr("height", "1em"),
+		g.Attr("aria-hidden", "true"),
+		g.Attr("focusable", "false"),
+		g.El("defs",
+			g.El("linearGradient",
+				g.Attr("id", brandGradientID),
+				g.Attr("x1", "0%"),
+				g.Attr("y1", "0%"),
+				g.Attr("x2", "35%"),
+				g.Attr("y2", "100%"),
+				g.El("stop", g.Attr("offset", "0%"), g.Attr("stop-color", "var(--brand-twilight-1)")),
+				g.El("stop", g.Attr("offset", "32%"), g.Attr("stop-color", "var(--brand-twilight-2)")),
+				g.El("stop", g.Attr("offset", "68%"), g.Attr("stop-color", "var(--brand-twilight-3)")),
+				g.El("stop", g.Attr("offset", "100%"), g.Attr("stop-color", "var(--brand-twilight-4)")),
+			),
+		),
+		g.El("use",
+			g.Attr("href", iconsSpritePath+"#"+sym.ID),
+			g.Attr("fill", "url(#"+brandGradientID+")"),
 		),
 	)
 }
