@@ -41,9 +41,14 @@ func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	for _, want := range []string{
 		`class="ui-icon ui-icon--brand"`,
 		`viewBox="0 0 256 128"`,
-		`href="/static/icons/icons.svg#icon-brand"`,
-		`fill="url(#twisky-brand-fill)"`,
+		`gradientUnits="userSpaceOnUse"`,
 		`id="twisky-brand-fill"`,
+		`id="twisky-brand-fill-mask"`,
+		`href="/static/icons/icons.svg#icon-brand"`,
+		`fill="#fff"`,
+		`fill="url(#twisky-brand-fill)"`,
+		`mask="url(#twisky-brand-fill-mask)"`,
+		`<rect`,
 		`stop-color="var(--brand-twilight-1)"`,
 		`aria-hidden="true"`,
 	} {

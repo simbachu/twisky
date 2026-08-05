@@ -117,6 +117,7 @@ func svgStaticIcon(symbolID, viewBox string) g.Node {
 }
 
 const brandGradientID = "twisky-brand-fill"
+const brandMaskID = "twisky-brand-fill-mask"
 
 func svgBrandIcon() g.Node {
 	sym := iconStatic[IconBrand]
@@ -130,19 +131,34 @@ func svgBrandIcon() g.Node {
 		g.El("defs",
 			g.El("linearGradient",
 				g.Attr("id", brandGradientID),
-				g.Attr("x1", "0%"),
-				g.Attr("y1", "0%"),
-				g.Attr("x2", "35%"),
-				g.Attr("y2", "100%"),
+				g.Attr("gradientUnits", "userSpaceOnUse"),
+				g.Attr("x1", "0"),
+				g.Attr("y1", "0"),
+				g.Attr("x2", "90"),
+				g.Attr("y2", "128"),
 				g.El("stop", g.Attr("offset", "0%"), g.Attr("stop-color", "var(--brand-twilight-1)")),
 				g.El("stop", g.Attr("offset", "32%"), g.Attr("stop-color", "var(--brand-twilight-2)")),
 				g.El("stop", g.Attr("offset", "68%"), g.Attr("stop-color", "var(--brand-twilight-3)")),
 				g.El("stop", g.Attr("offset", "100%"), g.Attr("stop-color", "var(--brand-twilight-4)")),
 			),
+			g.El("mask",
+				g.Attr("id", brandMaskID),
+				g.Attr("maskUnits", "userSpaceOnUse"),
+				g.Attr("x", "0"),
+				g.Attr("y", "0"),
+				g.Attr("width", "256"),
+				g.Attr("height", "128"),
+				g.El("use",
+					g.Attr("href", iconsSpritePath+"#"+sym.ID),
+					g.Attr("fill", "#fff"),
+				),
+			),
 		),
-		g.El("use",
-			g.Attr("href", iconsSpritePath+"#"+sym.ID),
+		g.El("rect",
+			g.Attr("width", "256"),
+			g.Attr("height", "128"),
 			g.Attr("fill", "url(#"+brandGradientID+")"),
+			g.Attr("mask", "url(#"+brandMaskID+")"),
 		),
 	)
 }
