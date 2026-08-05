@@ -64,6 +64,19 @@ func TestPostPage_KeepsReplySettingsOutOfPageHeader(t *testing.T) {
 	if strings.Contains(pageHeader, `name="reply-view"`) || strings.Contains(pageHeader, `name="reply-sort-order"`) {
 		t.Fatalf("page header = %q, want no reply settings in page header", pageHeader)
 	}
+	for _, want := range []string{
+		`data-nav-back`,
+		`href="/"`,
+		`aria-label="Back"`,
+		`nav-back.js`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if !strings.Contains(pageHeader, `data-nav-back`) {
+		t.Fatalf("page header = %q, want back control", pageHeader)
+	}
 
 	repliesSectionStart := strings.Index(html, `id="post-replies"`)
 	if repliesSectionStart < 0 {

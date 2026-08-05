@@ -86,3 +86,18 @@ func SearchBar() g.Node {
 		),
 	)
 }
+
+// BackButton renders a pill link that history.backs when the referrer is
+// same-origin; otherwise it navigates to fallbackHref (typically "/").
+func BackButton(fallbackHref string) g.Node {
+	if fallbackHref == "" {
+		fallbackHref = "/"
+	}
+	return A(
+		g.Attr("class", "iface-pill"),
+		g.Attr("href", fallbackHref),
+		g.Attr("data-nav-back", ""),
+		g.Attr("aria-label", "Back"),
+		Icon(IconBack),
+	)
+}

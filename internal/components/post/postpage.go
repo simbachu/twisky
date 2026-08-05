@@ -76,6 +76,7 @@ func postPageHeader() g.Node {
 	return Header(
 		g.Attr("id", "post-page-header"),
 		g.Attr("tabindex", "-1"),
+		ui.BackButton("/"),
 		H2(g.Text("Viewing post")),
 	)
 }

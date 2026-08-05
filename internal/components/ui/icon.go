@@ -7,6 +7,7 @@ import (
 type IconName string
 
 const (
+	IconBack     IconName = "back"
 	IconReply    IconName = "reply"
 	IconRepost   IconName = "repost"
 	IconLike     IconName = "like"
@@ -29,6 +30,7 @@ var iconAtlas = map[IconName]string{
 }
 
 var iconGlyphs = map[IconName]string{
+	IconBack:     "⬅️",
 	IconReply:    "🗪",
 	IconRepost:   "⇄",
 	IconLike:     "👍︎",

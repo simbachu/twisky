@@ -17,6 +17,7 @@ type PageMeta struct {
 	Title          string
 	Description    string
 	CanonicalURL   string
+	Path           string
 	ImageURL       string
 	OGType         string
 	LargeImageCard bool

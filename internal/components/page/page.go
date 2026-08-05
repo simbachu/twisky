@@ -48,6 +48,14 @@ func versionInfo() g.Node {
 	)
 }
 
+func pageHeader(currentPath string, accounts ui.AccountMenuView) g.Node {
+	return Header(
+		H1(A(g.Attr("href", "/"), g.Text(AppName))),
+		ui.SiteNav(currentPath),
+		ui.AccountMenu(accounts),
+	)
+}
+
 func pageFooter(suggested []ui.AuthorInfo) g.Node {
 	return Footer(
 		Aside(
@@ -96,6 +104,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView,
 		Script(g.Attr("src", "/static/scripts/post-counts-live.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-page-reply-view.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-share.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/nav-back.js"), g.Attr("defer", "")),
 		Link(
 			g.Attr("id", "page-favicon"),
 			g.Attr("rel", "icon"),
@@ -110,11 +119,7 @@ func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView,
 			Head(g.Group(headNodes)),
 		),
 		Body(
-			Header(
-				H1(A(g.Attr("href", "/"), g.Text(AppName))),
-				ui.SiteNav(),
-				ui.AccountMenu(accounts),
-			),
+			pageHeader(meta.Path, accounts),
 			Main(children...),
 			pageFooter(suggested),
 		),

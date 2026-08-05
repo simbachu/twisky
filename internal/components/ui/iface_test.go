@@ -134,3 +134,27 @@ func TestSearchBar_RendersJoinedControl(t *testing.T) {
 		}
 	}
 }
+
+func TestBackButton_RendersFallbackLink(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.BackButton("/").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`class="iface-pill"`,
+		`href="/"`,
+		`data-nav-back`,
+		`aria-label="Back"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, "<button") {
+		t.Fatalf("html = %q, want anchor not button", html)
+	}
+}
