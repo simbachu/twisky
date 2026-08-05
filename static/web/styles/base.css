@@ -145,6 +145,7 @@ body {
           display: block;
           inline-size: 7rem;
           block-size: auto;
+          stroke: none;
         }
       }
     }

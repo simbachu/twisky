@@ -332,6 +332,7 @@ func cleanElement(el *element, paintRewrite string) *element {
 	}
 	if paintRewrite == "inherit" {
 		ensureFillInherit(out)
+		stripStrokes(out)
 	}
 	return out
 }
@@ -349,6 +350,60 @@ func ensureFillInherit(el *element) {
 		Name:  xml.Name{Local: "fill"},
 		Value: "inherit",
 	})
+}
+
+// stripStrokes forces fill-only icons (brand wordmark): drop stroke paint and
+// stroke-* presentation, then set stroke="none".
+func stripStrokes(el *element) {
+	switch el.name.Local {
+	case "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "g", "use":
+	default:
+		return
+	}
+	filtered := el.attrs[:0]
+	for _, a := range el.attrs {
+		switch a.Name.Local {
+		case "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin",
+			"stroke-dasharray", "stroke-dashoffset", "stroke-miterlimit",
+			"stroke-opacity":
+			continue
+		case "style":
+			a.Value = stripStrokeStyleProps(a.Value)
+			if a.Value == "" {
+				continue
+			}
+		}
+		filtered = append(filtered, a)
+	}
+	el.attrs = append(filtered, xml.Attr{
+		Name:  xml.Name{Local: "stroke"},
+		Value: "none",
+	})
+}
+
+func stripStrokeStyleProps(style string) string {
+	parts := strings.Split(style, ";")
+	kept := parts[:0]
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key, _, ok := strings.Cut(part, ":")
+		if !ok {
+			kept = append(kept, part)
+			continue
+		}
+		key = strings.TrimSpace(key)
+		switch key {
+		case "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin",
+			"stroke-dasharray", "stroke-dashoffset", "stroke-miterlimit",
+			"stroke-opacity", "-inkscape-stroke":
+			continue
+		}
+		kept = append(kept, part)
+	}
+	return strings.Join(kept, ";")
 }
 
 func hasPaint(el *element, prop string) bool {
