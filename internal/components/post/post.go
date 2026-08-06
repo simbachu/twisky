@@ -179,26 +179,12 @@ func moderationBody(view feedquery.PostView, now time.Time) g.Node {
 	if !view.Moderation.Blurred {
 		return content
 	}
-	if view.Moderation.NoOverride {
-		return Div(g.Attr("class", "post-moderation-gate"),
-			moderationCover(view.Moderation),
-		)
-	}
-	return Details(g.Attr("class", "post-moderation-gate"),
-		Summary(
-			moderationCover(view.Moderation),
-			g.Text("Show anyway"),
-		),
-		Div(content),
-	)
-}
-
-func moderationCover(mod feedquery.ModerationView) g.Node {
-	message := mod.AlertText
-	if message == "" {
-		message = "Content warning"
-	}
-	return P(g.Text(message))
+	return ui.ModerationGate(ui.ModerationGateConfig{
+		Message:     view.Moderation.AlertText,
+		RevealLabel: "Show anyway",
+		NoOverride:  view.Moderation.NoOverride,
+		Content:     Div(content),
+	})
 }
 
 func postContent(view feedquery.PostView, now time.Time) g.Node {
@@ -260,18 +246,12 @@ func postFigure(images []feedquery.ImageView, mod feedquery.ModerationView) g.No
 	if mod.Blurred || !mod.BlurMedia {
 		return figure
 	}
-	if mod.NoOverride {
-		return Div(g.Attr("class", "post-moderation-gate"),
-			moderationCover(mod),
-		)
-	}
-	return Details(g.Attr("class", "post-moderation-gate"),
-		Summary(
-			moderationCover(mod),
-			g.Text("Show media"),
-		),
-		figure,
-	)
+	return ui.ModerationGate(ui.ModerationGateConfig{
+		Message:     mod.AlertText,
+		RevealLabel: "Show media",
+		NoOverride:  mod.NoOverride,
+		Content:     figure,
+	})
 }
 
 func postFigureBase(images []feedquery.ImageView) g.Node {
@@ -314,18 +294,12 @@ func postVideo(videos []feedquery.VideoView, mod feedquery.ModerationView) g.Nod
 	if mod.Blurred || !mod.BlurMedia {
 		return figure
 	}
-	if mod.NoOverride {
-		return Div(g.Attr("class", "post-moderation-gate"),
-			moderationCover(mod),
-		)
-	}
-	return Details(g.Attr("class", "post-moderation-gate"),
-		Summary(
-			moderationCover(mod),
-			g.Text("Show media"),
-		),
-		figure,
-	)
+	return ui.ModerationGate(ui.ModerationGateConfig{
+		Message:     mod.AlertText,
+		RevealLabel: "Show media",
+		NoOverride:  mod.NoOverride,
+		Content:     figure,
+	})
 }
 
 func postVideoBase(videos []feedquery.VideoView) g.Node {
@@ -380,18 +354,12 @@ func postLinkPreview(preview *feedquery.LinkPreviewView, mod feedquery.Moderatio
 	if preview.Thumb == "" || mod.Blurred || !mod.BlurMedia {
 		return card
 	}
-	if mod.NoOverride {
-		return Div(g.Attr("class", "post-moderation-gate"),
-			moderationCover(mod),
-		)
-	}
-	return Details(g.Attr("class", "post-moderation-gate"),
-		Summary(
-			moderationCover(mod),
-			g.Text("Show media"),
-		),
-		card,
-	)
+	return ui.ModerationGate(ui.ModerationGateConfig{
+		Message:     mod.AlertText,
+		RevealLabel: "Show media",
+		NoOverride:  mod.NoOverride,
+		Content:     card,
+	})
 }
 
 func postLinkPreviewBase(preview *feedquery.LinkPreviewView) g.Node {

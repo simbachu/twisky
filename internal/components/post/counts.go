@@ -149,25 +149,17 @@ func groupedCountChanged(previous *int, count int) bool {
 // focused post page. Exact values live-update only while the details is open.
 func engagementStats(view feedquery.PostView, summaryNodes ...g.Node) g.Node {
 	ids := newCountIDs(view.ID)
-	return Details(
-		g.Attr("class", "post-engagement-stats"),
-		g.Attr("id", ids.statsDetails),
-		g.Attr("open", ""),
-		g.Attr("data-stats-href", postHref(view)+"?counts=1"),
-		Summary(g.Group(summaryNodes)...),
-		Dl(
-			engagementStatRow("Replies", ids.replyStats, view.ReplyCount),
-			engagementStatRow("Reposts", ids.repostStats, view.RepostCount),
-			engagementStatRow("Likes", ids.likeStats, view.LikeCount),
-		),
-	)
-}
-
-func engagementStatRow(label, id string, count int) g.Node {
-	return Div(
-		Dt(g.Text(label)),
-		ui.GroupedStatCount(id, count, false),
-	)
+	return ui.EngagementStats(ui.EngagementStatsConfig{
+		ID:        ids.statsDetails,
+		StatsHref: postHref(view) + "?counts=1",
+		Open:      true,
+		Summary:   g.Group(summaryNodes),
+		Rows: []ui.EngagementStatRow{
+			{Label: "Replies", ID: ids.replyStats, Count: view.ReplyCount},
+			{Label: "Reposts", ID: ids.repostStats, Count: view.RepostCount},
+			{Label: "Likes", ID: ids.likeStats, Count: view.LikeCount},
+		},
+	})
 }
 
 // CountsRefreshFragment renders out-of-band updates for a post's engagement

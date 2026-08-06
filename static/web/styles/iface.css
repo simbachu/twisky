@@ -147,6 +147,17 @@ body > footer aside .iface-joined {
   margin-inline: 0.75rem;
 }
 
+.iface-disclosure {
+  summary {
+    list-style: none;
+    cursor: pointer;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+}
+
 .ui-icon {
   display: inline-block;
   vertical-align: -0.15em;

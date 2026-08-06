@@ -274,7 +274,7 @@ func TestPost_RendersModerationBlurWithReveal(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+	if !strings.Contains(html, `<details class="iface-disclosure post-moderation-gate"`) {
 		t.Fatalf("html = %q, want moderation blur wrapper", html)
 	}
 	if !strings.Contains(html, "Show anyway") {
@@ -351,7 +351,7 @@ func TestPost_RendersMediaBlurWithReveal(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+	if !strings.Contains(html, `<details class="iface-disclosure post-moderation-gate"`) {
 		t.Fatalf("html = %q, want media moderation wrapper", html)
 	}
 	if !strings.Contains(html, "Show media") {
@@ -563,7 +563,7 @@ func TestPost_RendersVideoMediaBlurWithReveal(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `<details class="post-moderation-gate"`) {
+	if !strings.Contains(html, `<details class="iface-disclosure post-moderation-gate"`) {
 		t.Fatalf("html = %q, want video media moderation wrapper", html)
 	}
 	if !strings.Contains(html, "Show media") {
@@ -571,5 +571,37 @@ func TestPost_RendersVideoMediaBlurWithReveal(t *testing.T) {
 	}
 	if !strings.Contains(html, `class="post-video"`) {
 		t.Fatalf("html = %q, want post-video inside gate", html)
+	}
+}
+
+func TestPost_RendersLockedModerationGateWhenNoOverride(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hidden text",
+		Moderation: feedquery.ModerationView{
+			Blurred:    true,
+			NoOverride: true,
+			AlertText:  "Adult content",
+		},
+	}, time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `<div class="post-moderation-gate"`) {
+		t.Fatalf("html = %q, want locked gate div", html)
+	}
+	if strings.Contains(html, "<details") {
+		t.Fatalf("html = %q, want no disclosure when locked", html)
+	}
+	if strings.Contains(html, "hidden text") {
+		t.Fatalf("html = %q, want body text omitted behind locked gate", html)
+	}
+	if !strings.Contains(html, "Adult content") {
+		t.Fatalf("html = %q, want moderation message", html)
 	}
 }

@@ -219,7 +219,7 @@ func TestPostPage_RootPostRendersLiveCountsFeatures(t *testing.T) {
 		`id="like-count-root"`,
 		`class="fuzzy-number"`,
 		`id="engagement-stats-root"`,
-		`class="post-engagement-stats"`,
+		`class="iface-disclosure post-engagement-stats"`,
 		`open=""`,
 		`id="like-stats-root"`,
 		`id="counts-poller-root"`,

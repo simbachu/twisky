@@ -24,8 +24,7 @@ func AccountMenu(view AccountMenuView) g.Node {
 		)
 	}
 
-	children := []g.Node{
-		Summary(MiniProfile(*view.Current, AuthorStatic)),
+	content := []g.Node{
 		Ul(
 			Li(
 				Form(
@@ -37,11 +36,12 @@ func AccountMenu(view AccountMenuView) g.Node {
 		),
 	}
 	if len(view.Additional) > 0 {
-		children = append(children, accountSwitcher(view.Additional))
+		content = append(content, accountSwitcher(view.Additional))
 	}
-	return Details(
-		g.Attr("class", "account-menu"),
-		g.Group(children),
+	return Disclosure(
+		"account-menu",
+		MiniProfile(*view.Current, AuthorStatic),
+		content...,
 	)
 }
 

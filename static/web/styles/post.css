@@ -425,11 +425,6 @@
         cursor: pointer;
         font-size: 0.875rem;
         color: var(--muted-fg);
-        list-style: none;
-
-        &::-webkit-details-marker {
-          display: none;
-        }
       }
 
       dl {

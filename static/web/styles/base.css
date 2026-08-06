@@ -307,15 +307,6 @@ body {
       }
 
       > .account-menu {
-        summary {
-          list-style: none;
-          cursor: pointer;
-
-          &::-webkit-details-marker {
-            display: none;
-          }
-        }
-
         .mini-profile-info {
           position: absolute;
           width: 1px;

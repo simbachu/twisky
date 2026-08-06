@@ -65,8 +65,8 @@ func TestAccountMenu_RendersDetailsWithLogout(t *testing.T) {
 	if !strings.Contains(html, `class="mini-profile"`) {
 		t.Fatalf("html = %q, want mini-profile in summary", html)
 	}
-	if !strings.Contains(html, `class="account-menu"`) {
-		t.Fatalf("html = %q, want account-menu class", html)
+	if !strings.Contains(html, `class="iface-disclosure account-menu"`) {
+		t.Fatalf("html = %q, want disclosure composed with account-menu", html)
 	}
 	if !strings.Contains(html, "Alice") {
 		t.Fatalf("html = %q, want display name", html)
