@@ -76,6 +76,46 @@ func TestHandler_Handle(t *testing.T) {
 	}
 }
 
+func TestHandler_Handle_HeadCheckSkipsParentFetch(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		timelineResp: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/abc",
+					Author: bluesky.Author{Handle: "dev.example"},
+					Record: bluesky.PostRecord{
+						Text: "reply",
+						Reply: &bluesky.RecordReplyRef{
+							Parent: bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/parent"},
+							Root:   bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/parent"},
+						},
+					},
+				},
+			}},
+		},
+		parentPosts: []bluesky.Post{{
+			URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+			Author: bluesky.Author{Handle: "dev.example"},
+			Record: bluesky.PostRecord{Text: "parent"},
+		}},
+	}
+	handler := home.NewHandler(reader, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewHome{HeadCheck: true})
+	view, ok := resp.(home.HomeView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want HomeView", resp)
+	}
+	if len(view.Feed.Posts) != 1 || view.Feed.Posts[0].ID != "abc" {
+		t.Fatalf("posts = %#v, want abc", view.Feed.Posts)
+	}
+	if len(reader.lastGetPostsURIs) != 0 {
+		t.Fatalf("GetPosts URIs = %v, want none on HeadCheck", reader.lastGetPostsURIs)
+	}
+}
+
 func TestHandler_HandlePassesCursor(t *testing.T) {
 	t.Parallel()
 

@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 const (
 	threadViewPostType = "app.bsky.feed.defs#threadViewPost"
 	notFoundPostType   = "app.bsky.feed.defs#notFoundPost"
 	blockedPostType    = "app.bsky.feed.defs#blockedPost"
+
+	// Default caps for getPostThread so viral threads cannot return unbounded trees.
+	DefaultThreadDepth        = 6
+	DefaultThreadParentHeight = 25
 )
 
 type ThreadNode interface {
@@ -37,17 +42,26 @@ type BlockedPost struct {
 
 func (BlockedPost) threadNode() {}
 
+// PostThreadOpts bounds how much of the reply and ancestor trees AppView returns.
+// Zero Depth or ParentHeight means use the corresponding DefaultThread* constant.
+type PostThreadOpts struct {
+	Depth        int
+	ParentHeight int
+}
+
 type getPostThreadResponse struct {
 	Thread json.RawMessage `json:"thread"`
 }
 
-func (c *Client) GetPostThread(ctx context.Context, postURI string) (ThreadNode, error) {
+func (c *Client) GetPostThread(ctx context.Context, postURI string, opts *PostThreadOpts) (ThreadNode, error) {
 	endpoint, err := url.Parse(c.baseURL + "/app.bsky.feed.getPostThread")
 	if err != nil {
 		return nil, err
 	}
 	query := endpoint.Query()
 	query.Set("uri", postURI)
+	query.Set("depth", strconv.Itoa(threadOptOrDefault(opts, true)))
+	query.Set("parentHeight", strconv.Itoa(threadOptOrDefault(opts, false)))
 	endpoint.RawQuery = query.Encode()
 
 	var threadResp getPostThreadResponse
@@ -63,6 +77,21 @@ func (c *Client) GetPostThread(ctx context.Context, postURI string) (ThreadNode,
 		return nil, ErrNotFound
 	}
 	return node, nil
+}
+
+func threadOptOrDefault(opts *PostThreadOpts, depth bool) int {
+	if opts != nil {
+		if depth && opts.Depth > 0 {
+			return opts.Depth
+		}
+		if !depth && opts.ParentHeight > 0 {
+			return opts.ParentHeight
+		}
+	}
+	if depth {
+		return DefaultThreadDepth
+	}
+	return DefaultThreadParentHeight
 }
 
 func parseThreadNode(raw json.RawMessage) (ThreadNode, error) {

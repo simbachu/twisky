@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	indigooauth "github.com/bluesky-social/indigo/atproto/auth/oauth"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -20,17 +21,28 @@ type SQLiteStore struct {
 
 var _ indigooauth.ClientAuthStore = (*SQLiteStore)(nil)
 
+// authRequestTTL bounds how long abandoned login attempts stay in the store.
+const authRequestTTL = time.Hour
+
 func OpenSQLiteStore(path string) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-	db.SetMaxOpenConns(1)
+	// WAL allows concurrent readers while keeping writes serialized; busy_timeout
+	// avoids immediate failures under ResumeSession contention from poll paths.
+	if _, err := db.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("sqlite pragmas: %w", err)
+	}
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(4)
 	store := &SQLiteStore{db: db}
 	if err := store.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
+	_ = store.purgeExpiredAuthRequests(context.Background())
 	return store, nil
 }
 
@@ -48,12 +60,15 @@ CREATE TABLE IF NOT EXISTS oauth_sessions (
 );
 CREATE TABLE IF NOT EXISTS oauth_auth_requests (
 	state TEXT PRIMARY KEY,
-	payload TEXT NOT NULL
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL DEFAULT 0
 );
 `)
 	if err != nil {
 		return fmt.Errorf("migrate oauth store: %w", err)
 	}
+	// Older DBs created before created_at existed; ignore duplicate-column errors.
+	_, _ = s.db.Exec(`ALTER TABLE oauth_auth_requests ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0`)
 	return nil
 }
 
@@ -98,6 +113,7 @@ func (s *SQLiteStore) DeleteSession(ctx context.Context, did syntax.DID, session
 }
 
 func (s *SQLiteStore) GetAuthRequestInfo(ctx context.Context, state string) (*indigooauth.AuthRequestData, error) {
+	_ = s.purgeExpiredAuthRequests(ctx)
 	var payload string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT payload FROM oauth_auth_requests WHERE state = ?`, state,
@@ -116,13 +132,14 @@ func (s *SQLiteStore) GetAuthRequestInfo(ctx context.Context, state string) (*in
 }
 
 func (s *SQLiteStore) SaveAuthRequestInfo(ctx context.Context, info indigooauth.AuthRequestData) error {
+	_ = s.purgeExpiredAuthRequests(ctx)
 	payload, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
 	_, err = s.db.ExecContext(ctx, `
-INSERT INTO oauth_auth_requests (state, payload) VALUES (?, ?)
-`, info.State, string(payload))
+INSERT INTO oauth_auth_requests (state, payload, created_at) VALUES (?, ?, ?)
+`, info.State, string(payload), time.Now().Unix())
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "constraint") {
 			return fmt.Errorf("auth request already saved for state %s", info.State)
@@ -134,5 +151,14 @@ INSERT INTO oauth_auth_requests (state, payload) VALUES (?, ?)
 
 func (s *SQLiteStore) DeleteAuthRequestInfo(ctx context.Context, state string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM oauth_auth_requests WHERE state = ?`, state)
+	return err
+}
+
+func (s *SQLiteStore) purgeExpiredAuthRequests(ctx context.Context) error {
+	cutoff := time.Now().Add(-authRequestTTL).Unix()
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM oauth_auth_requests WHERE created_at = 0 OR created_at < ?`,
+		cutoff,
+	)
 	return err
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/simbachu/twisky/internal/actor"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/command"
@@ -48,16 +49,20 @@ type Server struct {
 	likeWriter like.Writer
 	// homeReader, when set, is used for the home timeline instead of the session client (tests).
 	homeReader homequery.Reader
+	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
+	// traffic from authenticated poll/enrichment paths.
+	sessionClients *sessionClientCache
 }
 
 func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
 	return &Server{
-		queries:       queries,
-		commands:      commands,
-		suggestions:   suggestionsHandler,
-		publicBaseURL: publicBaseURL,
-		auth:          auth,
-		prefs:         moderation.DefaultPrefsProvider{},
+		queries:        queries,
+		commands:       commands,
+		suggestions:    suggestionsHandler,
+		publicBaseURL:  publicBaseURL,
+		auth:           auth,
+		prefs:          moderation.DefaultPrefsProvider{},
+		sessionClients: newSessionClientCache(),
 	}
 }
 
@@ -101,6 +106,7 @@ func (s *Server) Handler() http.Handler {
 	}
 
 	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/oauth/client-metadata.json", s.handleClientMetadata)
@@ -131,10 +137,15 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cursor, since, refresh := feedFragmentParams(r)
-	resp := homequery.NewHandler(reader, s.prefs).Handle(r.Context(), intent.ViewHome{Cursor: cursor})
+	resp := homequery.NewHandler(reader, s.prefs).Handle(r.Context(), intent.ViewHome{
+		Cursor:    cursor,
+		HeadCheck: since != "" && refresh == "" && cursor == "",
+	})
 	switch v := resp.(type) {
 	case homequery.HomeView:
-		s.enrichFeedLikes(r, &v.Feed)
+		if since == "" {
+			s.enrichFeedLikes(r, &v.Feed)
+		}
 		if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
 			return
 		}
@@ -187,8 +198,9 @@ func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
 func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName string) {
 	cursor, since, refresh := feedFragmentParams(r)
 	resp, err := s.queries.Dispatch(r.Context(), intent.ViewTag{
-		Tag:    tagName,
-		Cursor: cursor,
+		Tag:       tagName,
+		Cursor:    cursor,
+		HeadCheck: since != "" && refresh == "" && cursor == "",
 	})
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -197,7 +209,9 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 
 	switch v := resp.(type) {
 	case tag.TagView:
-		s.enrichTagView(r, &v)
+		if since == "" {
+			s.enrichTagView(r, &v)
+		}
 		if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
 			return
 		}
@@ -216,9 +230,10 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 		slug := chi.URLParam(r, "slug")
 		cursor, since, refresh := feedFragmentParams(r)
 		resp, err := s.queries.Dispatch(r.Context(), intent.ViewProfile{
-			Slug:   slug,
-			Tab:    tab,
-			Cursor: cursor,
+			Slug:      slug,
+			Tab:       tab,
+			Cursor:    cursor,
+			HeadCheck: since != "" && refresh == "" && cursor == "",
 		})
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -227,7 +242,9 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 
 		switch v := resp.(type) {
 		case profile.ProfileView:
-			s.enrichProfileView(r, &v)
+			if since == "" {
+				s.enrichProfileView(r, &v)
+			}
 			if renderFeedFragment(w, r, v.Feed, cursor, since, refresh) {
 				return
 			}
@@ -262,10 +279,15 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
-		s.enrichPageLikes(r, &v)
+		part := postPagePart(r)
+		// Counts fragments only need public engagement numbers; skip OAuth resume
+		// and viewer like enrichment on that hot poll path.
+		if part != feedquery.PostPagePartCounts {
+			s.enrichPageLikes(r, &v)
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		now := time.Now().UTC()
-		switch postPagePart(r) {
+		switch part {
 		case feedquery.PostPagePartAncestors:
 			_ = postpage.PostPageAncestors(v, now).Render(w)
 		case feedquery.PostPagePartCounts:
@@ -405,6 +427,8 @@ func renderFeedFragment(
 	}
 }
 
+const shutdownTimeout = 10 * time.Second
+
 func ListenAndServe(ctx context.Context, addr string, handler http.Handler) error {
 	server := &http.Server{Addr: addr, Handler: handler}
 
@@ -415,7 +439,9 @@ func ListenAndServe(ctx context.Context, addr string, handler http.Handler) erro
 
 	select {
 	case <-ctx.Done():
-		return server.Shutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		return server.Shutdown(shutdownCtx)
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil

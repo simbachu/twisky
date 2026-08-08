@@ -232,10 +232,10 @@ func (s *Server) ResumeActiveSession(r *http.Request) (*session.Account, error) 
 
 // ResumeActiveClient resumes the active OAuth session and returns an authenticated API client.
 func (s *Server) ResumeActiveClient(r *http.Request) (*session.Account, *authoauth.SessionClient, error) {
-	account, err := s.loadActiveAccount(r)
-	if err != nil {
-		return nil, nil, err
-	}
+	return s.cachedResumeActiveClient(r)
+}
+
+func (s *Server) resumeActiveClientUncached(r *http.Request, account *session.Account) (*session.Account, *authoauth.SessionClient, error) {
 	did, err := syntax.ParseDID(account.DID)
 	if err != nil {
 		return nil, nil, err

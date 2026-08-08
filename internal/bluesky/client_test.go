@@ -527,6 +527,12 @@ func TestClient_GetPostThread(t *testing.T) {
 		if got := r.URL.Query().Get("uri"); got != postURI {
 			t.Fatalf("uri = %q, want %s", got, postURI)
 		}
+		if got := r.URL.Query().Get("depth"); got != "6" {
+			t.Fatalf("depth = %q, want 6", got)
+		}
+		if got := r.URL.Query().Get("parentHeight"); got != "25" {
+			t.Fatalf("parentHeight = %q, want 25", got)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{
@@ -572,7 +578,7 @@ func TestClient_GetPostThread(t *testing.T) {
 
 	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
 
-	node, err := client.GetPostThread(context.Background(), postURI)
+	node, err := client.GetPostThread(context.Background(), postURI, nil)
 	if err != nil {
 		t.Fatalf("GetPostThread() err = %v", err)
 	}
@@ -631,7 +637,7 @@ func TestClient_GetPostThread_NotFound(t *testing.T) {
 
 	client := bluesky.NewClientWith(server.URL+"/xrpc", server.Client())
 
-	_, err := client.GetPostThread(context.Background(), "at://did:plc:example/app.bsky.feed.post/missing")
+	_, err := client.GetPostThread(context.Background(), "at://did:plc:example/app.bsky.feed.post/missing", nil)
 	if err == nil {
 		t.Fatal("GetPostThread() err = nil, want ErrNotFound")
 	}

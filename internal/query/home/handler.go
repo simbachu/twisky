@@ -52,6 +52,11 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 	}
 
 	feed := feedquery.NewFeedViewFromItems(items.Feed, items.Cursor)
+	if i.HeadCheck {
+		return HomeView{
+			Feed: feedquery.ApplyModeration(ctx, h.prefs, feed, moderation.UIContextContentList),
+		}
+	}
 	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
 	if err != nil {
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}

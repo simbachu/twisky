@@ -31,18 +31,24 @@ type stubReader struct {
 
 	threadDelay        time.Duration
 	getPostThreadCalls int32
+	lastThreadOpts     *bluesky.PostThreadOpts
+	getProfileCalls    int32
 
 	mu           sync.Mutex
 	capturedURIs [][]string
 }
 
 func (s *stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
+	atomic.AddInt32(&s.getProfileCalls, 1)
 	return s.profile, s.err
 }
 
-func (s *stubReader) GetPostThread(_ context.Context, postURI string) (bluesky.ThreadNode, error) {
+func (s *stubReader) GetPostThread(_ context.Context, postURI string, opts *bluesky.PostThreadOpts) (bluesky.ThreadNode, error) {
 	atomic.AddInt32(&s.getPostThreadCalls, 1)
 	s.capturedURI = postURI
+	s.mu.Lock()
+	s.lastThreadOpts = opts
+	s.mu.Unlock()
 	if s.threadDelay > 0 {
 		time.Sleep(s.threadDelay)
 	}
@@ -465,5 +471,83 @@ func TestHandler_Handle_RepliesFragment_CoalescesConcurrentRequests(t *testing.T
 
 	if got := atomic.LoadInt32(&reader.getPostThreadCalls); got != 1 {
 		t.Fatalf("GetPostThread calls = %d, want 1 (concurrent requests should coalesce)", got)
+	}
+}
+
+func TestHandler_Handle_CountsFragment_DIDSlugSkipsGetProfile(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		err: errors.New("GetProfile must not be called for DID slug counts"),
+		posts: []bluesky.Post{
+			{
+				URI:        "at://did:plc:example/app.bsky.feed.post/root",
+				Author:     bluesky.Author{Handle: "bsky.app"},
+				LikeCount:  7,
+				ReplyCount: 1,
+			},
+		},
+	}
+	handler := post.NewHandler(reader, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "did:plc:example",
+		ID:   "root",
+		Part: feedquery.PostPagePartCounts,
+	})
+	view, ok := resp.(feedquery.PostPageView)
+	if !ok {
+		t.Fatalf("response type = %T, want PostPageView", resp)
+	}
+	if view.Post.LikeCount != 7 {
+		t.Fatalf("LikeCount = %d, want 7", view.Post.LikeCount)
+	}
+	if atomic.LoadInt32(&reader.getProfileCalls) != 0 {
+		t.Fatalf("GetProfile calls = %d, want 0", reader.getProfileCalls)
+	}
+}
+
+func TestHandler_Handle_FullAndAncestorsShareThreadCache(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/root",
+				Author: bluesky.Author{Handle: "bsky.app"},
+				Record: bluesky.PostRecord{Text: "root post"},
+			},
+			Parent: bluesky.ThreadViewPost{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/parent",
+					Author: bluesky.Author{Handle: "bsky.app"},
+					Record: bluesky.PostRecord{Text: "parent post"},
+				},
+			},
+		},
+	}
+	handler := post.NewHandler(reader, nil)
+
+	full := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "root"})
+	if _, ok := full.(feedquery.PostPageView); !ok {
+		t.Fatalf("full response type = %T, want PostPageView", full)
+	}
+	ancestors := handler.Handle(context.Background(), intent.ViewPost{
+		Slug: "bsky.app",
+		ID:   "root",
+		Part: feedquery.PostPagePartAncestors,
+	})
+	view, ok := ancestors.(feedquery.PostPageView)
+	if !ok {
+		t.Fatalf("ancestors response type = %T, want PostPageView", ancestors)
+	}
+	if len(view.Ancestors) != 1 || view.Ancestors[0].Post.ID != "parent" {
+		t.Fatalf("ancestors = %#v, want parent", view.Ancestors)
+	}
+	if got := atomic.LoadInt32(&reader.getPostThreadCalls); got != 1 {
+		t.Fatalf("GetPostThread calls = %d, want 1 (full+ancestors share cache)", got)
+	}
+	if reader.lastThreadOpts == nil || reader.lastThreadOpts.Depth != 6 || reader.lastThreadOpts.ParentHeight != 25 {
+		t.Fatalf("lastThreadOpts = %#v, want depth=6 parentHeight=25", reader.lastThreadOpts)
 	}
 }

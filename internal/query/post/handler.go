@@ -20,14 +20,19 @@ import (
 // concurrent pollers of the same post.
 const countsCacheTTL = 5 * time.Second
 
-// threadCacheTTL bounds how long a replies-fragment GetPostThread fetch is
-// reused. Longer than counts because the call is heavier and already gated by
-// reply-count changes on the client.
+// threadCacheTTL bounds how long a GetPostThread fetch is reused across
+// full page, ancestors, and replies requests for the same post.
 const threadCacheTTL = 20 * time.Second
+
+// threadDepth / threadParentHeight cap upstream getPostThread payload size.
+const (
+	threadDepth        = 6
+	threadParentHeight = 25
+)
 
 type Reader interface {
 	GetProfile(ctx context.Context, actor string) (*bluesky.Profile, error)
-	GetPostThread(ctx context.Context, postURI string) (bluesky.ThreadNode, error)
+	GetPostThread(ctx context.Context, postURI string, opts *bluesky.PostThreadOpts) (bluesky.ThreadNode, error)
 	GetProfiles(ctx context.Context, actors []string) ([]bluesky.Profile, error)
 	GetPosts(ctx context.Context, uris []string) ([]bluesky.Post, error)
 }
@@ -35,8 +40,8 @@ type Reader interface {
 type Handler struct {
 	reader      Reader
 	prefs       moderation.PrefsProvider
-	countsCache *countsCache
-	threadCache *threadCache
+	countsCache *ttlCache[bluesky.Post]
+	threadCache *ttlCache[bluesky.ThreadNode]
 }
 
 func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
@@ -56,29 +61,22 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 	if err != nil {
 		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid slug"}
 	}
-	identifier := slug.Identifier
 
 	postID := strings.TrimSpace(i.ID)
 	if postID == "" {
 		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid post id"}
 	}
 
-	profile, err := h.reader.GetProfile(ctx, identifier)
-	if err != nil {
-		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "actor not found"}
-		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	did, errResp := h.resolveDID(ctx, slug)
+	if errResp != nil {
+		return *errResp
 	}
 
 	if i.Part == feedquery.PostPagePartCounts {
-		return h.handleCounts(ctx, i.Slug, postID, profile.DID)
-	}
-	if i.Part == feedquery.PostPagePartReplies {
-		return h.handleReplies(ctx, i.Slug, postID, profile.DID)
+		return h.handleCounts(ctx, i.Slug, postID, did)
 	}
 
-	threadNode, err := h.reader.GetPostThread(ctx, atproto.NewPostURI(profile.DID, postID).String())
+	threadNode, err := h.getThread(ctx, i.Slug, postID, did)
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
@@ -87,6 +85,26 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 	}
 
 	return h.postPageFromThread(ctx, threadNode, i.Part)
+}
+
+// resolveDID returns the account DID for the post URI. When the slug is already
+// a DID, GetProfile is skipped entirely (counts/replies/full page only need DID).
+func (h *Handler) resolveDID(ctx context.Context, slug actor.Slug) (string, *response.ErrorResponse) {
+	if slug.Kind == actor.KindDID {
+		return slug.Identifier, nil
+	}
+
+	profile, err := h.reader.GetProfile(ctx, slug.Identifier)
+	if err != nil {
+		if errors.Is(err, bluesky.ErrNotFound) {
+			return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "actor not found"}
+		}
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	}
+	if profile == nil || profile.DID == "" {
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+	}
+	return profile.DID, nil
 }
 
 // handleCounts serves the cheap counts-only fragment via GetPosts instead of
@@ -103,29 +121,22 @@ func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) re
 		if errors.Is(err, bluesky.ErrNotFound) {
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
 		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		}
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
 	}
 
 	return feedquery.PostPageView{Post: feedquery.NewPostView(bskyPost)}
 }
 
-// handleReplies serves the replies fragment via GetPostThread, coalescing
-// concurrent requests for the same post through threadCache.
-func (h *Handler) handleReplies(ctx context.Context, slug, postID, did string) response.Response {
+func (h *Handler) getThread(ctx context.Context, slug, postID, did string) (bluesky.ThreadNode, error) {
 	uri := atproto.NewPostURI(did, postID).String()
 	key := slug + "/" + postID
-
-	threadNode, err := h.threadCache.Get(ctx, key, func(ctx context.Context) (bluesky.ThreadNode, error) {
-		return h.reader.GetPostThread(ctx, uri)
+	opts := &bluesky.PostThreadOpts{Depth: threadDepth, ParentHeight: threadParentHeight}
+	return h.threadCache.Get(ctx, key, func(ctx context.Context) (bluesky.ThreadNode, error) {
+		return h.reader.GetPostThread(ctx, uri, opts)
 	})
-	if err != nil {
-		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
-		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
-	}
-
-	return h.postPageFromThread(ctx, threadNode, feedquery.PostPagePartReplies)
 }
 
 func (h *Handler) postPageFromThread(ctx context.Context, threadNode bluesky.ThreadNode, part string) response.Response {

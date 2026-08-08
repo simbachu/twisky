@@ -14,6 +14,9 @@ type ViewProfile struct {
 	Slug   string
 	Tab    ProfileTab
 	Cursor string
+	// HeadCheck skips reply-parent, mention, pinned-post, and labeler
+	// enrichment. Used for ?since= polls that only need feed post IDs.
+	HeadCheck bool
 }
 
 func (ViewProfile) intent() {}

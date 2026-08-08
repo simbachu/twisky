@@ -63,7 +63,7 @@ func (s stubReader) GetPosts(context.Context, []string) ([]bluesky.Post, error) 
 	return s.posts, nil
 }
 
-func (s stubReader) GetPostThread(context.Context, string) (bluesky.ThreadNode, error) {
+func (s stubReader) GetPostThread(context.Context, string, *bluesky.PostThreadOpts) (bluesky.ThreadNode, error) {
 	if s.threadErr != nil {
 		return nil, s.threadErr
 	}
