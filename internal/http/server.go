@@ -116,6 +116,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/oauth/logout", s.handleOAuthLogout)
 	r.Post("/action/like", s.handleLike)
 	r.Get("/", s.handleHome)
+	r.Get("/feed/{feedSlug}", s.handleHome)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
@@ -139,6 +140,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	cursor, since, refresh := feedFragmentParams(r)
 	resp := homequery.NewHandler(reader, s.prefs).Handle(r.Context(), intent.ViewHome{
 		Cursor:    cursor,
+		FeedSlug:  chi.URLParam(r, "feedSlug"),
 		HeadCheck: since != "" && refresh == "" && cursor == "",
 	})
 	switch v := resp.(type) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/simbachu/twisky/internal/bluesky"
@@ -14,11 +15,15 @@ import (
 
 type stubReader struct {
 	timelineResp *bluesky.AuthorFeedResponse
+	feedResp     *bluesky.AuthorFeedResponse
+	savedFeeds   []bluesky.SavedFeed
+	generators   []bluesky.FeedGenerator
 	err          error
 	profiles     []bluesky.Profile
 	parentPosts  []bluesky.Post
 
 	lastTimelineRequest bluesky.TimelineRequest
+	lastFeedRequest     bluesky.FeedRequest
 	lastGetPostsURIs    []string
 }
 
@@ -28,6 +33,28 @@ func (s *stubReader) GetTimeline(_ context.Context, req bluesky.TimelineRequest)
 		return nil, s.err
 	}
 	return s.timelineResp, nil
+}
+
+func (s *stubReader) GetSavedFeeds(context.Context) ([]bluesky.SavedFeed, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.savedFeeds, nil
+}
+
+func (s *stubReader) GetFeedGenerators(context.Context, []string) ([]bluesky.FeedGenerator, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.generators, nil
+}
+
+func (s *stubReader) GetFeed(_ context.Context, req bluesky.FeedRequest) (*bluesky.AuthorFeedResponse, error) {
+	s.lastFeedRequest = req
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.feedResp, nil
 }
 
 func (s *stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, error) {
@@ -143,5 +170,125 @@ func TestHandler_HandleUpstreamError(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+}
+
+func TestHandler_HandleBuildsPinnedFeedTabsInPreferenceOrder(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		timelineResp: &bluesky.AuthorFeedResponse{},
+		savedFeeds: []bluesky.SavedFeed{
+			{ID: "one", Pinned: true, Type: "feed", URI: "at://did:plc:one/app.bsky.feed.generator/one"},
+			{ID: "list", Pinned: true, Type: "list", URI: "at://did:plc:one/app.bsky.graph.list/list"},
+			{ID: "two", Pinned: false, Type: "feed", URI: "at://did:plc:two/app.bsky.feed.generator/two"},
+			{ID: "three", Pinned: true, Type: "feed", URI: "at://did:plc:three/app.bsky.feed.generator/three"},
+		},
+		generators: []bluesky.FeedGenerator{
+			{URI: "at://did:plc:three/app.bsky.feed.generator/three", DisplayName: "Three"},
+			{URI: "at://did:plc:one/app.bsky.feed.generator/one", DisplayName: "One"},
+		},
+	}
+
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
+
+	view, ok := resp.(home.HomeView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want HomeView", resp)
+	}
+	if len(view.Tabs) != 3 {
+		t.Fatalf("len(view.Tabs) = %d, want 3", len(view.Tabs))
+	}
+	if view.Tabs[0].Label != "Following" || !view.Tabs[0].Current {
+		t.Fatalf("Tabs[0] = %#v, want current Following", view.Tabs[0])
+	}
+	if view.Tabs[1].Label != "One" || view.Tabs[2].Label != "Three" {
+		t.Fatalf("Tabs = %#v, want Following, One, Three", view.Tabs)
+	}
+}
+
+func TestHandler_HandleLoadsSelectedGeneratorAndPassesCursor(t *testing.T) {
+	t.Parallel()
+
+	uri := "at://did:plc:example/app.bsky.feed.generator/for-you"
+	reader := &stubReader{
+		savedFeeds: []bluesky.SavedFeed{{Pinned: true, Type: "feed", URI: uri}},
+		generators: []bluesky.FeedGenerator{{URI: uri, DisplayName: "For You"}},
+		feedResp: &bluesky.AuthorFeedResponse{Feed: []bluesky.FeedItem{{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:example/app.bsky.feed.post/custom",
+				Author: bluesky.Author{Handle: "dev.example"},
+				Record: bluesky.PostRecord{Text: "custom feed post"},
+			},
+		}}},
+	}
+
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{
+		FeedSlug: "for-you",
+		Cursor:   "cursor-1",
+	})
+
+	view, ok := resp.(home.HomeView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want HomeView", resp)
+	}
+	if reader.lastFeedRequest.URI != uri || reader.lastFeedRequest.Cursor != "cursor-1" {
+		t.Fatalf("lastFeedRequest = %#v, want URI %q and cursor-1", reader.lastFeedRequest, uri)
+	}
+	if reader.lastTimelineRequest != (bluesky.TimelineRequest{}) {
+		t.Fatalf("lastTimelineRequest = %#v, want zero request", reader.lastTimelineRequest)
+	}
+	if view.Title != "For You" || view.Path != "/feed/for-you" {
+		t.Fatalf("view title/path = %q/%q, want For You//feed/for-you", view.Title, view.Path)
+	}
+	if !view.Tabs[1].Current {
+		t.Fatalf("Tabs[1] = %#v, want current", view.Tabs[1])
+	}
+}
+
+func TestHandler_HandleDisambiguatesDuplicateFeedNames(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		timelineResp: &bluesky.AuthorFeedResponse{},
+		savedFeeds: []bluesky.SavedFeed{
+			{Pinned: true, Type: "feed", URI: "at://did:plc:one/app.bsky.feed.generator/discover"},
+			{Pinned: true, Type: "feed", URI: "at://did:plc:two/app.bsky.feed.generator/discover"},
+		},
+		generators: []bluesky.FeedGenerator{
+			{URI: "at://did:plc:one/app.bsky.feed.generator/discover", DisplayName: "Discover"},
+			{URI: "at://did:plc:two/app.bsky.feed.generator/discover", DisplayName: "Discover"},
+		},
+	}
+
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
+
+	view := resp.(home.HomeView)
+	if view.Tabs[1].Slug == view.Tabs[2].Slug {
+		t.Fatalf("duplicate slugs = %q, want distinct", view.Tabs[1].Slug)
+	}
+	for _, tab := range view.Tabs[1:] {
+		if !strings.HasPrefix(tab.Slug, "discover-") {
+			t.Fatalf("slug = %q, want discover- prefix", tab.Slug)
+		}
+	}
+}
+
+func TestHandler_HandleUnknownFeedSlug(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		savedFeeds: []bluesky.SavedFeed{},
+		generators: []bluesky.FeedGenerator{},
+	}
+
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{FeedSlug: "missing"})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusNotFound {
+		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusNotFound)
 	}
 }

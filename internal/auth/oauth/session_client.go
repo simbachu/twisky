@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -93,6 +94,109 @@ func (c *SessionClient) GetTimeline(ctx context.Context, req bluesky.TimelineReq
 		Feed:   resp.Feed,
 		Cursor: resp.Cursor,
 	}, nil
+}
+
+// GetSavedFeeds returns the authenticated user's saved-feed preferences.
+func (c *SessionClient) GetSavedFeeds(ctx context.Context) ([]bluesky.SavedFeed, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	appview := c.client.WithService(appViewService)
+	var resp struct {
+		Preferences []json.RawMessage `json:"preferences"`
+	}
+	if err := appview.Get(ctx, "app.bsky.actor.getPreferences", map[string]any{}, &resp); err != nil {
+		return nil, err
+	}
+	return parseSavedFeeds(resp.Preferences)
+}
+
+func parseSavedFeeds(preferences []json.RawMessage) ([]bluesky.SavedFeed, error) {
+	var legacy []bluesky.SavedFeed
+	for _, raw := range preferences {
+		var header struct {
+			Type string `json:"$type"`
+		}
+		if err := json.Unmarshal(raw, &header); err != nil {
+			return nil, err
+		}
+		switch header.Type {
+		case "app.bsky.actor.defs#savedFeedsPrefV2":
+			var pref struct {
+				Items []bluesky.SavedFeed `json:"items"`
+			}
+			if err := json.Unmarshal(raw, &pref); err != nil {
+				return nil, err
+			}
+			return pref.Items, nil
+		case "app.bsky.actor.defs#savedFeedsPref":
+			var pref struct {
+				Pinned []string `json:"pinned"`
+			}
+			if err := json.Unmarshal(raw, &pref); err != nil {
+				return nil, err
+			}
+			legacy = make([]bluesky.SavedFeed, 0, len(pref.Pinned))
+			for _, uri := range pref.Pinned {
+				legacy = append(legacy, bluesky.SavedFeed{
+					ID:     uri,
+					Pinned: true,
+					Type:   "feed",
+					URI:    uri,
+				})
+			}
+		}
+	}
+	return legacy, nil
+}
+
+// GetFeedGenerators resolves feed-generator metadata via the AppView proxy.
+func (c *SessionClient) GetFeedGenerators(ctx context.Context, uris []string) ([]bluesky.FeedGenerator, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	if len(uris) == 0 {
+		return nil, nil
+	}
+	appview := c.client.WithService(appViewService)
+	const chunk = 25
+	out := make([]bluesky.FeedGenerator, 0, len(uris))
+	for start := 0; start < len(uris); start += chunk {
+		end := min(start+chunk, len(uris))
+		var resp struct {
+			Feeds []bluesky.FeedGenerator `json:"feeds"`
+		}
+		if err := appview.Get(ctx, "app.bsky.feed.getFeedGenerators", map[string]any{
+			"feeds": uris[start:end],
+		}, &resp); err != nil {
+			return nil, err
+		}
+		out = append(out, resp.Feeds...)
+	}
+	return out, nil
+}
+
+// GetFeed fetches an authenticated custom feed via the AppView proxy.
+func (c *SessionClient) GetFeed(ctx context.Context, req bluesky.FeedRequest) (*bluesky.AuthorFeedResponse, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	appview := c.client.WithService(appViewService)
+	params := map[string]any{"feed": req.URI}
+	if req.Limit > 0 {
+		params["limit"] = req.Limit
+	}
+	if req.Cursor != "" {
+		params["cursor"] = req.Cursor
+	}
+	var resp struct {
+		Feed   []bluesky.FeedItem `json:"feed"`
+		Cursor string             `json:"cursor,omitempty"`
+	}
+	if err := appview.Get(ctx, "app.bsky.feed.getFeed", params, &resp); err != nil {
+		return nil, err
+	}
+	return &bluesky.AuthorFeedResponse{Feed: resp.Feed, Cursor: resp.Cursor}, nil
 }
 
 // GetProfiles fetches actor profiles via the AppView proxy.

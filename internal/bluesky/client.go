@@ -220,6 +220,24 @@ type TimelineRequest struct {
 	Cursor string
 }
 
+type FeedRequest struct {
+	URI    string
+	Limit  int
+	Cursor string
+}
+
+type SavedFeed struct {
+	ID     string `json:"id"`
+	Pinned bool   `json:"pinned"`
+	Type   string `json:"type"`
+	URI    string `json:"value"`
+}
+
+type FeedGenerator struct {
+	URI         string `json:"uri"`
+	DisplayName string `json:"displayName"`
+}
+
 type authorFeedResponse struct {
 	Feed   []FeedItem `json:"feed"`
 	Cursor string     `json:"cursor,omitempty"`

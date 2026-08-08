@@ -47,3 +47,41 @@ func TestSessionClient_GetProfiles_NilClient(t *testing.T) {
 		t.Fatal("GetProfiles() err = nil, want error")
 	}
 }
+
+func TestSessionClient_GetSavedFeeds_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+
+	_, err := client.GetSavedFeeds(context.Background())
+
+	if err == nil {
+		t.Fatal("GetSavedFeeds() err = nil, want error")
+	}
+}
+
+func TestSessionClient_GetFeedGenerators_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+
+	_, err := client.GetFeedGenerators(context.Background(), []string{"at://did:plc:example/app.bsky.feed.generator/for-you"})
+
+	if err == nil {
+		t.Fatal("GetFeedGenerators() err = nil, want error")
+	}
+}
+
+func TestSessionClient_GetFeed_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+
+	_, err := client.GetFeed(context.Background(), bluesky.FeedRequest{
+		URI: "at://did:plc:example/app.bsky.feed.generator/for-you",
+	})
+
+	if err == nil {
+		t.Fatal("GetFeed() err = nil, want error")
+	}
+}

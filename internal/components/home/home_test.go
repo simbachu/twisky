@@ -46,3 +46,34 @@ func TestHome_MarksSiteNavCurrentAndRendersFeed(t *testing.T) {
 		t.Fatalf("want exactly one aria-current; got:\n%s", html)
 	}
 }
+
+func TestHome_RendersSelectedSavedFeedTabsAndMetadata(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := home.Home(homequery.HomeView{
+		Feed:  feedquery.FeedView{},
+		Title: "For You",
+		Path:  "/feed/for-you",
+		Tabs: []homequery.FeedTab{
+			{Label: "Following", Href: "/", Current: false},
+			{Label: "For You", Slug: "for-you", Href: "/feed/for-you", Current: true},
+		},
+	}, time.Now().UTC(), nil, ui.AccountMenuView{Enabled: true}, "https://twisky.test").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`aria-label="Home feeds"`,
+		`<a role="tab" href="/" aria-selected="false">Following</a>`,
+		`<a role="tab" href="/feed/for-you" aria-selected="true" aria-current="page">For You</a>`,
+		`property="og:title" content="For You · Twisky"`,
+		`rel="canonical" href="https://twisky.test/feed/for-you"`,
+		`<a href="/" aria-current="page">`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html missing %q; got:\n%s", want, html)
+		}
+	}
+}
