@@ -3,7 +3,11 @@
   --content-padding-inline: 1rem;
   --layout-wide-min: 75rem;
   --layout-tall-min: 40rem;
-  --site-tabbar-height: 3.5rem;
+  /* Touch target height (~56–68px); icons stay smaller for glyph balance. */
+  --site-tabbar-height: clamp(3.5rem, 8dvh, 4.25rem);
+  --site-tabbar-icon-size: clamp(1.5rem, 3.25dvh, 1.75rem);
+  --site-tabbar-gap: 0.75rem;
+  --site-tabbar-max-width: 30rem;
 
   /* Brand wordmark — twilight sky */
   --brand-twilight-1: #8e7ab5;

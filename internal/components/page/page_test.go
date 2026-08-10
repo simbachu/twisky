@@ -48,3 +48,23 @@ func TestPage_ComposesSiteNavAndLoggedInAccountMenu(t *testing.T) {
 		t.Fatalf("html = %q, want current account name", html)
 	}
 }
+
+func TestPage_DeclaresMobileViewport(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := page.Page(
+		page.PageMeta{Title: "Home", Path: "/"},
+		nil,
+		ui.AccountMenuView{},
+		g.Text("main"),
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	want := `name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"`
+	if !strings.Contains(html, want) {
+		t.Fatalf("html missing viewport meta %q; got:\n%s", want, html)
+	}
+}

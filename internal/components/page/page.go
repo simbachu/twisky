@@ -83,6 +83,10 @@ func pageFooter(suggested []ui.AuthorInfo) g.Node {
 
 func pageHead(meta PageMeta) []g.Node {
 	headNodes := []g.Node{
+		Meta(
+			g.Attr("name", "viewport"),
+			g.Attr("content", "width=device-width, initial-scale=1, viewport-fit=cover"),
+		),
 		TitleEl(g.Text(meta.Title)),
 		Meta(
 			g.Attr("name", "description"),

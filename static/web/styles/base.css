@@ -75,8 +75,12 @@ body {
   flex-direction: column;
   min-height: 100dvh;
   font-family: "Ysabeau", serif;
-  /* Clear fixed tabstrip on narrow/short layouts (tokens match media values). */
-  padding-block-end: calc(var(--site-tabbar-height) + env(safe-area-inset-bottom, 0px));
+  /* Clear floating pill: height + gaps above/below + home-indicator inset. */
+  padding-block-end: calc(
+    var(--site-tabbar-height)
+    + (2 * var(--site-tabbar-gap))
+    + env(safe-area-inset-bottom, 0px)
+  );
 
   /* Chrome-less surfaces (login): no sidebars / tab bar. */
   &:not(:has(> header)) {
@@ -86,7 +90,9 @@ body {
 
     > main {
       flex: 0 1 auto;
+      box-sizing: border-box;
       width: min(24rem, 100%);
+      padding-inline: var(--content-padding-inline);
       margin-block: 2rem;
       display: flex;
       flex-direction: column;
@@ -237,14 +243,19 @@ body {
       align-items: stretch;
       justify-content: space-around;
       position: fixed;
-      inset-inline: 0;
-      bottom: 0;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--site-tabbar-gap) + env(safe-area-inset-bottom, 0px));
       z-index: 100;
-      min-block-size: var(--site-tabbar-height);
-      padding-block-end: env(safe-area-inset-bottom, 0px);
-      background-color: canvas;
-      border-block-start: 1px solid var(--iface-divider);
       box-sizing: border-box;
+      width: min(var(--site-tabbar-max-width), calc(100% - 2 * var(--site-tabbar-gap)));
+      max-width: var(--site-tabbar-max-width);
+      margin-inline: auto;
+      min-block-size: var(--site-tabbar-height);
+      background-color: canvas;
+      border: 1px solid var(--iface-divider);
+      border-radius: var(--iface-radius);
+      box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
 
       > nav[aria-label="Site"] {
         flex: 1 1 auto;
@@ -278,7 +289,7 @@ body {
           }
 
           > span[aria-hidden="true"] {
-            font-size: 1.35rem;
+            font-size: var(--site-tabbar-icon-size);
             line-height: 1;
           }
 
@@ -320,14 +331,14 @@ body {
         }
 
         .profile-icon img {
-          max-width: 1.75rem;
-          max-height: 1.75rem;
+          max-width: var(--site-tabbar-icon-size);
+          max-height: var(--site-tabbar-icon-size);
         }
 
         .profile-icon-emoji {
-          width: 1.75rem;
-          height: 1.75rem;
-          font-size: 1rem;
+          width: var(--site-tabbar-icon-size);
+          height: var(--site-tabbar-icon-size);
+          font-size: calc(var(--site-tabbar-icon-size) * 0.6);
         }
       }
 
@@ -350,14 +361,21 @@ body {
       > div {
         position: static;
         inset: auto;
+        left: auto;
+        right: auto;
+        bottom: auto;
         flex-direction: column;
         align-items: stretch;
         justify-content: flex-start;
         gap: 1rem;
+        width: auto;
+        max-width: none;
+        margin-inline: 0;
         min-block-size: 0;
-        padding-block-end: 0;
         background: transparent;
-        border-block-start: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
 
         > nav[aria-label="Site"] {
           flex: 0 0 auto;
@@ -439,10 +457,16 @@ body {
 
 main {
   flex: 1 1 auto;
+  box-sizing: border-box;
   width: min(var(--content-width), 100%);
   max-width: var(--content-width);
-  padding-inline: var(--content-padding-inline);
+  /* Full-bleed feed/posts on narrow; gutter returns from tablet up. */
+  padding-inline: 0;
   margin-block-end: 3rem;
+
+  @media (min-width: 40rem) {
+    padding-inline: var(--content-padding-inline);
+  }
 
   @media (min-width: 75rem) and (min-height: 40rem) {
     flex: 0 1 var(--content-width);
@@ -452,6 +476,12 @@ main {
     margin-inline: var(--content-padding-inline);
     margin-block-start: 3rem;
     margin-block-end: 0.5rem;
+
+    /* Profile owns its own gutters so the banner can span edge-to-edge. */
+    &.profile {
+      margin-inline: 0;
+      margin-block-start: 0;
+    }
 
     & h2 {
       font-size: 1.2em;
@@ -467,6 +497,7 @@ main {
 
 #page-alert:not(:empty) {
   margin-block: 2rem 1rem;
+  margin-inline: var(--content-padding-inline);
   padding: 1rem 1.25rem;
   border: 1px solid var(--iface-divider);
   border-radius: 0.5rem;
