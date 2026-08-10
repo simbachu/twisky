@@ -171,6 +171,9 @@ func TestHandler_HandleUpstreamError(t *testing.T) {
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusBadGateway)
 	}
+	if errResp.Message != "Failed to load home feeds" {
+		t.Fatalf("Message = %q, want Failed to load home feeds", errResp.Message)
+	}
 }
 
 func TestHandler_HandleBuildsPinnedFeedTabsInPreferenceOrder(t *testing.T) {
@@ -291,4 +294,43 @@ func TestHandler_HandleUnknownFeedSlug(t *testing.T) {
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusNotFound)
 	}
+	if errResp.Message != "Could not find feed missing" {
+		t.Fatalf("Message = %q, want Could not find feed missing", errResp.Message)
+	}
+}
+
+func TestHandler_HandleTimelineUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	reader := &timelineFailReader{
+		stubReader: stubReader{
+			savedFeeds: []bluesky.SavedFeed{},
+			generators: []bluesky.FeedGenerator{},
+		},
+		timelineErr: errors.New("timeline down"),
+	}
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusBadGateway {
+		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to load feed Following" {
+		t.Fatalf("Message = %q, want Failed to load feed Following", errResp.Message)
+	}
+}
+
+type timelineFailReader struct {
+	stubReader
+	timelineErr error
+}
+
+func (r *timelineFailReader) GetTimeline(ctx context.Context, req bluesky.TimelineRequest) (*bluesky.AuthorFeedResponse, error) {
+	if r.timelineErr != nil {
+		return nil, r.timelineErr
+	}
+	return r.stubReader.GetTimeline(ctx, req)
 }

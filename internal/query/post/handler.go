@@ -3,6 +3,7 @@ package post
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -59,12 +60,12 @@ func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
 func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Response {
 	slug, err := actor.ParseSlug(i.Slug)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid slug"}
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid handle or DID"}
 	}
 
 	postID := strings.TrimSpace(i.ID)
 	if postID == "" {
-		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid post id"}
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid post identifier"}
 	}
 
 	did, errResp := h.resolveDID(ctx, slug)
@@ -79,12 +80,12 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 	threadNode, err := h.getThread(ctx, i.Slug, postID, did)
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find post %s", postID)}
 		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: fmt.Sprintf("Failed to load post %s", postID)}
 	}
 
-	return h.postPageFromThread(ctx, threadNode, i.Part)
+	return h.postPageFromThread(ctx, threadNode, postID, i.Part)
 }
 
 // resolveDID returns the account DID for the post URI. When the slug is already
@@ -94,15 +95,16 @@ func (h *Handler) resolveDID(ctx context.Context, slug actor.Slug) (string, *res
 		return slug.Identifier, nil
 	}
 
+	referent := slug.Referent()
 	profile, err := h.reader.GetProfile(ctx, slug.Identifier)
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "actor not found"}
+			return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
 		}
-		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
 	}
 	if profile == nil || profile.DID == "" {
-		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
 	}
 	return profile.DID, nil
 }
@@ -119,12 +121,9 @@ func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) re
 	})
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find post %s", postID)}
 		}
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
-		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: fmt.Sprintf("Failed to refresh counts for post %s", postID)}
 	}
 
 	return feedquery.PostPageView{Post: feedquery.NewPostView(bskyPost)}
@@ -139,10 +138,10 @@ func (h *Handler) getThread(ctx context.Context, slug, postID, did string) (blue
 	})
 }
 
-func (h *Handler) postPageFromThread(ctx context.Context, threadNode bluesky.ThreadNode, part string) response.Response {
+func (h *Handler) postPageFromThread(ctx context.Context, threadNode bluesky.ThreadNode, postID, part string) response.Response {
 	root, ok := threadNode.(bluesky.ThreadViewPost)
 	if !ok {
-		return response.ErrorResponse{Status: http.StatusNotFound, Message: "post not found"}
+		return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find post %s", postID)}
 	}
 
 	view := feedquery.NewPostPageView(root, part)

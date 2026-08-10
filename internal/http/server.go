@@ -18,6 +18,7 @@ import (
 	"github.com/simbachu/twisky/internal/command"
 	"github.com/simbachu/twisky/internal/command/like"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
+	errorpage "github.com/simbachu/twisky/internal/components/errorpage"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	homepage "github.com/simbachu/twisky/internal/components/home"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
@@ -155,9 +156,12 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		suggested := s.suggestedAccounts(r.Context())
 		_ = homepage.Home(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
-		http.Error(w, v.Message, v.Status)
+		s.writeQueryError(w, r, v)
 	default:
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
 	}
 }
 
@@ -205,7 +209,10 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 		HeadCheck: since != "" && refresh == "" && cursor == "",
 	})
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
 		return
 	}
 
@@ -221,9 +228,12 @@ func (s *Server) dispatchTag(w http.ResponseWriter, r *http.Request, tagName str
 		suggested := s.suggestedAccounts(r.Context())
 		_ = tagpage.Tag(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
-		http.Error(w, v.Message, v.Status)
+		s.writeQueryError(w, r, v)
 	default:
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
 	}
 }
 
@@ -238,7 +248,10 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 			HeadCheck: since != "" && refresh == "" && cursor == "",
 		})
 		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			s.writeQueryError(w, r, response.ErrorResponse{
+				Status:  http.StatusInternalServerError,
+				Message: "Something went wrong loading this page",
+			})
 			return
 		}
 
@@ -255,9 +268,12 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 			known := append([]ui.AuthorInfo{authorInfoFromProfileView(v)}, suggested...)
 			_ = profilepage.Profile(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, known...), s.publicBaseURL).Render(w)
 		case response.ErrorResponse:
-			http.Error(w, v.Message, v.Status)
+			s.writeQueryError(w, r, v)
 		default:
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			s.writeQueryError(w, r, response.ErrorResponse{
+				Status:  http.StatusInternalServerError,
+				Message: "Something went wrong loading this page",
+			})
 		}
 	}
 }
@@ -265,7 +281,10 @@ func (s *Server) handleProfile(tab intent.ProfileTab) http.HandlerFunc {
 func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 	postID, err := url.PathUnescape(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "invalid post id", http.StatusBadRequest)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid post identifier",
+		})
 		return
 	}
 
@@ -275,7 +294,10 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		Part: postPagePart(r),
 	})
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
 		return
 	}
 
@@ -306,10 +328,47 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			_ = postpage.PostPage(v, now, suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		}
 	case response.ErrorResponse:
-		http.Error(w, v.Message, v.Status)
+		s.writeQueryError(w, r, v)
 	default:
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
 	}
+}
+
+func (s *Server) writeQueryError(w http.ResponseWriter, r *http.Request, errResp response.ErrorResponse) {
+	status := errResp.Status
+	if status == 0 {
+		status = http.StatusInternalServerError
+	}
+	message := strings.TrimSpace(errResp.Message)
+	if message == "" {
+		message = "Something went wrong loading this page"
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if isHTMXRequest(r) {
+		w.Header().Set("HX-Reswap", "none")
+		w.WriteHeader(status)
+		_ = errorpage.AlertFragment(message, status).Render(w)
+		return
+	}
+
+	w.WriteHeader(status)
+	suggested := s.suggestedAccounts(r.Context())
+	_ = errorpage.Page(
+		message,
+		status,
+		r.URL.Path,
+		suggested,
+		s.accountMenuView(w, r, suggested...),
+		s.publicBaseURL,
+	).Render(w)
+}
+
+func isHTMXRequest(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
 }
 
 func feedFragmentParams(r *http.Request) (cursor, since, refresh string) {

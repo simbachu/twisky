@@ -61,7 +61,7 @@ func (HomeView) IsResponse() {}
 func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Response {
 	tabs, err := h.feedTabs(ctx)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load home feeds"}
 	}
 
 	selected := tabs[0]
@@ -74,7 +74,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 			}
 		}
 		if selected.URI == "" {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "feed not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find feed " + i.FeedSlug}
 		}
 	}
 
@@ -90,9 +90,9 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 	}
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "feed not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find feed " + selected.Label}
 		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load feed " + selected.Label}
 	}
 
 	for index := range tabs {
@@ -109,7 +109,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 	}
 	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load reply context"}
 	}
 
 	return HomeView{

@@ -174,6 +174,19 @@ func TestHandleSlug_InvalidSlug(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `role="alert"`) {
+		t.Fatalf("body = %q, want alert role", body)
+	}
+	if !strings.Contains(body, "Invalid handle or DID") {
+		t.Fatalf("body = %q, want Invalid handle or DID", body)
+	}
+	if !strings.Contains(body, `aria-label="Site"`) {
+		t.Fatalf("body = %q, want site chrome", body)
+	}
+	if !strings.Contains(body, `id="page-alert"`) {
+		t.Fatalf("body = %q, want page-alert region", body)
+	}
 }
 
 func TestHandleSlug_NotFound(t *testing.T) {
@@ -188,6 +201,13 @@ func TestHandleSlug_NotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Could not find handle missing.example") {
+		t.Fatalf("body = %q, want contextual not-found message", body)
+	}
+	if !strings.Contains(body, "Not found") {
+		t.Fatalf("body = %q, want Not found heading", body)
+	}
 }
 
 func TestHandleSlug_UpstreamError(t *testing.T) {
@@ -201,6 +221,45 @@ func TestHandleSlug_UpstreamError(t *testing.T) {
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadGateway)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Failed to resolve handle bsky.app") {
+		t.Fatalf("body = %q, want Failed to resolve handle bsky.app", body)
+	}
+	if !strings.Contains(body, `aria-label="Site"`) {
+		t.Fatalf("body = %q, want site chrome", body)
+	}
+}
+
+func TestHandleSlug_HTMXFragmentUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{err: errors.New("network failure")})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app?cursor=next", nil)
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadGateway)
+	}
+	if got := rec.Header().Get("HX-Reswap"); got != "none" {
+		t.Fatalf("HX-Reswap = %q, want none", got)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `<html`) {
+		t.Fatalf("body = %q, want fragment without page wrapper", body)
+	}
+	for _, want := range []string{
+		`id="page-alert"`,
+		`hx-swap-oob="true"`,
+		`role="alert"`,
+		"Failed to resolve handle bsky.app",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q; got:\n%s", want, body)
+		}
 	}
 }
 
@@ -392,6 +451,9 @@ func TestHandlePost_InvalidSlug(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
+	if !strings.Contains(rec.Body.String(), "Invalid handle or DID") {
+		t.Fatalf("body = %q, want Invalid handle or DID", rec.Body.String())
+	}
 }
 
 func TestHandlePost_NotFound(t *testing.T) {
@@ -408,6 +470,41 @@ func TestHandlePost_NotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Could not find post missing") {
+		t.Fatalf("body = %q, want Could not find post missing", body)
+	}
+	if !strings.Contains(body, `aria-label="Site"`) {
+		t.Fatalf("body = %q, want site chrome", body)
+	}
+}
+
+func TestHandlePost_HTMXCountsUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile:  &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		postsErr: errors.New("network failure"),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/bsky.app/post/root?counts=1", nil)
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadGateway)
+	}
+	if got := rec.Header().Get("HX-Reswap"); got != "none" {
+		t.Fatalf("HX-Reswap = %q, want none", got)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `<html`) {
+		t.Fatalf("body = %q, want fragment without page wrapper", body)
+	}
+	if !strings.Contains(body, "Failed to refresh counts for post root") {
+		t.Fatalf("body = %q, want counts failure message", body)
 	}
 }
 

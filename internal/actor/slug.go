@@ -50,6 +50,17 @@ type Slug struct {
 	Kind       Kind
 }
 
+// Referent returns a user-facing noun+identifier for error messages,
+// for example "handle alice.bsky.social" or "profile did:plc:…".
+func (s Slug) Referent() string {
+	switch s.Kind {
+	case KindDID:
+		return "profile " + s.Identifier
+	default:
+		return "handle " + s.Identifier
+	}
+}
+
 // ParseSlug classifies a URL path segment as a handle or DID.
 // Single-label strings like "hello" are rejected without an API call.
 func ParseSlug(raw string) (Slug, error) {

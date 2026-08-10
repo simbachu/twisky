@@ -35,6 +35,12 @@ func TestPage_ComposesSiteNavAndLoggedInAccountMenu(t *testing.T) {
 	if !strings.Contains(html, `class="iface-disclosure account-menu"`) {
 		t.Fatalf("html = %q, want disclosure account menu", html)
 	}
+	if !strings.Contains(html, `id="page-alert"`) {
+		t.Fatalf("html = %q, want empty page-alert region", html)
+	}
+	if !strings.Contains(html, `page-alert.js`) {
+		t.Fatalf("html = %q, want page-alert script", html)
+	}
 	if !strings.Contains(html, `action="/oauth/logout"`) {
 		t.Fatalf("html = %q, want logout action in header chrome", html)
 	}

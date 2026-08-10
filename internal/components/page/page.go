@@ -113,6 +113,7 @@ func pageHead(meta PageMeta) []g.Node {
 		Script(g.Attr("src", "/static/scripts/post-page-reply-view.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-share.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/nav-back.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/page-alert.js"), g.Attr("defer", "")),
 		Link(
 			g.Attr("id", "page-favicon"),
 			g.Attr("rel", "icon"),
@@ -124,13 +125,24 @@ func pageHead(meta PageMeta) []g.Node {
 }
 
 func Page(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, children ...g.Node) g.Node {
+	return document(meta, suggested, accounts, Div(g.Attr("id", "page-alert")), children...)
+}
+
+// PageWithAlert renders a full document with content already placed in the
+// shared #page-alert region (used for query error pages).
+func PageWithAlert(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, alert g.Node, children ...g.Node) g.Node {
+	return document(meta, suggested, accounts, Div(g.Attr("id", "page-alert"), alert), children...)
+}
+
+func document(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, alertRegion g.Node, children ...g.Node) g.Node {
+	mainChildren := append([]g.Node{alertRegion}, children...)
 	return HTML(
 		Doctype(
 			Head(g.Group(pageHead(meta))),
 		),
 		Body(
 			pageHeader(meta.Path, accounts),
-			Main(children...),
+			Main(mainChildren...),
 			pageFooter(suggested),
 		),
 	)

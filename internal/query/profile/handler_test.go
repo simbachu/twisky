@@ -21,9 +21,10 @@ type stubReader struct {
 	err     error
 	feedErr error
 
-	profiles []bluesky.Profile
-	posts    []bluesky.Post
-	postsErr error
+	profiles    []bluesky.Profile
+	profilesErr error
+	posts       []bluesky.Post
+	postsErr    error
 
 	lastFeedRequest  bluesky.AuthorFeedRequest
 	lastGetPostsURIs []string
@@ -42,6 +43,9 @@ func (s *stubReader) GetAuthorFeed(_ context.Context, req bluesky.AuthorFeedRequ
 }
 
 func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, error) {
+	if s.profilesErr != nil {
+		return nil, s.profilesErr
+	}
 	return s.profiles, nil
 }
 
@@ -260,6 +264,9 @@ func TestHandler_HandleInvalidSlug(t *testing.T) {
 	if errResp.Status != http.StatusBadRequest {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadRequest)
 	}
+	if errResp.Message != "Invalid handle or DID" {
+		t.Fatalf("Handle() message = %q, want Invalid handle or DID", errResp.Message)
+	}
 }
 
 func TestHandler_HandleNotFound(t *testing.T) {
@@ -276,6 +283,9 @@ func TestHandler_HandleNotFound(t *testing.T) {
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusNotFound)
 	}
+	if errResp.Message != "Could not find handle missing.example" {
+		t.Fatalf("Handle() message = %q, want Could not find handle missing.example", errResp.Message)
+	}
 }
 
 func TestHandler_HandleUpstreamError(t *testing.T) {
@@ -291,6 +301,9 @@ func TestHandler_HandleUpstreamError(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to resolve handle bsky.app" {
+		t.Fatalf("Handle() message = %q, want Failed to resolve handle bsky.app", errResp.Message)
 	}
 }
 
@@ -310,6 +323,77 @@ func TestHandler_HandleFeedUpstreamError(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to load posts for handle bsky.app" {
+		t.Fatalf("Handle() message = %q, want Failed to load posts for handle bsky.app", errResp.Message)
+	}
+}
+
+func TestHandler_HandleReplyContextUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	handler := profile.NewHandler(&stubReader{
+		profile: &bluesky.Profile{Handle: "bsky.app"},
+		feed: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/reply",
+					Author: bluesky.Author{Handle: "bsky.app"},
+					Record: bluesky.PostRecord{
+						Text: "a reply",
+						Reply: &bluesky.RecordReplyRef{
+							Root:   bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/root"},
+							Parent: bluesky.StrongRef{URI: "at://did:plc:example/app.bsky.feed.post/parent"},
+						},
+					},
+				},
+			}},
+		},
+		postsErr: errors.New("network failure"),
+	}, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusBadGateway {
+		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to load reply context" {
+		t.Fatalf("Handle() message = %q, want Failed to load reply context", errResp.Message)
+	}
+}
+
+func TestHandler_HandleLabelerProfilesUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	handler := profile.NewHandler(&stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
+			Handle: "bsky.app",
+			Labels: []bluesky.Label{{
+				Val: "sexual",
+				Src: moderation.BlueskyModerationDID,
+				URI: "did:plc:example",
+			}},
+		},
+		feed:        &bluesky.AuthorFeedResponse{},
+		profilesErr: errors.New("network failure"),
+	}, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusBadGateway {
+		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to load moderation label providers" {
+		t.Fatalf("Handle() message = %q, want Failed to load moderation label providers", errResp.Message)
 	}
 }
 

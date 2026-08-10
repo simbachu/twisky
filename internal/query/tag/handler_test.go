@@ -132,6 +132,28 @@ func TestHandler_HandleInvalidTag(t *testing.T) {
 	if errResp.Status != http.StatusBadRequest {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadRequest)
 	}
+	if errResp.Message != "Invalid tag" {
+		t.Fatalf("Handle() message = %q, want Invalid tag", errResp.Message)
+	}
+}
+
+func TestHandler_HandleNotFound(t *testing.T) {
+	t.Parallel()
+
+	handler := tag.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil)
+
+	resp := handler.Handle(context.Background(), intent.ViewTag{Tag: "missing"})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusNotFound {
+		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusNotFound)
+	}
+	if errResp.Message != "Could not find tag missing" {
+		t.Fatalf("Handle() message = %q, want Could not find tag missing", errResp.Message)
+	}
 }
 
 func TestHandler_HandleUpstreamError(t *testing.T) {
@@ -147,6 +169,9 @@ func TestHandler_HandleUpstreamError(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("Handle() status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to load posts for tag golang" {
+		t.Fatalf("Handle() message = %q, want Failed to load posts for tag golang", errResp.Message)
 	}
 }
 

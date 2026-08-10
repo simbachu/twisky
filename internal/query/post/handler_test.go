@@ -192,6 +192,9 @@ func TestHandler_Handle_InvalidSlug(t *testing.T) {
 	if errResp.Status != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadRequest)
 	}
+	if errResp.Message != "Invalid handle or DID" {
+		t.Fatalf("message = %q, want Invalid handle or DID", errResp.Message)
+	}
 }
 
 func TestHandler_Handle_InvalidPostID(t *testing.T) {
@@ -208,6 +211,45 @@ func TestHandler_Handle_InvalidPostID(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadRequest)
+	}
+	if errResp.Message != "Invalid post identifier" {
+		t.Fatalf("message = %q, want Invalid post identifier", errResp.Message)
+	}
+}
+
+func TestHandler_Handle_ResolveHandleNotFound(t *testing.T) {
+	t.Parallel()
+
+	handler := post.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "missing.example", ID: "abc"})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
+	}
+	if errResp.Message != "Could not find handle missing.example" {
+		t.Fatalf("message = %q, want Could not find handle missing.example", errResp.Message)
+	}
+}
+
+func TestHandler_Handle_ResolveHandleUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	handler := post.NewHandler(&stubReader{err: errors.New("network failure")}, nil)
+	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "abc"})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to resolve handle bsky.app" {
+		t.Fatalf("message = %q, want Failed to resolve handle bsky.app", errResp.Message)
 	}
 }
 
@@ -227,6 +269,9 @@ func TestHandler_Handle_PostNotFound(t *testing.T) {
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
 	}
+	if errResp.Message != "Could not find post missing" {
+		t.Fatalf("message = %q, want Could not find post missing", errResp.Message)
+	}
 }
 
 func TestHandler_Handle_UpstreamError(t *testing.T) {
@@ -245,6 +290,9 @@ func TestHandler_Handle_UpstreamError(t *testing.T) {
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadGateway)
 	}
+	if errResp.Message != "Failed to load post abc" {
+		t.Fatalf("message = %q, want Failed to load post abc", errResp.Message)
+	}
 }
 
 func TestHandler_Handle_RootNotThreadViewPost(t *testing.T) {
@@ -262,6 +310,9 @@ func TestHandler_Handle_RootNotThreadViewPost(t *testing.T) {
 	}
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
+	}
+	if errResp.Message != "Could not find post missing" {
+		t.Fatalf("message = %q, want Could not find post missing", errResp.Message)
 	}
 }
 
@@ -327,6 +378,9 @@ func TestHandler_Handle_CountsFragment_NotFound(t *testing.T) {
 	if errResp.Status != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusNotFound)
 	}
+	if errResp.Message != "Could not find post missing" {
+		t.Fatalf("message = %q, want Could not find post missing", errResp.Message)
+	}
 }
 
 func TestHandler_Handle_CountsFragment_UpstreamError(t *testing.T) {
@@ -348,6 +402,9 @@ func TestHandler_Handle_CountsFragment_UpstreamError(t *testing.T) {
 	}
 	if errResp.Status != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	}
+	if errResp.Message != "Failed to refresh counts for post root" {
+		t.Fatalf("message = %q, want Failed to refresh counts for post root", errResp.Message)
 	}
 }
 

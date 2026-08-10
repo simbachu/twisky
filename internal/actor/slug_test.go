@@ -150,4 +150,24 @@ func TestParseSlug(t *testing.T) {
 	}
 }
 
+func TestSlug_Referent(t *testing.T) {
+	t.Parallel()
+
+	handle, err := actor.ParseSlug("alice.bsky.social")
+	if err != nil {
+		t.Fatalf("ParseSlug() err = %v", err)
+	}
+	if got := handle.Referent(); got != "handle alice.bsky.social" {
+		t.Fatalf("handle.Referent() = %q, want handle alice.bsky.social", got)
+	}
+
+	did, err := actor.ParseSlug("did:plc:example")
+	if err != nil {
+		t.Fatalf("ParseSlug() err = %v", err)
+	}
+	if got := did.Referent(); got != "profile did:plc:example" {
+		t.Fatalf("did.Referent() = %q, want profile did:plc:example", got)
+	}
+}
+
 

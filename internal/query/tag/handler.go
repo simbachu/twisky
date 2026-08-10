@@ -44,7 +44,7 @@ func (TagView) IsResponse() {}
 func (h *Handler) Handle(ctx context.Context, i intent.ViewTag) response.Response {
 	tag := strings.TrimSpace(i.Tag)
 	if tag == "" {
-		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid tag"}
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid tag"}
 	}
 
 	items, err := h.reader.SearchPosts(ctx, bluesky.SearchPostsRequest{
@@ -54,9 +54,9 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewTag) response.Respons
 	})
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "tag not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find tag " + tag}
 		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load posts for tag " + tag}
 	}
 
 	feed := feedquery.NewFeedView(items.Posts, items.Cursor)
@@ -68,7 +68,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewTag) response.Respons
 	}
 	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load reply context"}
 	}
 
 	return TagView{

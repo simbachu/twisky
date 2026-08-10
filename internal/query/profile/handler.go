@@ -67,16 +67,17 @@ func (ProfileView) IsResponse() {}
 func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Response {
 	slug, err := actor.ParseSlug(i.Slug)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "invalid slug"}
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid handle or DID"}
 	}
 	identifier := slug.Identifier
+	referent := slug.Referent()
 
 	profile, err := h.reader.GetProfile(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "actor not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
 		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
 	}
 
 	filter := bluesky.FilterPostsNoReplies
@@ -94,9 +95,9 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	})
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
-			return response.ErrorResponse{Status: http.StatusNotFound, Message: "actor not found"}
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find posts for " + referent}
 		}
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load posts for " + referent}
 	}
 
 	feed := feedquery.NewFeedViewFromItems(items.Feed, items.Cursor)
@@ -110,7 +111,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	}
 	feed, err = feedquery.EnrichReplyParents(ctx, h.reader, feed)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load reply context"}
 	}
 
 	var descriptionSegments []richtext.Segment
@@ -129,7 +130,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	displayLabels := moderation.ProfileLabelsForDisplay(profileLabels, profile.DID, prefs)
 	displayLabels, err = h.enrichProfileLabels(ctx, displayLabels, profile)
 	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "upstream error"}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load moderation label providers"}
 	}
 
 	isLabeler := actor.IsLabelerAccount(profile.Handle, profile.DID, profile.Associated != nil && profile.Associated.Labeler)

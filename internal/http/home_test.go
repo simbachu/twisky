@@ -270,4 +270,11 @@ func TestHome_UnknownSavedFeedReturns404(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
 	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Could not find feed missing") {
+		t.Fatalf("body = %q, want Could not find feed missing", body)
+	}
+	if !strings.Contains(body, `role="alert"`) {
+		t.Fatalf("body = %q, want alert role", body)
+	}
 }
