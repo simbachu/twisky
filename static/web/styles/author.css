@@ -38,6 +38,11 @@
   &:hover {
     text-decoration: underline;
   }
+
+  /* Keep the handle close to the name */
+  + .author-handle {
+    margin-inline-start: 0.125rem;
+  }
 }
 
 .author-handle {
@@ -52,15 +57,23 @@
   gap: 0.5rem;
   margin-block-end: 0.25rem;
   color: dimgrey;
-  
+
   a {
     color: dimgrey;
     text-decoration: none;
   }
-  
+
   .profile-icon img {
     width: var(--post-avatar-size, var(--post-byline-avatar-max-width));
     max-width: var(--post-avatar-size, var(--post-byline-avatar-max-width));
+  }
+
+  /* Timestamp / OP stay secondary to the name+handle unit. */
+  > span {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.5rem;
   }
 
   .byline-op {

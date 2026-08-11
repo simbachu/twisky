@@ -149,7 +149,6 @@ func AuthorLink(author AuthorInfo) g.Node {
 	if author.DisplayName != author.Handle {
 		return Span(
 			AuthorName(author, AuthorPeekable),
-			g.Text(" "),
 			AuthorHandle(author, AuthorPeekable),
 		)
 	}
