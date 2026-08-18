@@ -17,8 +17,9 @@ import (
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/command"
 	"github.com/simbachu/twisky/internal/command/like"
-	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
+	"github.com/simbachu/twisky/internal/command/repost"
 	errorpage "github.com/simbachu/twisky/internal/components/errorpage"
+	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
 	homepage "github.com/simbachu/twisky/internal/components/home"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
@@ -48,6 +49,8 @@ type Server struct {
 	prefs         moderation.PrefsProvider
 	// likeWriter, when set, skips OAuth resume for LikePost (tests).
 	likeWriter like.Writer
+	// repostWriter, when set, skips OAuth resume for RepostPost (tests).
+	repostWriter repost.Writer
 	// homeReader, when set, is used for the home timeline instead of the session client (tests).
 	homeReader homequery.Reader
 	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
@@ -70,6 +73,12 @@ func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggesti
 // WithLikeWriter overrides the OAuth session client used for LikePost (tests).
 func (s *Server) WithLikeWriter(w like.Writer) *Server {
 	s.likeWriter = w
+	return s
+}
+
+// WithRepostWriter overrides the OAuth session client used for RepostPost (tests).
+func (s *Server) WithRepostWriter(w repost.Writer) *Server {
+	s.repostWriter = w
 	return s
 }
 
@@ -116,6 +125,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/oauth/callback", s.handleOAuthCallback)
 	r.Post("/oauth/logout", s.handleOAuthLogout)
 	r.Post("/action/like", s.handleLike)
+	r.Post("/action/repost", s.handleRepost)
 	r.Get("/", s.handleHome)
 	r.Get("/feed/{feedSlug}", s.handleHome)
 	r.Get("/tagged/{tag}", s.handleTag)

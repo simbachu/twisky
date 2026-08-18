@@ -9,7 +9,7 @@ import (
 	"github.com/simbachu/twisky/internal/bluesky"
 )
 
-func TestIsDuplicateLike(t *testing.T) {
+func TestIsDuplicateRecord(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -22,9 +22,22 @@ func TestIsDuplicateLike(t *testing.T) {
 		{errors.New("DuplicateCreate"), true},
 	}
 	for _, tc := range cases {
+		if got := authoauth.IsDuplicateRecord(tc.err); got != tc.want {
+			t.Fatalf("IsDuplicateRecord(%v) = %v, want %v", tc.err, got, tc.want)
+		}
 		if got := authoauth.IsDuplicateLike(tc.err); got != tc.want {
 			t.Fatalf("IsDuplicateLike(%v) = %v, want %v", tc.err, got, tc.want)
 		}
+	}
+}
+
+func TestSessionClient_CreateRepost_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+	err := client.CreateRepost(context.Background(), "at://did:plc:example/app.bsky.feed.post/abc", "bafycid")
+	if err == nil {
+		t.Fatal("CreateRepost() err = nil, want error")
 	}
 }
 

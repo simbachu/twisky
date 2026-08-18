@@ -66,7 +66,7 @@ func postFooter(view feedquery.PostView) g.Node {
 			g.Attr("aria-label", "Post actions"),
 			ui.SegmentedGroup("Engagement actions",
 				ui.PostEngagement(ui.IconReply, "Reply", view.ReplyCount),
-				ui.PostEngagement(ui.IconRepost, "Repost", view.RepostCount),
+				repostButton(view, ""),
 				likeButton(view, ""),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
@@ -88,7 +88,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 			g.Attr("aria-label", "Post actions"),
 			ui.SegmentedGroup("Engagement actions",
 				ui.PostEngagementPollable(ui.IconReply, "Reply", view.ReplyCount, ids.reply),
-				ui.PostEngagementPollable(ui.IconRepost, "Repost", view.RepostCount, ids.repost),
+				repostButton(view, ids.repost),
 				likeButton(view, ids.like),
 			),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
@@ -104,6 +104,67 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 // LikeButtonFragment renders the like action button for HTMX swaps after LikePost.
 func LikeButtonFragment(view feedquery.PostView, countID string) g.Node {
 	return ui.ActionButton(likeButtonConfig(view, countID))
+}
+
+// RepostButtonFragment renders the repost action button for HTMX swaps after RepostPost.
+func RepostButtonFragment(view feedquery.PostView, countID string) g.Node {
+	return ui.ActionButton(repostButtonConfig(view, countID))
+}
+
+// RepostActionFragment is the HTMX response for a reskeet: the engaged button,
+// plus post-page out-of-band stats when view.ID is set.
+func RepostActionFragment(view feedquery.PostView) g.Node {
+	countID := ""
+	if view.ID != "" {
+		countID = newCountIDs(view.ID).repost
+	}
+	button := RepostButtonFragment(view, countID)
+	if view.ID == "" {
+		return button
+	}
+	ids := newCountIDs(view.ID)
+	return g.Group{
+		button,
+		ui.GroupedStatCount(ids.repostStats, view.RepostCount, true),
+		Div(
+			g.Attr("id", ids.announcer),
+			g.Attr("hx-swap-oob", "true"),
+			g.Attr("class", "visually-hidden"),
+			g.Attr("aria-live", "polite"),
+			g.Attr("aria-atomic", "true"),
+			g.Text(countAnnouncement(view.RepostCount, "repost", "reposts")),
+		),
+	}
+}
+
+func repostButton(view feedquery.PostView, countID string) ui.ActionButtonConfig {
+	return repostButtonConfig(view, countID)
+}
+
+func repostButtonConfig(view feedquery.PostView, countID string) ui.ActionButtonConfig {
+	cfg := ui.ActionButtonConfig{
+		Icon:    ui.IconRepost,
+		Label:   "Repost",
+		Count:   view.RepostCount,
+		CountID: countID,
+		Engaged: view.Reposted,
+	}
+	if uri, cid := view.URI(), view.CID(); uri != "" && cid != "" {
+		vals := map[string]any{
+			"uri":   uri,
+			"cid":   cid,
+			"count": view.RepostCount,
+		}
+		if countID != "" && view.ID != "" {
+			vals["id"] = view.ID
+		}
+		encoded, err := json.Marshal(vals)
+		if err == nil {
+			cfg.HxPost = "/action/repost"
+			cfg.HxVals = string(encoded)
+		}
+	}
+	return cfg
 }
 
 func likeButton(view feedquery.PostView, countID string) ui.ActionButtonConfig {

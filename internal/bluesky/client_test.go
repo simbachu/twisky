@@ -1158,7 +1158,7 @@ func TestClient_GetPosts(t *testing.T) {
 					"cid": "bafyparent",
 					"author": {"handle": "dev.example"},
 					"record": {"text": "parent post", "createdAt": "2026-01-15T11:00:00.000Z"},
-					"viewer": {"like": "at://did:plc:me/app.bsky.feed.like/abc"}
+					"viewer": {"like": "at://did:plc:me/app.bsky.feed.like/abc", "repost": "at://did:plc:me/app.bsky.feed.repost/xyz"}
 				},
 				{
 					"uri": "at://did:plc:example/app.bsky.feed.post/other",
@@ -1191,6 +1191,9 @@ func TestClient_GetPosts(t *testing.T) {
 	}
 	if posts[0].Viewer == nil || posts[0].Viewer.Like != "at://did:plc:me/app.bsky.feed.like/abc" {
 		t.Fatalf("posts[0].Viewer = %#v, want like uri", posts[0].Viewer)
+	}
+	if posts[0].Viewer.Repost != "at://did:plc:me/app.bsky.feed.repost/xyz" {
+		t.Fatalf("posts[0].Viewer.Repost = %q, want repost uri", posts[0].Viewer.Repost)
 	}
 	if posts[1].CID != "bafyother" {
 		t.Fatalf("posts[1].CID = %q, want bafyother", posts[1].CID)

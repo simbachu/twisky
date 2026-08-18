@@ -42,6 +42,26 @@ func (c *SessionClient) CreateLike(ctx context.Context, uri, cid string) error {
 	return c.client.Post(ctx, "com.atproto.repo.createRecord", body, nil)
 }
 
+// CreateRepost writes an app.bsky.feed.repost record for the subject strong-ref.
+func (c *SessionClient) CreateRepost(ctx context.Context, uri, cid string) error {
+	if c == nil || c.client == nil || c.client.AccountDID == nil {
+		return fmt.Errorf("oauth: session client not configured")
+	}
+	body := map[string]any{
+		"repo":       c.client.AccountDID.String(),
+		"collection": "app.bsky.feed.repost",
+		"record": map[string]any{
+			"$type": "app.bsky.feed.repost",
+			"subject": map[string]any{
+				"uri": uri,
+				"cid": cid,
+			},
+			"createdAt": syntax.DatetimeNow(),
+		},
+	}
+	return c.client.Post(ctx, "com.atproto.repo.createRecord", body, nil)
+}
+
 // GetPosts fetches posts via the AppView proxy (includes viewer state when authenticated).
 func (c *SessionClient) GetPosts(ctx context.Context, uris []string) ([]bluesky.Post, error) {
 	if c == nil || c.client == nil {
@@ -218,8 +238,8 @@ func (c *SessionClient) GetProfiles(ctx context.Context, actors []string) ([]blu
 	return resp.Profiles, nil
 }
 
-// IsDuplicateLike reports whether err indicates the like already exists.
-func IsDuplicateLike(err error) bool {
+// IsDuplicateRecord reports whether err indicates the record already exists.
+func IsDuplicateRecord(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -227,4 +247,9 @@ func IsDuplicateLike(err error) bool {
 	return strings.Contains(msg, "already exists") ||
 		strings.Contains(msg, "record already exists") ||
 		strings.Contains(msg, "duplicate")
+}
+
+// IsDuplicateLike reports whether err indicates the like already exists.
+func IsDuplicateLike(err error) bool {
+	return IsDuplicateRecord(err)
 }

@@ -46,6 +46,17 @@
       }
     }
 
+    &.ui-action--repost:hover:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--repost:active:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--repost.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]),
+    &.ui-action--repost.htmx-request:not(:disabled):not([aria-disabled="true"]) {
+      color: var(--action-repost-fg);
+
+      span {
+        color: var(--action-repost-fg);
+      }
+    }
+
     &.ui-action--bluesky:hover:not(:disabled):not([aria-disabled="true"]),
     &.ui-action--bluesky:active:not(:disabled):not([aria-disabled="true"]),
     &.ui-action--bluesky.ui-icon-engaged:not(:disabled):not([aria-disabled="true"]) {

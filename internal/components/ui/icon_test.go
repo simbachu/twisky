@@ -81,3 +81,16 @@ func TestActionButton_LikeIncludesActionClass(t *testing.T) {
 		t.Fatalf("html = %q, want heart outline symbol", html)
 	}
 }
+
+func TestActionButton_RepostIncludesActionClass(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.ActionButton(ui.PostEngagement(ui.IconRepost, "Repost", 0)).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `class="ui-action ui-action--repost"`) {
+		t.Fatalf("html = %q, want ui-action--repost class", html)
+	}
+}

@@ -58,8 +58,10 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 		`aria-label="Repost, 3"`,
 		`aria-label="Like, 5"`,
 		`ui-action--like`,
+		`ui-action--repost`,
 		`icon-heart-outline`,
 		`hx-post="/action/like"`,
+		`hx-post="/action/repost"`,
 		`at://did:plc:example/app.bsky.feed.post/abc123`,
 		`bafycid`,
 		`hx-target="this"`,
@@ -68,6 +70,9 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, `&#34;id&#34;:&#34;abc123&#34;`) {
+		t.Fatalf("html = %q, feed repost button must not send post id", html)
 	}
 }
 
@@ -88,6 +93,56 @@ func TestPost_LikedRendersEngagedLikeButton(t *testing.T) {
 	html := buf.String()
 	if !strings.Contains(html, `ui-icon-engaged`) {
 		t.Fatalf("html = %q, want ui-icon-engaged", html)
+	}
+}
+
+func TestPost_RepostedRendersEngagedRepostButton(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := post.Post(feedquery.PostViewWithStrongRef(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		Reposted:     true,
+		RepostCount:  3,
+	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid"), time.Now().UTC()).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `ui-icon-engaged`) {
+		t.Fatalf("html = %q, want ui-icon-engaged", html)
+	}
+	if !strings.Contains(html, `ui-action--repost`) {
+		t.Fatalf("html = %q, want ui-action--repost", html)
+	}
+}
+
+func TestPostArticle_LiveRepostButtonIncludesPostID(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.PostViewWithStrongRef(feedquery.PostView{
+		ID:           "abc123",
+		AuthorHandle: "dev.example",
+		Text:         "hello",
+		RepostCount:  3,
+	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid")
+
+	var buf bytes.Buffer
+	if err := post.PostArticle(view, time.Now().UTC(), "post", true, false, "").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`hx-post="/action/repost"`,
+		`&#34;id&#34;:&#34;abc123&#34;`,
+		`id="repost-count-abc123"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 

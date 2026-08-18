@@ -52,31 +52,32 @@ type LinkPreviewView struct {
 }
 
 type PostView struct {
-	ID                string
-	AuthorHandle      string
-	AuthorDisplayName string
-	AuthorAvatar      string
-	LikeCount         int
-	RepostCount       int
-	ReplyCount        int
-	Liked             bool
-	Text              string
-	TextSegments      []richtext.Segment
-	CreatedAt         time.Time
-	Images            []ImageView
-	Videos            []VideoView
-	LinkPreviewMaybe  *LinkPreviewView
-	RepostedByMaybe   *AuthorView
-	ReplyParentMaybe  *PostView
-	QuotedPostMaybe   *PostView
-	Moderation        ModerationView
-	replyParentURI    string
-	postURI           string
-	postCID           string
-	authorDID         string
+	ID                  string
+	AuthorHandle        string
+	AuthorDisplayName   string
+	AuthorAvatar        string
+	LikeCount           int
+	RepostCount         int
+	ReplyCount          int
+	Liked               bool
+	Reposted            bool
+	Text                string
+	TextSegments        []richtext.Segment
+	CreatedAt           time.Time
+	Images              []ImageView
+	Videos              []VideoView
+	LinkPreviewMaybe    *LinkPreviewView
+	RepostedByMaybe     *AuthorView
+	ReplyParentMaybe    *PostView
+	QuotedPostMaybe     *PostView
+	Moderation          ModerationView
+	replyParentURI      string
+	postURI             string
+	postCID             string
+	authorDID           string
 	threadRootAuthorDID string
-	labels            []moderation.Label
-	authorLabels      []moderation.Label
+	labels              []moderation.Label
+	authorLabels        []moderation.Label
 }
 
 type FeedView struct {
@@ -162,24 +163,25 @@ func authorView(author bluesky.Author) AuthorView {
 
 func NewPostView(post bluesky.Post) PostView {
 	view := PostView{
-		ID:                postID(post.URI),
-		AuthorHandle:      post.Author.Handle,
-		AuthorDisplayName: actor.Name(post.Author.DisplayName, post.Author.Handle),
-		AuthorAvatar:      post.Author.Avatar,
-		LikeCount:         post.LikeCount,
-		RepostCount:       post.RepostCount,
-		ReplyCount:        post.ReplyCount,
-		Liked:             post.Viewer != nil && post.Viewer.Like != "",
-		Text:              post.Record.Text,
-		TextSegments:      richtext.BuildSegments(post.Record.Text, post.Record.Facets),
-		CreatedAt:         post.Record.CreatedAt,
-		replyParentURI:    post.ReplyParentURI(),
+		ID:                  postID(post.URI),
+		AuthorHandle:        post.Author.Handle,
+		AuthorDisplayName:   actor.Name(post.Author.DisplayName, post.Author.Handle),
+		AuthorAvatar:        post.Author.Avatar,
+		LikeCount:           post.LikeCount,
+		RepostCount:         post.RepostCount,
+		ReplyCount:          post.ReplyCount,
+		Liked:               post.Viewer != nil && post.Viewer.Like != "",
+		Reposted:            post.Viewer != nil && post.Viewer.Repost != "",
+		Text:                post.Record.Text,
+		TextSegments:        richtext.BuildSegments(post.Record.Text, post.Record.Facets),
+		CreatedAt:           post.Record.CreatedAt,
+		replyParentURI:      post.ReplyParentURI(),
 		postURI:             post.URI,
 		postCID:             post.CID,
 		authorDID:           post.Author.DID,
 		threadRootAuthorDID: threadRootAuthorDIDFromPost(post),
 		labels:              moderationLabels(post.AllLabels()),
-		authorLabels:      moderationLabels(post.Author.Labels),
+		authorLabels:        moderationLabels(post.Author.Labels),
 	}
 	appendImagesFromEmbed(&view, post.Embed)
 	appendVideosFromEmbed(&view, post.Embed)

@@ -59,6 +59,8 @@ func ActionClass(name IconName) string {
 	switch name {
 	case IconLike:
 		return "ui-action ui-action--like"
+	case IconRepost:
+		return "ui-action ui-action--repost"
 	case IconBluesky:
 		return "ui-action ui-action--bluesky"
 	default:

@@ -87,7 +87,8 @@ type Label struct {
 }
 
 type PostViewer struct {
-	Like string `json:"like,omitempty"`
+	Like   string `json:"like,omitempty"`
+	Repost string `json:"repost,omitempty"`
 }
 
 type Post struct {

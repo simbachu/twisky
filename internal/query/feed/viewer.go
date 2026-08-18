@@ -2,7 +2,7 @@ package feed
 
 import "github.com/simbachu/twisky/internal/bluesky"
 
-// ApplyViewerLikes sets Liked (and fills missing CID) on views from authenticated getPosts results.
+// ApplyViewerLikes sets Liked and Reposted (and fills missing CID) on views from authenticated getPosts results.
 func ApplyViewerLikes(views []PostView, posts []bluesky.Post) {
 	if len(views) == 0 || len(posts) == 0 {
 		return
@@ -54,6 +54,7 @@ func applyViewerLike(view *PostView, byURI map[string]bluesky.Post) {
 		return
 	}
 	view.Liked = post.Viewer != nil && post.Viewer.Like != ""
+	view.Reposted = post.Viewer != nil && post.Viewer.Repost != ""
 	if view.postCID == "" && post.CID != "" {
 		view.postCID = post.CID
 	}

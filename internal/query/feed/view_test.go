@@ -32,6 +32,31 @@ func TestNewPostView_ExposesURIAndCIDAndLiked(t *testing.T) {
 	if !view.Liked {
 		t.Fatal("Liked = false, want true")
 	}
+	if view.Reposted {
+		t.Fatal("Reposted = true, want false")
+	}
+}
+
+func TestNewPostView_ExposesRepostedFromViewer(t *testing.T) {
+	t.Parallel()
+
+	view := feedquery.NewPostView(bluesky.Post{
+		URI:    "at://did:plc:example/app.bsky.feed.post/abc",
+		CID:    "bafyexamplecid",
+		Author: bluesky.Author{Handle: "dev.example", DID: "did:plc:example"},
+		Record: bluesky.PostRecord{
+			Text:      "reposted",
+			CreatedAt: time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
+		},
+		Viewer: &bluesky.PostViewer{Repost: "at://did:plc:me/app.bsky.feed.repost/r1"},
+	})
+
+	if !view.Reposted {
+		t.Fatal("Reposted = false, want true")
+	}
+	if view.Liked {
+		t.Fatal("Liked = true, want false")
+	}
 }
 
 func TestNewPostView_LikedFalseWithoutViewerLike(t *testing.T) {
