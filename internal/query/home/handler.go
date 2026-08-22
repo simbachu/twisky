@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -59,10 +60,7 @@ type HomeView struct {
 func (HomeView) IsResponse() {}
 
 func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Response {
-	tabs, err := h.feedTabs(ctx)
-	if err != nil {
-		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load home feeds"}
-	}
+	tabs := h.feedTabs(ctx)
 
 	selected := tabs[0]
 	if i.FeedSlug != "" {
@@ -79,6 +77,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 	}
 
 	var items *bluesky.AuthorFeedResponse
+	var err error
 	if selected.URI == "" {
 		items, err = h.reader.GetTimeline(ctx, bluesky.TimelineRequest{
 			Limit: HomeFeedLimit, Cursor: i.Cursor,
@@ -120,10 +119,18 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 	}
 }
 
-func (h *Handler) feedTabs(ctx context.Context) ([]FeedTab, error) {
+func followingOnlyTabs() []FeedTab {
+	return []FeedTab{{
+		Label: "Following",
+		Href:  "/",
+	}}
+}
+
+func (h *Handler) feedTabs(ctx context.Context) []FeedTab {
 	saved, err := h.reader.GetSavedFeeds(ctx)
 	if err != nil {
-		return nil, err
+		slog.Warn("home saved feeds unavailable", "err", err)
+		return followingOnlyTabs()
 	}
 	uris := make([]string, 0, len(saved))
 	for _, item := range saved {
@@ -133,17 +140,15 @@ func (h *Handler) feedTabs(ctx context.Context) ([]FeedTab, error) {
 	}
 	generators, err := h.reader.GetFeedGenerators(ctx, uris)
 	if err != nil {
-		return nil, err
+		slog.Warn("home feed generators unavailable", "err", err)
+		return followingOnlyTabs()
 	}
 	byURI := make(map[string]bluesky.FeedGenerator, len(generators))
 	for _, generator := range generators {
 		byURI[generator.URI] = generator
 	}
 
-	tabs := []FeedTab{{
-		Label: "Following",
-		Href:  "/",
-	}}
+	tabs := followingOnlyTabs()
 	for _, uri := range uris {
 		generator, ok := byURI[uri]
 		if !ok {
@@ -164,7 +169,7 @@ func (h *Handler) feedTabs(ctx context.Context) ([]FeedTab, error) {
 		}
 		tabs[index].Href = "/feed/" + url.PathEscape(tabs[index].Slug)
 	}
-	return tabs, nil
+	return tabs
 }
 
 func feedSlug(name string) string {

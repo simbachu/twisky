@@ -19,6 +19,8 @@ type stubReader struct {
 	savedFeeds   []bluesky.SavedFeed
 	generators   []bluesky.FeedGenerator
 	err          error
+	savedErr     error
+	generatorsErr error
 	profiles     []bluesky.Profile
 	parentPosts  []bluesky.Post
 
@@ -36,6 +38,9 @@ func (s *stubReader) GetTimeline(_ context.Context, req bluesky.TimelineRequest)
 }
 
 func (s *stubReader) GetSavedFeeds(context.Context) ([]bluesky.SavedFeed, error) {
+	if s.savedErr != nil {
+		return nil, s.savedErr
+	}
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -43,6 +48,9 @@ func (s *stubReader) GetSavedFeeds(context.Context) ([]bluesky.SavedFeed, error)
 }
 
 func (s *stubReader) GetFeedGenerators(context.Context, []string) ([]bluesky.FeedGenerator, error) {
+	if s.generatorsErr != nil {
+		return nil, s.generatorsErr
+	}
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -158,21 +166,53 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 	}
 }
 
-func TestHandler_HandleUpstreamError(t *testing.T) {
+func TestHandler_HandleSavedFeedsErrorStillServesFollowing(t *testing.T) {
 	t.Parallel()
 
-	handler := home.NewHandler(&stubReader{err: errors.New("boom")}, nil)
-	resp := handler.Handle(context.Background(), intent.ViewHome{})
+	reader := &stubReader{
+		timelineResp: &bluesky.AuthorFeedResponse{
+			Feed: []bluesky.FeedItem{{
+				Post: bluesky.Post{
+					URI:    "at://did:plc:example/app.bsky.feed.post/abc",
+					Author: bluesky.Author{Handle: "dev.example"},
+					Record: bluesky.PostRecord{Text: "timeline post"},
+				},
+			}},
+		},
+		savedErr: errors.New("preferences down"),
+	}
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
 
-	errResp, ok := resp.(response.ErrorResponse)
+	view, ok := resp.(home.HomeView)
 	if !ok {
-		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+		t.Fatalf("Handle() type = %T, want HomeView", resp)
 	}
-	if errResp.Status != http.StatusBadGateway {
-		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusBadGateway)
+	if len(view.Tabs) != 1 || view.Tabs[0].Label != "Following" {
+		t.Fatalf("Tabs = %#v, want Following only", view.Tabs)
 	}
-	if errResp.Message != "Failed to load home feeds" {
-		t.Fatalf("Message = %q, want Failed to load home feeds", errResp.Message)
+	if len(view.Feed.Posts) != 1 || view.Feed.Posts[0].Text != "timeline post" {
+		t.Fatalf("Feed.Posts = %#v, want timeline post", view.Feed.Posts)
+	}
+}
+
+func TestHandler_HandleFeedGeneratorsErrorStillServesFollowing(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		timelineResp: &bluesky.AuthorFeedResponse{},
+		savedFeeds: []bluesky.SavedFeed{
+			{ID: "one", Pinned: true, Type: "feed", URI: "at://did:plc:one/app.bsky.feed.generator/one"},
+		},
+		generatorsErr: errors.New("generators down"),
+	}
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
+
+	view, ok := resp.(home.HomeView)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want HomeView", resp)
+	}
+	if len(view.Tabs) != 1 || view.Tabs[0].Label != "Following" {
+		t.Fatalf("Tabs = %#v, want Following only", view.Tabs)
 	}
 }
 
