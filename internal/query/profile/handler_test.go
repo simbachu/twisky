@@ -77,7 +77,7 @@ func TestHandler_Handle(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -128,7 +128,7 @@ func TestHandler_Handle_ProfileLabels(t *testing.T) {
 			Associated: &bluesky.ProfileAssociated{Labeler: true},
 		}},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -154,7 +154,7 @@ func TestHandler_HandleMediaTab(t *testing.T) {
 	t.Parallel()
 
 	reader := &stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
+		profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:example"},
 		feed: &bluesky.AuthorFeedResponse{
 			Feed: []bluesky.FeedItem{{
 				Post: bluesky.Post{
@@ -175,7 +175,7 @@ func TestHandler_HandleMediaTab(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabMedia})
 
@@ -208,13 +208,13 @@ func TestHandler_HandlePassesNextCursor(t *testing.T) {
 	t.Parallel()
 
 	reader := &stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
+		profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:example"},
 		feed: &bluesky.AuthorFeedResponse{
 			Feed:   []bluesky.FeedItem{},
 			Cursor: "next-page",
 		},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -231,10 +231,10 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 	t.Parallel()
 
 	reader := &stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
+		profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:example"},
 		feed:    &bluesky.AuthorFeedResponse{},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{
 		Slug:   "bsky.app",
@@ -253,7 +253,7 @@ func TestHandler_HandlePassesCursor(t *testing.T) {
 func TestHandler_HandleInvalidSlug(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{}, nil)
+	handler := profile.NewHandler(&stubReader{}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "hello", Tab: intent.ProfileTabPosts})
 
@@ -272,7 +272,7 @@ func TestHandler_HandleInvalidSlug(t *testing.T) {
 func TestHandler_HandleNotFound(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil)
+	handler := profile.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "missing.example", Tab: intent.ProfileTabPosts})
 
@@ -291,7 +291,7 @@ func TestHandler_HandleNotFound(t *testing.T) {
 func TestHandler_HandleUpstreamError(t *testing.T) {
 	t.Parallel()
 
-	handler := profile.NewHandler(&stubReader{err: errors.New("network failure")}, nil)
+	handler := profile.NewHandler(&stubReader{err: errors.New("network failure")}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -311,9 +311,9 @@ func TestHandler_HandleFeedUpstreamError(t *testing.T) {
 	t.Parallel()
 
 	handler := profile.NewHandler(&stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
+		profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:example"},
 		feedErr: errors.New("network failure"),
-	}, nil)
+	}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -333,7 +333,7 @@ func TestHandler_HandleReplyContextUpstreamError(t *testing.T) {
 	t.Parallel()
 
 	handler := profile.NewHandler(&stubReader{
-		profile: &bluesky.Profile{Handle: "bsky.app"},
+		profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:example"},
 		feed: &bluesky.AuthorFeedResponse{
 			Feed: []bluesky.FeedItem{{
 				Post: bluesky.Post{
@@ -350,7 +350,7 @@ func TestHandler_HandleReplyContextUpstreamError(t *testing.T) {
 			}},
 		},
 		postsErr: errors.New("network failure"),
-	}, nil)
+	}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -381,7 +381,7 @@ func TestHandler_HandleLabelerProfilesUpstreamError(t *testing.T) {
 		},
 		feed:        &bluesky.AuthorFeedResponse{},
 		profilesErr: errors.New("network failure"),
-	}, nil)
+	}, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -401,7 +401,7 @@ func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
 	t.Parallel()
 
 	reader := &stubReader{
-		profile: &bluesky.Profile{Handle: "reposter.example"},
+		profile: &bluesky.Profile{Handle: "reposter.example", DID: "did:plc:reposter"},
 		feed: &bluesky.AuthorFeedResponse{
 			Feed: []bluesky.FeedItem{{
 				Post: bluesky.Post{
@@ -414,7 +414,7 @@ func TestHandler_HandlePreservesRepostMetadata(t *testing.T) {
 			}},
 		},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "reposter.example", Tab: intent.ProfileTabPosts})
 
@@ -435,6 +435,7 @@ func TestHandler_HandleBuildsDescriptionSegmentsFromFacets(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:dev",
 			Handle:      "dev.example",
 			DisplayName: "Developer",
 			Description: "hello #golang",
@@ -448,7 +449,7 @@ func TestHandler_HandleBuildsDescriptionSegmentsFromFacets(t *testing.T) {
 		},
 		feed: &bluesky.AuthorFeedResponse{},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "dev.example", Tab: intent.ProfileTabPosts})
 
@@ -472,6 +473,7 @@ func TestHandler_HandleResolvesDescriptionMentionHandles(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			Description: "@dev.example hello",
 			DescriptionFacets: []bluesky.Facet{{
@@ -488,7 +490,7 @@ func TestHandler_HandleResolvesDescriptionMentionHandles(t *testing.T) {
 			Handle: "dev.example",
 		}},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -509,12 +511,13 @@ func TestHandler_HandleBuildsDescriptionSegmentsFromRegex(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:dev",
 			Handle:      "dev.example",
 			Description: "see https://example.com",
 		},
 		feed: &bluesky.AuthorFeedResponse{},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "dev.example", Tab: intent.ProfileTabPosts})
 
@@ -537,6 +540,7 @@ func TestHandler_HandleHydratesPinnedPost(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
 			Handle: "bsky.app",
 			PinnedPost: &bluesky.StrongRef{
 				URI: pinnedURI,
@@ -553,7 +557,7 @@ func TestHandler_HandleHydratesPinnedPost(t *testing.T) {
 			},
 		}},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -577,6 +581,7 @@ func TestHandler_HandleSkipsPinnedPostWhenPaginating(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
 			Handle: "bsky.app",
 			PinnedPost: &bluesky.StrongRef{
 				URI: "at://did:plc:example/app.bsky.feed.post/pinned123",
@@ -584,7 +589,7 @@ func TestHandler_HandleSkipsPinnedPostWhenPaginating(t *testing.T) {
 		},
 		feed: &bluesky.AuthorFeedResponse{},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{
 		Slug:   "bsky.app",
@@ -609,6 +614,7 @@ func TestHandler_HandleOmitsPinnedPostWhenGetPostsFails(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
 			Handle: "bsky.app",
 			PinnedPost: &bluesky.StrongRef{
 				URI: "at://did:plc:example/app.bsky.feed.post/pinned123",
@@ -617,7 +623,7 @@ func TestHandler_HandleOmitsPinnedPostWhenGetPostsFails(t *testing.T) {
 		feed:     &bluesky.AuthorFeedResponse{},
 		postsErr: errors.New("network failure"),
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 
@@ -637,6 +643,7 @@ func TestHandler_HandleOmitsFilteredPinnedPost(t *testing.T) {
 
 	reader := &stubReader{
 		profile: &bluesky.Profile{
+			DID:    "did:plc:example",
 			Handle: "bsky.app",
 			PinnedPost: &bluesky.StrongRef{
 				URI: pinnedURI,
@@ -653,7 +660,7 @@ func TestHandler_HandleOmitsFilteredPinnedPost(t *testing.T) {
 			Labels: []bluesky.Label{{Val: "porn", Src: moderation.BlueskyModerationDID}},
 		}},
 	}
-	handler := profile.NewHandler(reader, nil)
+	handler := profile.NewHandler(reader, nil, nil)
 
 	resp := handler.Handle(context.Background(), intent.ViewProfile{Slug: "bsky.app", Tab: intent.ProfileTabPosts})
 

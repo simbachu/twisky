@@ -1,9 +1,9 @@
 package ui
 
 import (
-	"net/url"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -17,7 +17,7 @@ func RepostMeta(repostedBy AuthorInfo) g.Node {
 }
 
 func ReplyMeta(parent AuthorInfo, parentPostID string) g.Node {
-	href := "/" + parent.Handle + "/post/" + url.PathEscape(parentPostID)
+	href := actor.PostPath(parent.Handle, parent.DID, parentPostID)
 	return P(
 		g.Attr("class", "post-meta post-meta-reply"),
 		A(

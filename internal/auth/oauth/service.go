@@ -6,6 +6,7 @@ import (
 
 	indigooauth "github.com/bluesky-social/indigo/atproto/auth/oauth"
 	"github.com/simbachu/twisky/internal/auth/session"
+	"github.com/simbachu/twisky/internal/identity"
 )
 
 // Service owns the indigo ClientApp and browser session jar.
@@ -23,6 +24,7 @@ type Config struct {
 	SessionSecret string
 	StorePath     string
 	SecureCookies bool
+	Directory     *identity.Directory
 }
 
 // NewService opens the OAuth store and builds ClientApp + session jar.
@@ -41,6 +43,9 @@ func NewService(cfg Config) (*Service, error) {
 	}
 	clientCfg := NewConfig(cfg.PublicBaseURL, DefaultScopes)
 	app := indigooauth.NewClientApp(&clientCfg, store)
+	if cfg.Directory != nil {
+		app.Dir = cfg.Directory.Inner()
+	}
 	jar := session.NewJar([]byte(cfg.SessionSecret))
 	jar.SetSecure(cfg.SecureCookies)
 	return &Service{

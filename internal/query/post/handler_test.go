@@ -109,7 +109,7 @@ func TestHandler_Handle_OK(t *testing.T) {
 		},
 	}
 
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -160,7 +160,7 @@ func TestHandler_Handle_AncestorsFragment(t *testing.T) {
 		},
 	}
 
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -182,7 +182,7 @@ func TestHandler_Handle_AncestorsFragment(t *testing.T) {
 func TestHandler_Handle_InvalidSlug(t *testing.T) {
 	t.Parallel()
 
-	handler := post.NewHandler(&stubReader{}, nil)
+	handler := post.NewHandler(&stubReader{}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "hello", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -202,7 +202,7 @@ func TestHandler_Handle_InvalidPostID(t *testing.T) {
 
 	handler := post.NewHandler(&stubReader{
 		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "  "})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -220,7 +220,7 @@ func TestHandler_Handle_InvalidPostID(t *testing.T) {
 func TestHandler_Handle_ResolveHandleNotFound(t *testing.T) {
 	t.Parallel()
 
-	handler := post.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil)
+	handler := post.NewHandler(&stubReader{err: bluesky.ErrNotFound}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "missing.example", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -238,7 +238,7 @@ func TestHandler_Handle_ResolveHandleNotFound(t *testing.T) {
 func TestHandler_Handle_ResolveHandleUpstreamError(t *testing.T) {
 	t.Parallel()
 
-	handler := post.NewHandler(&stubReader{err: errors.New("network failure")}, nil)
+	handler := post.NewHandler(&stubReader{err: errors.New("network failure")}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -259,7 +259,7 @@ func TestHandler_Handle_PostNotFound(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile:   &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		threadErr: bluesky.ErrNotFound,
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "missing"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -280,7 +280,7 @@ func TestHandler_Handle_UpstreamError(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile:   &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		threadErr: errors.New("network failure"),
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "abc"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -301,7 +301,7 @@ func TestHandler_Handle_RootNotThreadViewPost(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		thread:  bluesky.NotFoundPost{URI: "at://did:plc:example/app.bsky.feed.post/missing"},
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "missing"})
 
 	errResp, ok := resp.(response.ErrorResponse)
@@ -336,7 +336,7 @@ func TestHandler_Handle_CountsFragment_UsesGetPostsNotThread(t *testing.T) {
 		threadErr: errors.New("counts fragment must not call GetPostThread"),
 	}
 
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -364,7 +364,7 @@ func TestHandler_Handle_CountsFragment_NotFound(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		posts:   nil,
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "missing",
@@ -389,7 +389,7 @@ func TestHandler_Handle_CountsFragment_UpstreamError(t *testing.T) {
 	handler := post.NewHandler(&stubReader{
 		profile:  &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
 		postsErr: errors.New("network failure"),
-	}, nil)
+	}, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -418,7 +418,7 @@ func TestHandler_Handle_CountsFragment_CoalescesConcurrentRequests(t *testing.T)
 		},
 		postsDelay: 20 * time.Millisecond,
 	}
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 
 	const concurrency = 10
 	var wg sync.WaitGroup
@@ -467,7 +467,7 @@ func TestHandler_Handle_RepliesFragment_UsesGetPostThread(t *testing.T) {
 		postsErr: errors.New("replies fragment must not call GetPosts"),
 	}
 
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "bsky.app",
 		ID:   "root",
@@ -506,7 +506,7 @@ func TestHandler_Handle_RepliesFragment_CoalescesConcurrentRequests(t *testing.T
 		},
 		threadDelay: 20 * time.Millisecond,
 	}
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 
 	const concurrency = 10
 	var wg sync.WaitGroup
@@ -545,7 +545,7 @@ func TestHandler_Handle_CountsFragment_DIDSlugSkipsGetProfile(t *testing.T) {
 			},
 		},
 	}
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 	resp := handler.Handle(context.Background(), intent.ViewPost{
 		Slug: "did:plc:example",
 		ID:   "root",
@@ -583,7 +583,7 @@ func TestHandler_Handle_FullAndAncestorsShareThreadCache(t *testing.T) {
 			},
 		},
 	}
-	handler := post.NewHandler(reader, nil)
+	handler := post.NewHandler(reader, nil, nil)
 
 	full := handler.Handle(context.Background(), intent.ViewPost{Slug: "bsky.app", ID: "root"})
 	if _, ok := full.(feedquery.PostPageView); !ok {

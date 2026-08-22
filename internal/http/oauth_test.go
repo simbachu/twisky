@@ -39,11 +39,11 @@ func newAuthTestServer(t *testing.T, baseURL string) (http.Handler, *authoauth.S
 	t.Cleanup(func() { _ = auth.Close() })
 
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), baseURL, auth).Handler()
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), baseURL, auth, nil, nil).Handler()
 	return handler, auth
 }
 
@@ -111,11 +111,11 @@ func TestOAuthLogin_DisabledWithoutSecret(t *testing.T) {
 	t.Parallel()
 
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{profile: &bluesky.Profile{Handle: "x"}}, nil), "https://dev.twisky.app", nil).Handler()
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{profile: &bluesky.Profile{Handle: "x"}}, nil, nil), "https://dev.twisky.app", nil, nil, nil).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/oauth/client-metadata.json", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -131,9 +131,9 @@ func TestAccountMenuView_ShowsHandleWhenCookied(t *testing.T) {
 		profile.NewHandler(stubReader{
 			profile: &bluesky.Profile{Handle: "bsky.app", DID: "did:plc:bsky", DisplayName: "Bluesky"},
 			feed:    &bluesky.AuthorFeedResponse{},
-		}, nil),
+		}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
 	auth, err := authoauth.NewService(authoauth.Config{
 		PublicBaseURL: "https://dev.twisky.app",
@@ -146,7 +146,7 @@ func TestAccountMenuView_ShowsHandleWhenCookied(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = auth.Close() })
 
-	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), "https://dev.twisky.app", auth).Handler()
+	handler := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), "https://dev.twisky.app", auth, nil, nil).Handler()
 
 	recCookie := httptest.NewRecorder()
 	if err := auth.Jar.Save(recCookie, session.State{
@@ -256,11 +256,11 @@ func newAuthTestServerWithApp(t *testing.T, baseURL string, app authoauth.App) (
 	_, auth := newAuthTestServer(t, baseURL)
 	auth.App = app
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), baseURL, auth)
+	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), baseURL, auth, nil, nil)
 	return server.Handler(), auth, server
 }
 

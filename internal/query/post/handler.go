@@ -11,6 +11,7 @@ import (
 	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/identity"
 	"github.com/simbachu/twisky/internal/intent"
 	"github.com/simbachu/twisky/internal/moderation"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
@@ -41,17 +42,19 @@ type Reader interface {
 type Handler struct {
 	reader      Reader
 	prefs       moderation.PrefsProvider
+	dir         *identity.Directory
 	countsCache *ttlCache[bluesky.Post]
 	threadCache *ttlCache[bluesky.ThreadNode]
 }
 
-func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
+func NewHandler(reader Reader, prefs moderation.PrefsProvider, dir *identity.Directory) *Handler {
 	if prefs == nil {
 		prefs = moderation.DefaultPrefsProvider{}
 	}
 	return &Handler{
 		reader:      reader,
 		prefs:       prefs,
+		dir:         dir,
 		countsCache: newCountsCache(countsCacheTTL),
 		threadCache: newThreadCache(threadCacheTTL),
 	}
@@ -96,17 +99,31 @@ func (h *Handler) resolveDID(ctx context.Context, slug actor.Slug) (string, *res
 	}
 
 	referent := slug.Referent()
-	profile, err := h.reader.GetProfile(ctx, slug.Identifier)
+	if h.dir == nil {
+		profile, err := h.reader.GetProfile(ctx, slug.Identifier)
+		if err != nil {
+			if errors.Is(err, bluesky.ErrNotFound) {
+				return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
+			}
+			return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+		}
+		if profile == nil || profile.DID == "" {
+			return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+		}
+		return profile.DID, nil
+	}
+
+	did, err := h.dir.Resolve(ctx, slug, h.reader)
 	if err != nil {
-		if errors.Is(err, bluesky.ErrNotFound) {
+		if errors.Is(err, identity.ErrNotFound) || errors.Is(err, bluesky.ErrNotFound) {
 			return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
 		}
 		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
 	}
-	if profile == nil || profile.DID == "" {
+	if did == "" {
 		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
 	}
-	return profile.DID, nil
+	return did, nil
 }
 
 // handleCounts serves the cheap counts-only fragment via GetPosts instead of
@@ -126,7 +143,7 @@ func (h *Handler) handleCounts(ctx context.Context, slug, postID, did string) re
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: fmt.Sprintf("Failed to refresh counts for post %s", postID)}
 	}
 
-	return feedquery.PostPageView{Post: feedquery.NewPostView(bskyPost)}
+	return feedquery.PostPageView{Post: feedquery.ApplyIdentity(h.dir, feedquery.NewPostView(bskyPost))}
 }
 
 func (h *Handler) getThread(ctx context.Context, slug, postID, did string) (bluesky.ThreadNode, error) {
@@ -145,6 +162,7 @@ func (h *Handler) postPageFromThread(ctx context.Context, threadNode bluesky.Thr
 	}
 
 	view := feedquery.NewPostPageView(root, part)
+	view = feedquery.ApplyIdentityToPostPage(h.dir, view)
 	view = feedquery.ResolveMentionHandlesInThread(ctx, h.reader, view)
 	view = feedquery.ApplyModerationToPostPage(ctx, h.prefs, view)
 	return view

@@ -17,6 +17,17 @@ func (s stubReader) GetProfiles(context.Context, []string) ([]bluesky.Profile, e
 	return s.profiles, s.err
 }
 
+func (s stubReader) GetProfile(context.Context, string) (*bluesky.Profile, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if len(s.profiles) > 0 {
+		p := s.profiles[0]
+		return &p, nil
+	}
+	return nil, nil
+}
+
 func TestHandler_SuggestedAccounts_PreservesHandleOrder(t *testing.T) {
 	t.Parallel()
 
@@ -25,7 +36,7 @@ func TestHandler_SuggestedAccounts_PreservesHandleOrder(t *testing.T) {
 			{Handle: "bsky.app", DisplayName: "Bluesky", Avatar: "https://example.com/bluesky.jpg"},
 			{Handle: "simbachu.com", DisplayName: "ſpectral", Avatar: "https://example.com/simbachu.jpg"},
 		},
-	}, []string{"simbachu.com", "bsky.app"})
+	}, []string{"simbachu.com", "bsky.app"}, nil)
 
 	accounts := handler.SuggestedAccounts(context.Background())
 	if len(accounts) != 2 {
@@ -49,7 +60,7 @@ func TestHandler_SuggestedAccounts_OmitsMissingProfiles(t *testing.T) {
 		profiles: []bluesky.Profile{
 			{Handle: "bsky.app", DisplayName: "Bluesky"},
 		},
-	}, []string{"simbachu.com", "bsky.app"})
+	}, []string{"simbachu.com", "bsky.app"}, nil)
 
 	accounts := handler.SuggestedAccounts(context.Background())
 	if len(accounts) != 1 {
@@ -63,7 +74,7 @@ func TestHandler_SuggestedAccounts_OmitsMissingProfiles(t *testing.T) {
 func TestHandler_SuggestedAccounts_ReturnsNilOnError(t *testing.T) {
 	t.Parallel()
 
-	handler := suggestions.NewHandler(stubReader{err: context.Canceled}, nil)
+	handler := suggestions.NewHandler(stubReader{err: context.Canceled}, nil, nil)
 	if accounts := handler.SuggestedAccounts(context.Background()); accounts != nil {
 		t.Fatalf("accounts = %v, want nil on upstream error", accounts)
 	}

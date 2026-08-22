@@ -77,16 +77,18 @@ func newLoggedInHomeServer(t *testing.T, reader stubHomeReader) (http.Handler, *
 	}
 	t.Cleanup(func() { _ = auth.Close() })
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
 	server := twiskyhttp.NewServer(
 		queries,
 		command.NewDispatcher(),
-		suggestions.NewHandler(stubReader{}, nil),
+		suggestions.NewHandler(stubReader{}, nil, nil),
 		"https://dev.twisky.app",
 		auth,
+		nil,
+		nil,
 	).WithHomeReader(reader)
 	recorder := httptest.NewRecorder()
 	if err := auth.Jar.Save(recorder, session.State{
@@ -146,11 +148,11 @@ func TestHome_LoggedInRendersFollowFeed(t *testing.T) {
 	t.Cleanup(func() { _ = auth.Close() })
 
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), "https://dev.twisky.app", auth).
+	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), "https://dev.twisky.app", auth, nil, nil).
 		WithHomeReader(stubHomeReader{
 			timeline: &bluesky.AuthorFeedResponse{
 				Feed: []bluesky.FeedItem{{

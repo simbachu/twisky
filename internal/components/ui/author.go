@@ -101,7 +101,7 @@ func ActionableAvatar(author AuthorInfo, mode AuthorInteractive) g.Node {
 	switch mode {
 	case AuthorLinked, AuthorPeekable:
 		linkAttrs := []g.Node{
-			g.Attr("href", "/"+author.Handle),
+			g.Attr("href", actor.ProfilePath(author.Handle, author.DID)),
 			g.Attr("style", "pointer-events: auto"),
 		}
 		linkAttrs = append(linkAttrs, attrs...)
@@ -130,7 +130,7 @@ func authorTextRef(author AuthorInfo, mode AuthorInteractive, class, text string
 	switch mode {
 	case AuthorLinked, AuthorPeekable:
 		attrs := []g.Node{
-			g.Attr("href", "/"+author.Handle),
+			g.Attr("href", actor.ProfilePath(author.Handle, author.DID)),
 			g.Attr("class", class),
 			g.Attr("style", "pointer-events: auto"),
 		}

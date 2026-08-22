@@ -43,11 +43,11 @@ func (s *stubLikeWriter) DeleteLike(context.Context, string) error {
 func newLikeTestServer(t *testing.T, writer *stubLikeWriter) http.Handler {
 	t.Helper()
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), "https://twisky.test", nil)
+	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), "https://twisky.test", nil, nil, nil)
 	if writer != nil {
 		server = server.WithLikeWriter(writer)
 	}

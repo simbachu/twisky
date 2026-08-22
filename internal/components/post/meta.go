@@ -2,10 +2,10 @@ package post
 
 import (
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/page"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/richtext"
@@ -42,12 +42,12 @@ func postPageMeta(view feedquery.PostPageView, publicBaseURL string) page.PageMe
 	return page.PageMeta{
 		Title:          title,
 		Description:    description,
-		CanonicalURL:   page.AbsoluteURL(publicBaseURL, "/"+post.AuthorHandle+"/post/"+url.PathEscape(post.ID)),
+		CanonicalURL:   page.AbsoluteURL(publicBaseURL, actor.PostPath(post.AuthorHandle, post.AuthorDID(), post.ID)),
 		ImageURL:       image.URL,
 		OGType:         "article",
 		LargeImageCard: image.LargeCard,
 		PublishedTime:  post.CreatedAt,
-		AuthorURL:      page.AbsoluteURL(publicBaseURL, "/"+post.AuthorHandle),
+		AuthorURL:      page.AbsoluteURL(publicBaseURL, actor.ProfilePath(post.AuthorHandle, post.AuthorDID())),
 		AuthorHandle:   post.AuthorHandle,
 		Tags:           postHashtags(post),
 		ImageAlt:       image.Alt,

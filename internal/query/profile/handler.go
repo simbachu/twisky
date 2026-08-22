@@ -7,6 +7,7 @@ import (
 
 	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/identity"
 	"github.com/simbachu/twisky/internal/intent"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	"github.com/simbachu/twisky/internal/moderation"
@@ -24,15 +25,16 @@ type Reader interface {
 type Handler struct {
 	reader Reader
 	prefs  moderation.PrefsProvider
+	dir    *identity.Directory
 }
 
 const ProfileFeedLimit = 20
 
-func NewHandler(reader Reader, prefs moderation.PrefsProvider) *Handler {
+func NewHandler(reader Reader, prefs moderation.PrefsProvider, dir *identity.Directory) *Handler {
 	if prefs == nil {
 		prefs = moderation.DefaultPrefsProvider{}
 	}
-	return &Handler{reader: reader, prefs: prefs}
+	return &Handler{reader: reader, prefs: prefs, dir: dir}
 }
 
 type Tab string
@@ -69,15 +71,26 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	if err != nil {
 		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid handle or DID"}
 	}
-	identifier := slug.Identifier
 	referent := slug.Referent()
 
-	profile, err := h.reader.GetProfile(ctx, identifier)
+	did, errResp := h.resolveDID(ctx, slug)
+	if errResp != nil {
+		return *errResp
+	}
+
+	profile, err := h.reader.GetProfile(ctx, did)
 	if err != nil {
 		if errors.Is(err, bluesky.ErrNotFound) {
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
 		}
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+	}
+	if h.dir != nil {
+		h.dir.ObserveProfile(profile)
+	}
+	displayHandle := profile.Handle
+	if h.dir != nil {
+		displayHandle = h.dir.DisplayHandle(profile.Handle, profile.DID)
 	}
 
 	filter := bluesky.FilterPostsNoReplies
@@ -88,7 +101,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	}
 
 	items, err := h.reader.GetAuthorFeed(ctx, bluesky.AuthorFeedRequest{
-		Actor:  identifier,
+		Actor:  did,
 		Filter: filter,
 		Limit:  ProfileFeedLimit,
 		Cursor: i.Cursor,
@@ -101,10 +114,13 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	}
 
 	feed := feedquery.NewFeedViewFromItems(items.Feed, items.Cursor)
+	if h.dir != nil {
+		feedquery.ObserveAuthors(h.dir, feed)
+	}
 	if i.HeadCheck {
 		return ProfileView{
 			DID:    profile.DID,
-			Handle: profile.Handle,
+			Handle: displayHandle,
 			Tab:    tab,
 			Feed:   feedquery.ApplyModeration(ctx, h.prefs, feed, moderation.UIContextContentList),
 		}
@@ -122,7 +138,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	}
 	descriptionSegments = feedquery.ResolveMentionHandlesInSegments(ctx, h.reader, descriptionSegments)
 
-	moderatedFeed := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feed), moderation.UIContextContentList)
+	moderatedFeed := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.ApplyIdentityFeed(h.dir, feed)), moderation.UIContextContentList)
 
 	prefs := h.prefs.Prefs(ctx)
 	profileLabels := moderation.LabelsFromBluesky(profile.Labels)
@@ -133,12 +149,12 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load moderation label providers"}
 	}
 
-	isLabeler := actor.IsLabelerAccount(profile.Handle, profile.DID, profile.Associated != nil && profile.Associated.Labeler)
+	isLabeler := actor.IsLabelerAccount(displayHandle, profile.DID, profile.Associated != nil && profile.Associated.Labeler)
 
 	return ProfileView{
 		DID:                 profile.DID,
-		Handle:              profile.Handle,
-		DisplayName:         actor.Name(profile.DisplayName, profile.Handle),
+		Handle:              displayHandle,
+		DisplayName:         actor.Name(profile.DisplayName, displayHandle),
 		Description:         profile.Description,
 		DescriptionSegments: descriptionSegments,
 		Avatar:              profile.Avatar,
@@ -158,6 +174,39 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewProfile) response.Res
 	}
 }
 
+func (h *Handler) resolveDID(ctx context.Context, slug actor.Slug) (string, *response.ErrorResponse) {
+	if slug.Kind == actor.KindDID {
+		return slug.Identifier, nil
+	}
+	if h.dir == nil {
+		referent := slug.Referent()
+		profile, err := h.reader.GetProfile(ctx, slug.Identifier)
+		if err != nil {
+			if errors.Is(err, bluesky.ErrNotFound) {
+				return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
+			}
+			return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+		}
+		if profile == nil || profile.DID == "" {
+			return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+		}
+		return profile.DID, nil
+	}
+
+	referent := slug.Referent()
+	did, err := h.dir.Resolve(ctx, slug, h.reader)
+	if err != nil {
+		if errors.Is(err, identity.ErrNotFound) || errors.Is(err, bluesky.ErrNotFound) {
+			return "", &response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find " + referent}
+		}
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+	}
+	if did == "" {
+		return "", &response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to resolve " + referent}
+	}
+	return did, nil
+}
+
 func (h *Handler) pinnedPostMaybe(ctx context.Context, profile *bluesky.Profile, cursor string) *feedquery.PostView {
 	if profile.PinnedPost == nil || cursor != "" {
 		return nil
@@ -168,7 +217,7 @@ func (h *Handler) pinnedPostMaybe(ctx context.Context, profile *bluesky.Profile,
 		return nil
 	}
 
-	pinned := feedquery.InsetPostView(feedquery.NewPostView(posts[0]))
+	pinned := feedquery.InsetPostView(feedquery.ApplyIdentity(h.dir, feedquery.NewPostView(posts[0])))
 	moderated := feedquery.ApplyModeration(ctx, h.prefs, feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.FeedView{
 		Posts: []feedquery.PostView{pinned},
 	}), moderation.UIContextContentList)

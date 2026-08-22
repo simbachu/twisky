@@ -3,6 +3,7 @@ package profile
 import (
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	"github.com/simbachu/twisky/internal/components/page"
 	postcomponent "github.com/simbachu/twisky/internal/components/post"
@@ -24,7 +25,8 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 		BlurAvatar:  view.AvatarModeration.BlurAvatar,
 		AvatarText:  view.AvatarModeration.AvatarText,
 	}
-	feedURL := "/" + view.Handle
+	profilePath := actor.ProfilePath(view.Handle, view.DID)
+	feedURL := profilePath
 	if view.Tab == profilequery.TabMedia {
 		feedURL += "/media"
 	}
@@ -42,8 +44,8 @@ func Profile(view profilequery.ProfileView, now time.Time, suggested []ui.Author
 			maybePinnedPost(view.PinnedPostMaybe, now),
 		),
 		ui.TabNav("Profile", []ui.TabItem{
-			{Label: "Posts", Href: "/" + view.Handle, Current: view.Tab == profilequery.TabPosts},
-			{Label: "Media", Href: "/" + view.Handle + "/media", Current: view.Tab == profilequery.TabMedia},
+			{Label: "Posts", Href: profilePath, Current: view.Tab == profilequery.TabPosts},
+			{Label: "Media", Href: profilePath + "/media", Current: view.Tab == profilequery.TabMedia},
 		}),
 	}
 	if len(view.Feed.Posts) > 0 {
@@ -88,7 +90,7 @@ func profileLabels(labels []moderation.ProfileLabelView) g.Node {
 	for i, label := range labels {
 		children := []g.Node{
 			g.Attr("class", "iface-pill"),
-			g.Attr("href", "/"+label.LabelerHandle),
+			g.Attr("href", actor.ProfilePath(label.LabelerHandle, label.LabelerDID)),
 			g.Attr("title", label.Labeler+": "+label.Message),
 		}
 		if glyph := ui.AvatarGlyph(label.LabelerAvatar, label.LabelerHandle, label.LabelerDID, label.LabelerIsLabeler); glyph != nil {

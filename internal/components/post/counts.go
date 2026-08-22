@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	g "maragu.dev/gomponents"
@@ -52,7 +53,7 @@ func newCountIDs(postID string) countIDs {
 }
 
 func postHref(view feedquery.PostView) string {
-	return "/" + view.AuthorHandle + "/post/" + url.PathEscape(view.ID)
+	return actor.PostPath(view.AuthorHandle, view.AuthorDID(), view.ID)
 }
 
 // countsLiveToggle renders the play/pause control for live counts polling.

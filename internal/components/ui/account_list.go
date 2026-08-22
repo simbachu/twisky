@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/simbachu/twisky/internal/actor"
 	g "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -22,7 +23,7 @@ func accountListItem(author AuthorInfo) g.Node {
 		g.Attr("class", "account-list-item"),
 		A(
 			g.Attr("class", "account-list-item-overlay"),
-			g.Attr("href", "/"+author.Handle),
+			g.Attr("href", actor.ProfilePath(author.Handle, author.DID)),
 			g.Attr("tabindex", "-1"),
 			g.Attr("aria-hidden", "true"),
 		),

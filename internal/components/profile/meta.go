@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/page"
 	profilequery "github.com/simbachu/twisky/internal/query/profile"
 )
@@ -23,7 +24,7 @@ func profilePageMeta(view profilequery.ProfileView, publicBaseURL string) page.P
 	return page.PageMeta{
 		Title:          byline,
 		Description:    description,
-		CanonicalURL:   page.AbsoluteURL(publicBaseURL, "/"+view.Handle),
+		CanonicalURL:   page.AbsoluteURL(publicBaseURL, actor.ProfilePath(view.Handle, view.DID)),
 		ImageURL:       view.Avatar,
 		OGType:         "profile",
 		LargeImageCard: false,

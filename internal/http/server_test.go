@@ -72,11 +72,11 @@ func (s stubReader) GetPostThread(context.Context, string, *bluesky.PostThreadOp
 
 func newTestServer(reader stubReader) http.Handler {
 	queries := query.NewDispatcher(
-		profile.NewHandler(reader, nil),
+		profile.NewHandler(reader, nil, nil),
 		tag.NewHandler(reader, nil),
-		post.NewHandler(reader, nil),
+		post.NewHandler(reader, nil, nil),
 	)
-	return twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(reader, nil), "https://twisky.test", nil).Handler()
+	return twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(reader, nil, nil), "https://twisky.test", nil, nil, nil).Handler()
 }
 
 func TestHandleHealthz_OK(t *testing.T) {
@@ -132,6 +132,7 @@ func TestHandleSlug_OK(t *testing.T) {
 
 	server := newTestServer(stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			DisplayName: "Bluesky",
 			Followers:   100,
@@ -531,6 +532,7 @@ func TestHandleSlug_CursorFragment(t *testing.T) {
 
 	server := newTestServer(stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			DisplayName: "Bluesky",
 		},
@@ -567,6 +569,7 @@ func TestHandleSlug_SinceFragment(t *testing.T) {
 
 	server := newTestServer(stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			DisplayName: "Bluesky",
 		},
@@ -618,6 +621,7 @@ func TestHandleSlug_RefreshFragment(t *testing.T) {
 
 	server := newTestServer(stubReader{
 		profile: &bluesky.Profile{
+			DID:         "did:plc:example",
 			Handle:      "bsky.app",
 			DisplayName: "Bluesky",
 		},

@@ -27,6 +27,7 @@ import (
 	profilepage "github.com/simbachu/twisky/internal/components/profile"
 	tagpage "github.com/simbachu/twisky/internal/components/tag"
 	"github.com/simbachu/twisky/internal/components/ui"
+	"github.com/simbachu/twisky/internal/identity"
 	"github.com/simbachu/twisky/internal/intent"
 	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/query"
@@ -47,6 +48,8 @@ type Server struct {
 	publicBaseURL string
 	auth          *authoauth.Service
 	prefs         moderation.PrefsProvider
+	identity      *identity.Directory
+	profileReader identity.ProfileReader
 	// likeWriter, when set, skips OAuth resume for LikePost (tests).
 	likeWriter like.Writer
 	// repostWriter, when set, skips OAuth resume for RepostPost (tests).
@@ -58,7 +61,7 @@ type Server struct {
 	sessionClients *sessionClientCache
 }
 
-func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service) *Server {
+func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service, dir *identity.Directory, profileReader identity.ProfileReader) *Server {
 	return &Server{
 		queries:        queries,
 		commands:       commands,
@@ -66,6 +69,8 @@ func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggesti
 		publicBaseURL:  publicBaseURL,
 		auth:           auth,
 		prefs:          moderation.DefaultPrefsProvider{},
+		identity:       dir,
+		profileReader:  profileReader,
 		sessionClients: newSessionClientCache(),
 	}
 }

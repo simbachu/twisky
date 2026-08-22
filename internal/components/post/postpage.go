@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/components/page"
 	"github.com/simbachu/twisky/internal/components/ui"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
@@ -139,7 +140,7 @@ func RepliesRefreshFragment(view feedquery.PostPageView, known map[string]bool, 
 }
 
 func postPageAncestorsSlot(post feedquery.PostView) g.Node {
-	href := "/" + post.AuthorHandle + "/post/" + url.PathEscape(post.ID)
+	href := actor.PostPath(post.AuthorHandle, post.AuthorDID(), post.ID)
 	return Section(
 		g.Attr("id", "post-page-ancestors"),
 		g.Attr("class", "post-ancestors-section"),

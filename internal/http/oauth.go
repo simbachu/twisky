@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/simbachu/twisky/internal/actor"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
@@ -23,11 +22,23 @@ func (s *Server) accountMenuView(w http.ResponseWriter, r *http.Request, known .
 	}
 	view := ui.AccountMenuView{Enabled: true}
 	state, err := s.auth.Jar.Load(r)
-	if err != nil {
-		return view
+	if err == nil {
+		s.seedIdentityFromSession(state)
+		state = s.syncSessionAuthorChrome(w, state, known...)
+		return accountMenuViewFromState(state)
 	}
-	state = s.syncSessionAuthorChrome(w, state, known...)
-	return accountMenuViewFromState(state)
+	return view
+}
+
+func (s *Server) seedIdentityFromSession(state session.State) {
+	if s.identity == nil {
+		return
+	}
+	for _, account := range state.Accounts {
+		if account.Handle != "" && account.Handle != "handle.invalid" && account.DID != "" {
+			s.identity.Observe(account.Handle, account.DID)
+		}
+	}
 }
 
 // syncSessionAuthorChrome updates cookied accounts from AuthorInfo already loaded for the page.
@@ -137,7 +148,14 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL, err := s.auth.App.StartAuthFlow(r.Context(), username)
+	startID := username
+	if slug, err := actor.ParseSlug(username); err == nil && s.identity != nil {
+		if did, err := s.identity.Resolve(r.Context(), slug, s.profileReader); err == nil && did != "" {
+			startID = did
+		}
+	}
+
+	redirectURL, err := s.auth.App.StartAuthFlow(r.Context(), startID)
 	if err != nil {
 		slog.Warn("oauth login failed", "err", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -161,11 +179,25 @@ func (s *Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handle := ""
-	if ident, err := identity.DefaultDirectory().LookupDID(r.Context(), sessData.AccountDID); err == nil {
-		handle = ident.Handle.String()
+	if s.identity != nil {
+		if ident, err := s.identity.LookupDID(r.Context(), sessData.AccountDID); err == nil && !ident.Handle.IsInvalidHandle() {
+			handle = ident.Handle.String()
+		}
 	}
 
 	state, _ := s.auth.Jar.Load(r)
+	if handle == "" || handle == "handle.invalid" {
+		for _, account := range state.Accounts {
+			if account.DID == sessData.AccountDID.String() && account.Handle != "" && account.Handle != "handle.invalid" {
+				handle = account.Handle
+				break
+			}
+		}
+	}
+	if s.identity != nil && handle != "" && handle != "handle.invalid" {
+		s.identity.Observe(handle, sessData.AccountDID.String())
+	}
+
 	state = state.AddAccount(session.Account{
 		DID:       sessData.AccountDID.String(),
 		SessionID: sessData.SessionID,

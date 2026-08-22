@@ -12,6 +12,7 @@ import (
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/command"
 	twiskyhttp "github.com/simbachu/twisky/internal/http"
+	"github.com/simbachu/twisky/internal/identity"
 	"github.com/simbachu/twisky/internal/moderation"
 	"github.com/simbachu/twisky/internal/query"
 	"github.com/simbachu/twisky/internal/query/post"
@@ -24,13 +25,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	dir := identity.NewDirectory()
 	blueskyClient := bluesky.NewClient()
 	blueskyClient.SetLabelers(moderation.DefaultLabelerDIDs())
 	prefs := moderation.DefaultPrefsProvider{}
 	queries := query.NewDispatcher(
-		profile.NewHandler(blueskyClient, prefs),
+		profile.NewHandler(blueskyClient, prefs, dir),
 		tag.NewHandler(blueskyClient, prefs),
-		post.NewHandler(blueskyClient, prefs),
+		post.NewHandler(blueskyClient, prefs, dir),
 	)
 	commands := command.NewDispatcher()
 
@@ -40,6 +42,7 @@ func main() {
 		SessionSecret: envOr("TWISKY_SESSION_SECRET", ""),
 		StorePath:     envOr("TWISKY_OAUTH_STORE_PATH", "oauth.db"),
 		SecureCookies: strings.HasPrefix(strings.ToLower(publicBaseURL), "https://"),
+		Directory:     dir,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +52,7 @@ func main() {
 		log.Printf("oauth enabled (client_id=%s)", auth.Config.ClientID)
 	}
 
-	server := twiskyhttp.NewServer(queries, commands, suggestions.NewHandler(blueskyClient, nil), publicBaseURL, auth)
+	server := twiskyhttp.NewServer(queries, commands, suggestions.NewHandler(blueskyClient, nil, dir), publicBaseURL, auth, dir, blueskyClient)
 
 	addr := envOr("TWISKY_ADDR", ":8080")
 	log.Printf("listening on %s", addr)

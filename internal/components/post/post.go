@@ -271,7 +271,7 @@ func ClickableInset(view *feedquery.PostView, now time.Time, ariaLabel string) g
 	if view == nil || view.Moderation.Filtered {
 		return nil
 	}
-	href := "/" + view.AuthorHandle + "/post/" + url.PathEscape(view.ID)
+	href := actor.PostPath(view.AuthorHandle, view.AuthorDID(), view.ID)
 	return Div(
 		g.Attr("class", "clickable-inset"),
 		A(

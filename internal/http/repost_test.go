@@ -43,11 +43,11 @@ func (s *stubRepostWriter) DeleteRepost(context.Context, string) error {
 func newRepostTestServer(t *testing.T, writer *stubRepostWriter) http.Handler {
 	t.Helper()
 	queries := query.NewDispatcher(
-		profile.NewHandler(stubReader{}, nil),
+		profile.NewHandler(stubReader{}, nil, nil),
 		tag.NewHandler(stubReader{}, nil),
-		post.NewHandler(stubReader{}, nil),
+		post.NewHandler(stubReader{}, nil, nil),
 	)
-	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil), "https://twisky.test", nil)
+	server := twiskyhttp.NewServer(queries, command.NewDispatcher(), suggestions.NewHandler(stubReader{}, nil, nil), "https://twisky.test", nil, nil, nil)
 	if writer != nil {
 		server = server.WithRepostWriter(writer)
 	}
