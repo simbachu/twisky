@@ -36,6 +36,9 @@ func TestApplyViewerLikes_SetsLikedFromPosts(t *testing.T) {
 	if !views[0].Liked {
 		t.Fatal("views[0].Liked = false, want true")
 	}
+	if views[0].LikeURI() != "at://did:plc:me/app.bsky.feed.like/1" {
+		t.Fatalf("views[0].LikeURI() = %q", views[0].LikeURI())
+	}
 	if views[1].Liked {
 		t.Fatal("views[1].Liked = true, want false")
 	}
@@ -68,6 +71,9 @@ func TestApplyViewerLikes_SetsRepostedFromPosts(t *testing.T) {
 
 	if !views[0].Reposted {
 		t.Fatal("views[0].Reposted = false, want true")
+	}
+	if views[0].RepostURI() != "at://did:plc:me/app.bsky.feed.repost/1" {
+		t.Fatalf("views[0].RepostURI() = %q", views[0].RepostURI())
 	}
 	if views[1].Reposted {
 		t.Fatal("views[1].Reposted = true, want false")

@@ -113,6 +113,8 @@ func TestActionButton_HxPostAttrs(t *testing.T) {
 		`hx-vals="{&#34;uri&#34;:&#34;at://x&#34;,&#34;cid&#34;:&#34;c&#34;}"`,
 		`hx-target="this"`,
 		`hx-swap="outerHTML"`,
+		`hx-disabled-elt="this"`,
+		`hx-sync="this:drop"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)

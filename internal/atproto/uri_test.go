@@ -87,3 +87,65 @@ func TestNewPostURI(t *testing.T) {
 		t.Fatalf("NewPostURI().String() = %q, want %q", got.String(), want)
 	}
 }
+
+func TestParseRecordURI(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		uri        string
+		wantDID    string
+		wantColl   string
+		wantKey    string
+		wantErr    bool
+	}{
+		{
+			name:     "like record",
+			uri:      "at://did:plc:me/app.bsky.feed.like/like1",
+			wantDID:  "did:plc:me",
+			wantColl: "app.bsky.feed.like",
+			wantKey:  "like1",
+		},
+		{
+			name:     "repost record",
+			uri:      "at://did:plc:me/app.bsky.feed.repost/3jzfcijpj2k2",
+			wantDID:  "did:plc:me",
+			wantColl: "app.bsky.feed.repost",
+			wantKey:  "3jzfcijpj2k2",
+		},
+		{
+			name:    "missing at prefix",
+			uri:     "did:plc:me/app.bsky.feed.like/like1",
+			wantErr: true,
+		},
+		{
+			name:    "empty rkey",
+			uri:     "at://did:plc:me/app.bsky.feed.like/",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := atproto.ParseRecordURI(tt.uri)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ParseRecordURI() err = nil, want error")
+				}
+				if !errors.Is(err, atproto.ErrInvalidRecordURI) {
+					t.Fatalf("ParseRecordURI() err = %v, want ErrInvalidRecordURI", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseRecordURI() err = %v", err)
+			}
+			if got.AuthorDID() != tt.wantDID || got.Collection() != tt.wantColl || got.Rkey() != tt.wantKey {
+				t.Fatalf("ParseRecordURI() = {%q %q %q}, want {%q %q %q}",
+					got.AuthorDID(), got.Collection(), got.Rkey(), tt.wantDID, tt.wantColl, tt.wantKey)
+			}
+		})
+	}
+}

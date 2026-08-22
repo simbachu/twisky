@@ -8,6 +8,7 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/atclient"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
 )
 
@@ -23,9 +24,9 @@ func NewSessionClient(client *atclient.APIClient) *SessionClient {
 }
 
 // CreateLike writes an app.bsky.feed.like record for the subject strong-ref.
-func (c *SessionClient) CreateLike(ctx context.Context, uri, cid string) error {
+func (c *SessionClient) CreateLike(ctx context.Context, uri, cid string) (string, error) {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
-		return fmt.Errorf("oauth: session client not configured")
+		return "", fmt.Errorf("oauth: session client not configured")
 	}
 	body := map[string]any{
 		"repo":       c.client.AccountDID.String(),
@@ -39,13 +40,24 @@ func (c *SessionClient) CreateLike(ctx context.Context, uri, cid string) error {
 			"createdAt": syntax.DatetimeNow(),
 		},
 	}
-	return c.client.Post(ctx, "com.atproto.repo.createRecord", body, nil)
+	var resp struct {
+		URI string `json:"uri"`
+	}
+	if err := c.client.Post(ctx, "com.atproto.repo.createRecord", body, &resp); err != nil {
+		return "", err
+	}
+	return resp.URI, nil
+}
+
+// DeleteLike removes an app.bsky.feed.like record by AT URI.
+func (c *SessionClient) DeleteLike(ctx context.Context, recordURI string) error {
+	return c.deleteRecord(ctx, recordURI)
 }
 
 // CreateRepost writes an app.bsky.feed.repost record for the subject strong-ref.
-func (c *SessionClient) CreateRepost(ctx context.Context, uri, cid string) error {
+func (c *SessionClient) CreateRepost(ctx context.Context, uri, cid string) (string, error) {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
-		return fmt.Errorf("oauth: session client not configured")
+		return "", fmt.Errorf("oauth: session client not configured")
 	}
 	body := map[string]any{
 		"repo":       c.client.AccountDID.String(),
@@ -59,7 +71,34 @@ func (c *SessionClient) CreateRepost(ctx context.Context, uri, cid string) error
 			"createdAt": syntax.DatetimeNow(),
 		},
 	}
-	return c.client.Post(ctx, "com.atproto.repo.createRecord", body, nil)
+	var resp struct {
+		URI string `json:"uri"`
+	}
+	if err := c.client.Post(ctx, "com.atproto.repo.createRecord", body, &resp); err != nil {
+		return "", err
+	}
+	return resp.URI, nil
+}
+
+// DeleteRepost removes an app.bsky.feed.repost record by AT URI.
+func (c *SessionClient) DeleteRepost(ctx context.Context, recordURI string) error {
+	return c.deleteRecord(ctx, recordURI)
+}
+
+func (c *SessionClient) deleteRecord(ctx context.Context, recordURI string) error {
+	if c == nil || c.client == nil || c.client.AccountDID == nil {
+		return fmt.Errorf("oauth: session client not configured")
+	}
+	parsed, err := atproto.ParseRecordURI(recordURI)
+	if err != nil {
+		return err
+	}
+	body := map[string]any{
+		"repo":       parsed.AuthorDID(),
+		"collection": parsed.Collection(),
+		"rkey":       parsed.Rkey(),
+	}
+	return c.client.Post(ctx, "com.atproto.repo.deleteRecord", body, nil)
 }
 
 // GetPosts fetches posts via the AppView proxy (includes viewer state when authenticated).
@@ -252,4 +291,15 @@ func IsDuplicateRecord(err error) bool {
 // IsDuplicateLike reports whether err indicates the like already exists.
 func IsDuplicateLike(err error) bool {
 	return IsDuplicateRecord(err)
+}
+
+// IsRecordNotFound reports whether err indicates the record does not exist.
+func IsRecordNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not found") ||
+		strings.Contains(msg, "could not locate record") ||
+		strings.Contains(msg, "recordnotfound")
 }

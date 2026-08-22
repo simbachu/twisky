@@ -79,43 +79,57 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 func TestPost_LikedRendersEngagedLikeButton(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := post.Post(feedquery.PostViewWithStrongRef(feedquery.PostView{
+	view := feedquery.PostViewWithStrongRef(feedquery.PostViewWithEngagement(feedquery.PostView{
 		ID:           "abc123",
 		AuthorHandle: "dev.example",
 		Text:         "hello",
 		Liked:        true,
 		LikeCount:    5,
-	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid"), time.Now().UTC()).Render(&buf); err != nil {
+	}, "at://did:plc:me/app.bsky.feed.like/like1", ""), "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid")
+
+	var buf bytes.Buffer
+	if err := post.Post(view, time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `ui-icon-engaged`) {
-		t.Fatalf("html = %q, want ui-icon-engaged", html)
+	for _, want := range []string{
+		`ui-icon-engaged`,
+		`hx-post="/action/unlike"`,
+		`at://did:plc:me/app.bsky.feed.like/like1`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 
 func TestPost_RepostedRendersEngagedRepostButton(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := post.Post(feedquery.PostViewWithStrongRef(feedquery.PostView{
+	view := feedquery.PostViewWithStrongRef(feedquery.PostViewWithEngagement(feedquery.PostView{
 		ID:           "abc123",
 		AuthorHandle: "dev.example",
 		Text:         "hello",
 		Reposted:     true,
 		RepostCount:  3,
-	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid"), time.Now().UTC()).Render(&buf); err != nil {
+	}, "", "at://did:plc:me/app.bsky.feed.repost/r1"), "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid")
+
+	var buf bytes.Buffer
+	if err := post.Post(view, time.Now().UTC()).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, `ui-icon-engaged`) {
-		t.Fatalf("html = %q, want ui-icon-engaged", html)
-	}
-	if !strings.Contains(html, `ui-action--repost`) {
-		t.Fatalf("html = %q, want ui-action--repost", html)
+	for _, want := range []string{
+		`ui-icon-engaged`,
+		`ui-action--repost`,
+		`hx-post="/action/unrepost"`,
+		`at://did:plc:me/app.bsky.feed.repost/r1`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
 	}
 }
 

@@ -106,6 +106,32 @@ func LikeButtonFragment(view feedquery.PostView, countID string) g.Node {
 	return ui.ActionButton(likeButtonConfig(view, countID))
 }
 
+// LikeActionFragment is the HTMX response for a like: the engaged button,
+// plus post-page out-of-band stats when view.ID is set.
+func LikeActionFragment(view feedquery.PostView) g.Node {
+	countID := ""
+	if view.ID != "" {
+		countID = newCountIDs(view.ID).like
+	}
+	button := LikeButtonFragment(view, countID)
+	if view.ID == "" {
+		return button
+	}
+	ids := newCountIDs(view.ID)
+	return g.Group{
+		button,
+		ui.GroupedStatCount(ids.likeStats, view.LikeCount, true),
+		Div(
+			g.Attr("id", ids.announcer),
+			g.Attr("hx-swap-oob", "true"),
+			g.Attr("class", "visually-hidden"),
+			g.Attr("aria-live", "polite"),
+			g.Attr("aria-atomic", "true"),
+			g.Text(countAnnouncement(view.LikeCount, "like", "likes")),
+		),
+	}
+}
+
 // RepostButtonFragment renders the repost action button for HTMX swaps after RepostPost.
 func RepostButtonFragment(view feedquery.PostView, countID string) g.Node {
 	return ui.ActionButton(repostButtonConfig(view, countID))
@@ -149,7 +175,26 @@ func repostButtonConfig(view feedquery.PostView, countID string) ui.ActionButton
 		CountID: countID,
 		Engaged: view.Reposted,
 	}
-	if uri, cid := view.URI(), view.CID(); uri != "" && cid != "" {
+	uri, cid := view.URI(), view.CID()
+	if view.Reposted {
+		if recordURI := view.RepostURI(); recordURI != "" && uri != "" && cid != "" {
+			vals := map[string]any{
+				"record": recordURI,
+				"uri":    uri,
+				"cid":    cid,
+				"count":  view.RepostCount,
+			}
+			if countID != "" && view.ID != "" {
+				vals["id"] = view.ID
+			}
+			if encoded, err := json.Marshal(vals); err == nil {
+				cfg.HxPost = "/action/unrepost"
+				cfg.HxVals = string(encoded)
+			}
+		}
+		return cfg
+	}
+	if uri != "" && cid != "" {
 		vals := map[string]any{
 			"uri":   uri,
 			"cid":   cid,
@@ -158,8 +203,7 @@ func repostButtonConfig(view feedquery.PostView, countID string) ui.ActionButton
 		if countID != "" && view.ID != "" {
 			vals["id"] = view.ID
 		}
-		encoded, err := json.Marshal(vals)
-		if err == nil {
+		if encoded, err := json.Marshal(vals); err == nil {
 			cfg.HxPost = "/action/repost"
 			cfg.HxVals = string(encoded)
 		}
@@ -179,15 +223,37 @@ func likeButtonConfig(view feedquery.PostView, countID string) ui.ActionButtonCo
 		CountID: countID,
 		Engaged: view.Liked,
 	}
-	if uri, cid := view.URI(), view.CID(); uri != "" && cid != "" {
-		vals, err := json.Marshal(map[string]any{
+	uri, cid := view.URI(), view.CID()
+	if view.Liked {
+		if recordURI := view.LikeURI(); recordURI != "" && uri != "" && cid != "" {
+			vals := map[string]any{
+				"record": recordURI,
+				"uri":    uri,
+				"cid":    cid,
+				"count":  view.LikeCount,
+			}
+			if countID != "" && view.ID != "" {
+				vals["id"] = view.ID
+			}
+			if encoded, err := json.Marshal(vals); err == nil {
+				cfg.HxPost = "/action/unlike"
+				cfg.HxVals = string(encoded)
+			}
+		}
+		return cfg
+	}
+	if uri != "" && cid != "" {
+		vals := map[string]any{
 			"uri":   uri,
 			"cid":   cid,
 			"count": view.LikeCount,
-		})
-		if err == nil {
+		}
+		if countID != "" && view.ID != "" {
+			vals["id"] = view.ID
+		}
+		if encoded, err := json.Marshal(vals); err == nil {
 			cfg.HxPost = "/action/like"
-			cfg.HxVals = string(vals)
+			cfg.HxVals = string(encoded)
 		}
 	}
 	return cfg

@@ -18,16 +18,25 @@ import (
 )
 
 type stubRepostWriter struct {
-	calls int
-	err   error
-	uri   string
-	cid   string
+	calls     int
+	err       error
+	uri       string
+	cid       string
+	recordURI string
 }
 
-func (s *stubRepostWriter) CreateRepost(_ context.Context, uri, cid string) error {
+func (s *stubRepostWriter) CreateRepost(_ context.Context, uri, cid string) (string, error) {
 	s.calls++
 	s.uri = uri
 	s.cid = cid
+	if s.recordURI == "" {
+		s.recordURI = "at://did:plc:me/app.bsky.feed.repost/r1"
+	}
+	return s.recordURI, s.err
+}
+
+func (s *stubRepostWriter) DeleteRepost(context.Context, string) error {
+	s.calls++
 	return s.err
 }
 
@@ -98,14 +107,14 @@ func TestRepost_AuthedReturnsEngagedFragment(t *testing.T) {
 		`ui-icon-engaged`,
 		`ui-action--repost`,
 		`aria-label="Repost, 4"`,
-		`hx-post="/action/repost"`,
+		`hx-post="/action/unrepost"`,
+		`hx-disabled-elt="this"`,
+		`hx-sync="this:drop"`,
+		`at://did:plc:me/app.bsky.feed.repost/r1`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body = %q, want %s", body, want)
 		}
-	}
-	if strings.Contains(body, `id="repost-count-`) || strings.Contains(body, `hx-swap-oob`) {
-		t.Fatalf("body = %q, want feed fragment without live count ids or OOB stats", body)
 	}
 }
 
@@ -161,6 +170,89 @@ func TestRepost_WriterErrorReturns502(t *testing.T) {
 	writer := &stubRepostWriter{err: errors.New("pds down")}
 	handler := newRepostTestServer(t, writer)
 	req := httptest.NewRequest(http.MethodPost, "/action/repost", strings.NewReader("uri=at://did:plc:x/app.bsky.feed.post/a&cid=bafy&count=1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", rec.Code)
+	}
+}
+
+func TestUnrepost_MissingRecordReturns400(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubRepostWriter{}
+	handler := newRepostTestServer(t, writer)
+	req := httptest.NewRequest(http.MethodPost, "/action/unrepost", strings.NewReader("record="))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if writer.calls != 0 {
+		t.Fatalf("calls = %d, want 0", writer.calls)
+	}
+}
+
+func TestUnrepost_AuthedReturnsIdleFragment(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubRepostWriter{}
+	handler := newRepostTestServer(t, writer)
+	req := httptest.NewRequest(http.MethodPost, "/action/unrepost", strings.NewReader("record=at://did:plc:me/app.bsky.feed.repost/r1&uri=at://did:plc:x/app.bsky.feed.post/a&cid=bafy&count=4"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if writer.calls != 1 {
+		t.Fatalf("calls = %d, want 1", writer.calls)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`hx-post="/action/repost"`,
+		`aria-label="Repost, 3"`,
+		`hx-disabled-elt="this"`,
+		`hx-sync="this:drop"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+	if strings.Contains(body, `ui-icon-engaged`) {
+		t.Fatalf("body = %q, want unengaged", body)
+	}
+}
+
+func TestUnrepost_NotFoundTreatedAsSuccess(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubRepostWriter{err: errors.New("RecordNotFound: could not locate record")}
+	handler := newRepostTestServer(t, writer)
+	req := httptest.NewRequest(http.MethodPost, "/action/unrepost", strings.NewReader("record=at://did:plc:me/app.bsky.feed.repost/r1&uri=at://did:plc:x/app.bsky.feed.post/a&cid=bafy&count=1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), `ui-icon-engaged`) {
+		t.Fatalf("body = %q, want unengaged", rec.Body.String())
+	}
+}
+
+func TestUnrepost_WriterErrorReturns502(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubRepostWriter{err: errors.New("pds down")}
+	handler := newRepostTestServer(t, writer)
+	req := httptest.NewRequest(http.MethodPost, "/action/unrepost", strings.NewReader("record=at://did:plc:me/app.bsky.feed.repost/r1&count=1"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

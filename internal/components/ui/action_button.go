@@ -65,7 +65,11 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 		attrs = append(attrs, g.Attr("aria-haspopup", "true"))
 	}
 	if cfg.HxPost != "" {
-		attrs = append(attrs, g.Attr("hx-post", cfg.HxPost))
+		attrs = append(attrs,
+			g.Attr("hx-post", cfg.HxPost),
+			g.Attr("hx-disabled-elt", "this"),
+			g.Attr("hx-sync", "this:drop"),
+		)
 		if cfg.HxVals != "" {
 			attrs = append(attrs, g.Attr("hx-vals", cfg.HxVals))
 		}

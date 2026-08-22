@@ -32,6 +32,9 @@ func TestNewPostView_ExposesURIAndCIDAndLiked(t *testing.T) {
 	if !view.Liked {
 		t.Fatal("Liked = false, want true")
 	}
+	if view.LikeURI() != "at://did:plc:me/app.bsky.feed.like/like1" {
+		t.Fatalf("LikeURI() = %q", view.LikeURI())
+	}
 	if view.Reposted {
 		t.Fatal("Reposted = true, want false")
 	}
@@ -53,6 +56,9 @@ func TestNewPostView_ExposesRepostedFromViewer(t *testing.T) {
 
 	if !view.Reposted {
 		t.Fatal("Reposted = false, want true")
+	}
+	if view.RepostURI() != "at://did:plc:me/app.bsky.feed.repost/r1" {
+		t.Fatalf("RepostURI() = %q", view.RepostURI())
 	}
 	if view.Liked {
 		t.Fatal("Liked = true, want false")

@@ -7,7 +7,10 @@ import (
 
 const postCollection = "app.bsky.feed.post"
 
-var ErrInvalidPostURI = errors.New("invalid post AT URI")
+var (
+	ErrInvalidPostURI   = errors.New("invalid post AT URI")
+	ErrInvalidRecordURI = errors.New("invalid record AT URI")
+)
 
 // PostURI is a typed at:// URI for app.bsky.feed.post records.
 type PostURI struct {
@@ -75,3 +78,44 @@ func PostAuthorDID(uri string) (string, error) {
 	}
 	return parsed.AuthorDID(), nil
 }
+
+// RecordURI is a typed at:// URI for any repo record.
+type RecordURI struct {
+	did        string
+	collection string
+	rkey       string
+}
+
+// ParseRecordURI parses an AT URI into repo DID, collection NSID, and record key.
+func ParseRecordURI(raw string) (RecordURI, error) {
+	uri := strings.TrimSpace(raw)
+	if !strings.HasPrefix(uri, "at://") {
+		return RecordURI{}, ErrInvalidRecordURI
+	}
+
+	path := strings.TrimPrefix(uri, "at://")
+	slash := strings.Index(path, "/")
+	if slash <= 0 {
+		return RecordURI{}, ErrInvalidRecordURI
+	}
+	did := path[:slash]
+	if did == "" {
+		return RecordURI{}, ErrInvalidRecordURI
+	}
+
+	rest := path[slash+1:]
+	idx := strings.LastIndex(rest, "/")
+	if idx <= 0 {
+		return RecordURI{}, ErrInvalidRecordURI
+	}
+	collection := rest[:idx]
+	rkey := rest[idx+1:]
+	if collection == "" || rkey == "" {
+		return RecordURI{}, ErrInvalidRecordURI
+	}
+	return RecordURI{did: did, collection: collection, rkey: rkey}, nil
+}
+
+func (r RecordURI) AuthorDID() string  { return r.did }
+func (r RecordURI) Collection() string { return r.collection }
+func (r RecordURI) Rkey() string       { return r.rkey }

@@ -55,6 +55,10 @@ func applyViewerLike(view *PostView, byURI map[string]bluesky.Post) {
 	}
 	view.Liked = post.Viewer != nil && post.Viewer.Like != ""
 	view.Reposted = post.Viewer != nil && post.Viewer.Repost != ""
+	if post.Viewer != nil {
+		view.likeURI = post.Viewer.Like
+		view.repostURI = post.Viewer.Repost
+	}
 	if view.postCID == "" && post.CID != "" {
 		view.postCID = post.CID
 	}

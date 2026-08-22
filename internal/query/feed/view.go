@@ -74,6 +74,8 @@ type PostView struct {
 	replyParentURI      string
 	postURI             string
 	postCID             string
+	likeURI             string
+	repostURI           string
 	authorDID           string
 	threadRootAuthorDID string
 	labels              []moderation.Label
@@ -97,6 +99,14 @@ func (v PostView) CID() string {
 	return v.postCID
 }
 
+func (v PostView) LikeURI() string {
+	return v.likeURI
+}
+
+func (v PostView) RepostURI() string {
+	return v.repostURI
+}
+
 func (v PostView) ThreadRootAuthorDID() string {
 	if v.threadRootAuthorDID != "" {
 		return v.threadRootAuthorDID
@@ -114,6 +124,13 @@ func PostViewWithAuthorDID(view PostView, authorDID string) PostView {
 func PostViewWithStrongRef(view PostView, uri, cid string) PostView {
 	view.postURI = uri
 	view.postCID = cid
+	return view
+}
+
+// PostViewWithEngagement returns view with viewer engagement record URIs set for tests.
+func PostViewWithEngagement(view PostView, likeURI, repostURI string) PostView {
+	view.likeURI = likeURI
+	view.repostURI = repostURI
 	return view
 }
 
@@ -182,6 +199,10 @@ func NewPostView(post bluesky.Post) PostView {
 		threadRootAuthorDID: threadRootAuthorDIDFromPost(post),
 		labels:              moderationLabels(post.AllLabels()),
 		authorLabels:        moderationLabels(post.Author.Labels),
+	}
+	if post.Viewer != nil {
+		view.likeURI = post.Viewer.Like
+		view.repostURI = post.Viewer.Repost
 	}
 	appendImagesFromEmbed(&view, post.Embed)
 	appendVideosFromEmbed(&view, post.Embed)

@@ -31,13 +31,52 @@ func TestIsDuplicateRecord(t *testing.T) {
 	}
 }
 
+func TestIsRecordNotFound(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		err  error
+		want bool
+	}{
+		{nil, false},
+		{errors.New("pds down"), false},
+		{errors.New("RecordNotFound: could not locate record"), true},
+		{errors.New("not found"), true},
+	}
+	for _, tc := range cases {
+		if got := authoauth.IsRecordNotFound(tc.err); got != tc.want {
+			t.Fatalf("IsRecordNotFound(%v) = %v, want %v", tc.err, got, tc.want)
+		}
+	}
+}
+
 func TestSessionClient_CreateRepost_NilClient(t *testing.T) {
 	t.Parallel()
 
 	client := authoauth.NewSessionClient(nil)
-	err := client.CreateRepost(context.Background(), "at://did:plc:example/app.bsky.feed.post/abc", "bafycid")
+	_, err := client.CreateRepost(context.Background(), "at://did:plc:example/app.bsky.feed.post/abc", "bafycid")
 	if err == nil {
 		t.Fatal("CreateRepost() err = nil, want error")
+	}
+}
+
+func TestSessionClient_DeleteLike_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+	err := client.DeleteLike(context.Background(), "at://did:plc:me/app.bsky.feed.like/like1")
+	if err == nil {
+		t.Fatal("DeleteLike() err = nil, want error")
+	}
+}
+
+func TestSessionClient_DeleteRepost_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+	err := client.DeleteRepost(context.Background(), "at://did:plc:me/app.bsky.feed.repost/r1")
+	if err == nil {
+		t.Fatal("DeleteRepost() err = nil, want error")
 	}
 }
 
