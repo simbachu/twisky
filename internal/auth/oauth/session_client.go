@@ -142,10 +142,7 @@ func (c *SessionClient) GetTimeline(ctx context.Context, req bluesky.TimelineReq
 	if req.Cursor != "" {
 		params["cursor"] = req.Cursor
 	}
-	var resp struct {
-		Feed   []bluesky.FeedItem `json:"feed"`
-		Cursor string             `json:"cursor,omitempty"`
-	}
+	var resp bluesky.FeedListResponse
 	if err := appview.Get(ctx, "app.bsky.feed.getTimeline", params, &resp); err != nil {
 		return nil, err
 	}
@@ -160,11 +157,10 @@ func (c *SessionClient) GetSavedFeeds(ctx context.Context) ([]bluesky.SavedFeed,
 	if c == nil || c.client == nil {
 		return nil, fmt.Errorf("oauth: session client not configured")
 	}
-	appview := c.client.WithService(appViewService)
 	var resp struct {
 		Preferences []json.RawMessage `json:"preferences"`
 	}
-	if err := appview.Get(ctx, "app.bsky.actor.getPreferences", map[string]any{}, &resp); err != nil {
+	if err := c.client.Get(ctx, "app.bsky.actor.getPreferences", map[string]any{}, &resp); err != nil {
 		return nil, err
 	}
 	return parseSavedFeeds(resp.Preferences)
@@ -248,10 +244,7 @@ func (c *SessionClient) GetFeed(ctx context.Context, req bluesky.FeedRequest) (*
 	if req.Cursor != "" {
 		params["cursor"] = req.Cursor
 	}
-	var resp struct {
-		Feed   []bluesky.FeedItem `json:"feed"`
-		Cursor string             `json:"cursor,omitempty"`
-	}
+	var resp bluesky.FeedListResponse
 	if err := appview.Get(ctx, "app.bsky.feed.getFeed", params, &resp); err != nil {
 		return nil, err
 	}

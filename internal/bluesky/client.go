@@ -239,11 +239,6 @@ type FeedGenerator struct {
 	DisplayName string `json:"displayName"`
 }
 
-type authorFeedResponse struct {
-	Feed   []FeedItem `json:"feed"`
-	Cursor string     `json:"cursor,omitempty"`
-}
-
 type SearchPostsRequest struct {
 	Tag    string
 	Limit  int
@@ -369,7 +364,7 @@ func (c *Client) GetAuthorFeed(ctx context.Context, feedReq AuthorFeedRequest) (
 	}
 	endpoint.RawQuery = query.Encode()
 
-	var feedResp authorFeedResponse
+	var feedResp FeedListResponse
 	if err := c.doGet(ctx, endpoint.String(), &feedResp); err != nil {
 		return nil, err
 	}

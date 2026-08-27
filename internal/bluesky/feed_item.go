@@ -15,6 +15,31 @@ type FeedItem struct {
 	Reason *FeedReason   `json:"reason,omitempty"`
 }
 
+func (item *FeedItem) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Post   Post            `json:"post"`
+		Reply  *ReplyContext   `json:"reply,omitempty"`
+		Reason json.RawMessage `json:"reason,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	item.Post = raw.Post
+	item.Reply = raw.Reply
+	if len(raw.Reason) == 0 {
+		item.Reason = nil
+		return nil
+	}
+	var reason FeedReason
+	if err := reason.UnmarshalJSON(raw.Reason); err != nil {
+		return err
+	}
+	if reason.RepostedBy.Handle != "" || reason.RepostedBy.DID != "" {
+		item.Reason = &reason
+	}
+	return nil
+}
+
 type FeedReason struct {
 	RepostedBy Author
 }

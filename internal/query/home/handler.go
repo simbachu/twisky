@@ -91,6 +91,7 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 		if errors.Is(err, bluesky.ErrNotFound) {
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find feed " + selected.Label}
 		}
+		slog.Error("home feed unavailable", "feed", selected.Label, "slug", selected.Slug, "err", err)
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load feed " + selected.Label}
 	}
 
