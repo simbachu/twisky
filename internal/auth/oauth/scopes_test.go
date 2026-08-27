@@ -14,15 +14,22 @@ func TestDefaultScopes_IncludeTimelineAndPrefs(t *testing.T) {
 	for _, want := range []string{
 		"atproto",
 		"include:app.bsky.authViewAll?aud=did:web:api.bsky.app%23bsky_appview",
-		"include:app.bsky.authManagePrefs",
-		"repo:app.bsky.feed.like?action=manage",
-		"repo:app.bsky.feed.repost?action=manage",
+		"repo:app.bsky.feed.like?action=create",
+		"repo:app.bsky.feed.like?action=delete",
+		"repo:app.bsky.feed.repost?action=create",
+		"repo:app.bsky.feed.repost?action=delete",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("DefaultScopes = %q, missing %q", joined, want)
 		}
 	}
-	if strings.Contains(joined, "transition:generic") {
-		t.Fatalf("DefaultScopes still includes transition:generic: %q", joined)
+	for _, invalid := range []string{
+		"transition:generic",
+		"authManagePrefs",
+		"action=manage",
+	} {
+		if strings.Contains(joined, invalid) {
+			t.Fatalf("DefaultScopes = %q, must not include %q", joined, invalid)
+		}
 	}
 }
