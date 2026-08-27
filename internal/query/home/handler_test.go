@@ -363,6 +363,30 @@ func TestHandler_HandleTimelineUpstreamError(t *testing.T) {
 	}
 }
 
+func TestHandler_HandleTimelineInsufficientAuth(t *testing.T) {
+	t.Parallel()
+
+	reader := &timelineFailReader{
+		stubReader: stubReader{
+			savedFeeds: []bluesky.SavedFeed{},
+			generators: []bluesky.FeedGenerator{},
+		},
+		timelineErr: errors.New("API request failed (HTTP 403): Forbidden: Insufficient scope"),
+	}
+	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
+
+	errResp, ok := resp.(response.ErrorResponse)
+	if !ok {
+		t.Fatalf("Handle() type = %T, want ErrorResponse", resp)
+	}
+	if errResp.Status != http.StatusUnauthorized {
+		t.Fatalf("Status = %d, want %d", errResp.Status, http.StatusUnauthorized)
+	}
+	if !strings.Contains(errResp.Message, "Log out and sign in again") {
+		t.Fatalf("Message = %q, want re-login guidance", errResp.Message)
+	}
+}
+
 type timelineFailReader struct {
 	stubReader
 	timelineErr error

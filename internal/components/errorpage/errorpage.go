@@ -51,6 +51,8 @@ func statusHeading(status int) string {
 		return "Bad request"
 	case http.StatusNotFound:
 		return "Not found"
+	case http.StatusUnauthorized:
+		return "Sign in again"
 	case http.StatusBadGateway:
 		return "Temporarily unavailable"
 	case http.StatusInternalServerError:

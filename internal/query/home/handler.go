@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode"
 
+	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/bluesky"
 	"github.com/simbachu/twisky/internal/intent"
 	"github.com/simbachu/twisky/internal/moderation"
@@ -92,6 +93,12 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewHome) response.Respon
 			return response.ErrorResponse{Status: http.StatusNotFound, Message: "Could not find feed " + selected.Label}
 		}
 		slog.Error("home feed unavailable", "feed", selected.Label, "slug", selected.Slug, "err", err)
+		if authoauth.IsInsufficientAuth(err) {
+			return response.ErrorResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "Your Bluesky login needs to be refreshed. Log out and sign in again to load " + selected.Label + ".",
+			}
+		}
 		return response.ErrorResponse{Status: http.StatusBadGateway, Message: "Failed to load feed " + selected.Label}
 	}
 

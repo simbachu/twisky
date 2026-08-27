@@ -7,8 +7,6 @@ import (
 	indigooauth "github.com/bluesky-social/indigo/atproto/auth/oauth"
 )
 
-var DefaultScopes = []string{"atproto", "transition:generic"}
-
 // NewConfig builds a public (or localhost) indigo client config from the app base URL.
 // Empty baseURL uses localhost development client metadata.
 func NewConfig(publicBaseURL string, scopes []string) indigooauth.ClientConfig {
