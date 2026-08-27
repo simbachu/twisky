@@ -39,6 +39,7 @@ import (
 	"github.com/simbachu/twisky/internal/response"
 	"github.com/simbachu/twisky/internal/version"
 	"github.com/simbachu/twisky/static"
+	"golang.org/x/sync/singleflight"
 )
 
 type Server struct {
@@ -59,6 +60,8 @@ type Server struct {
 	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
 	// traffic from authenticated poll/enrichment paths.
 	sessionClients *sessionClientCache
+	// sessionResume deduplicates concurrent ResumeSession calls per account session.
+	sessionResume singleflight.Group
 }
 
 func NewServer(queries *query.Dispatcher, commands *command.Dispatcher, suggestionsHandler *suggestions.Handler, publicBaseURL string, auth *authoauth.Service, dir *identity.Directory, profileReader identity.ProfileReader) *Server {
@@ -173,6 +176,9 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		suggested := s.suggestedAccounts(r.Context())
 		_ = homepage.Home(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
+		if v.Status == http.StatusUnauthorized {
+			s.clearStaleOAuthAccount(w, r)
+		}
 		s.writeQueryError(w, r, v)
 	default:
 		s.writeQueryError(w, r, response.ErrorResponse{

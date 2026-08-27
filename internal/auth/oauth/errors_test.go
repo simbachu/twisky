@@ -21,6 +21,8 @@ func TestIsInsufficientAuth(t *testing.T) {
 		{&atclient.APIError{StatusCode: 403, Name: "Forbidden", Message: "Insufficient scope"}, true},
 		{&atclient.APIError{StatusCode: 502}, false},
 		{errors.New("API request failed (HTTP 403): Forbidden"), true},
+		{errors.New("token refresh failed (HTTP 400): invalid_grant"), true},
+		{errors.New("failed to refresh OAuth tokens: token refresh failed: auth server request failed (HTTP 400): invalid_grant"), true},
 	}
 	for _, tc := range cases {
 		if got := authoauth.IsInsufficientAuth(tc.err); got != tc.want {

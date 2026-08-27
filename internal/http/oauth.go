@@ -296,3 +296,26 @@ func (s *Server) loadActiveAccount(r *http.Request) (*session.Account, error) {
 	}
 	return &account, nil
 }
+
+// clearStaleOAuthAccount drops the active browser account when the OAuth session
+// can no longer be used (for example after invalid_grant on token refresh).
+func (s *Server) clearStaleOAuthAccount(w http.ResponseWriter, r *http.Request) {
+	if s.auth == nil {
+		return
+	}
+	state, err := s.auth.Jar.Load(r)
+	if err != nil {
+		return
+	}
+	account, ok := state.ActiveAccount()
+	if !ok {
+		return
+	}
+	s.invalidateOAuthSession(&account)
+	state = state.RemoveAccount(account.DID)
+	if len(state.Accounts) == 0 {
+		s.auth.Jar.Clear(w)
+		return
+	}
+	_ = s.auth.Jar.Save(w, state)
+}

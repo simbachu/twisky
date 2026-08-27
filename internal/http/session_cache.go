@@ -58,27 +58,65 @@ func (c *sessionClientCache) put(key string, account *session.Account, client *a
 	}
 }
 
+func (c *sessionClientCache) invalidate(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.entries, key)
+}
+
 func sessionClientCacheKey(account *session.Account) string {
 	return account.DID + "/" + account.SessionID
 }
 
+type resumedSessionClient struct {
+	account *session.Account
+	client  *authoauth.SessionClient
+}
+
 // cachedResumeActiveClient returns a short-lived cached SessionClient when available.
+// Concurrent resumes for the same account share one singleflight call so OAuth token
+// refresh and DPoP nonce updates do not race across duplicate ClientSession values.
 func (s *Server) cachedResumeActiveClient(r *http.Request) (*session.Account, *authoauth.SessionClient, error) {
 	account, err := s.loadActiveAccount(r)
 	if err != nil {
 		return nil, nil, err
 	}
-	if s.sessionClients == nil {
-		return s.resumeActiveClientUncached(r, account)
-	}
 	key := sessionClientCacheKey(account)
-	if entry, ok := s.sessionClients.get(key); ok {
-		return entry.account, entry.client, nil
+	if s.sessionClients != nil {
+		if entry, ok := s.sessionClients.get(key); ok {
+			return entry.account, entry.client, nil
+		}
 	}
-	account, client, err := s.resumeActiveClientUncached(r, account)
+
+	v, err, _ := s.sessionResume.Do(key, func() (any, error) {
+		if s.sessionClients != nil {
+			if entry, ok := s.sessionClients.get(key); ok {
+				return resumedSessionClient{account: entry.account, client: entry.client}, nil
+			}
+		}
+		accountCopy := *account
+		resAccount, client, err := s.resumeActiveClientUncached(r, &accountCopy)
+		if err != nil {
+			return nil, err
+		}
+		if s.sessionClients != nil {
+			s.sessionClients.put(key, resAccount, client)
+		}
+		return resumedSessionClient{account: resAccount, client: client}, nil
+	})
 	if err != nil {
+		if authoauth.IsInsufficientAuth(err) {
+			s.invalidateOAuthSession(account)
+		}
 		return nil, nil, err
 	}
-	s.sessionClients.put(key, account, client)
-	return account, client, nil
+	res := v.(resumedSessionClient)
+	return res.account, res.client, nil
+}
+
+func (s *Server) invalidateOAuthSession(account *session.Account) {
+	if account == nil || s.sessionClients == nil {
+		return
+	}
+	s.sessionClients.invalidate(sessionClientCacheKey(account))
 }

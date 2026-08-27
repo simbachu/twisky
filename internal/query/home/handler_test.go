@@ -371,7 +371,7 @@ func TestHandler_HandleTimelineInsufficientAuth(t *testing.T) {
 			savedFeeds: []bluesky.SavedFeed{},
 			generators: []bluesky.FeedGenerator{},
 		},
-		timelineErr: errors.New("API request failed (HTTP 403): Forbidden: Insufficient scope"),
+		timelineErr: errors.New("failed to refresh OAuth tokens: token refresh failed: auth server request failed (HTTP 400): invalid_grant"),
 	}
 	resp := home.NewHandler(reader, nil).Handle(context.Background(), intent.ViewHome{})
 

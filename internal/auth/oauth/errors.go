@@ -24,5 +24,9 @@ func IsInsufficientAuth(err error) bool {
 		strings.Contains(msg, "insufficient") ||
 		strings.Contains(msg, "permission") ||
 		strings.Contains(msg, "scope") ||
-		strings.Contains(msg, "forbidden")
+		strings.Contains(msg, "forbidden") ||
+		strings.Contains(msg, "invalid_grant") ||
+		strings.Contains(msg, "invalid refresh token") ||
+		strings.Contains(msg, "token refresh failed") ||
+		strings.Contains(msg, "use_dpop_nonce")
 }
