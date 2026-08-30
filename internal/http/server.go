@@ -18,6 +18,7 @@ import (
 	"github.com/simbachu/twisky/internal/command"
 	"github.com/simbachu/twisky/internal/command/like"
 	"github.com/simbachu/twisky/internal/command/repost"
+	postcommand "github.com/simbachu/twisky/internal/command/post"
 	errorpage "github.com/simbachu/twisky/internal/components/errorpage"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
@@ -55,6 +56,8 @@ type Server struct {
 	likeWriter like.Writer
 	// repostWriter, when set, skips OAuth resume for RepostPost (tests).
 	repostWriter repost.Writer
+	// postWriter, when set, skips OAuth resume for CreatePost (tests).
+	postWriter postcommand.Writer
 	// homeReader, when set, is used for the home timeline instead of the session client (tests).
 	homeReader homequery.Reader
 	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
@@ -87,6 +90,12 @@ func (s *Server) WithLikeWriter(w like.Writer) *Server {
 // WithRepostWriter overrides the OAuth session client used for RepostPost (tests).
 func (s *Server) WithRepostWriter(w repost.Writer) *Server {
 	s.repostWriter = w
+	return s
+}
+
+// WithPostWriter overrides the OAuth session client used for CreatePost (tests).
+func (s *Server) WithPostWriter(w postcommand.Writer) *Server {
+	s.postWriter = w
 	return s
 }
 
@@ -136,6 +145,8 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/action/unlike", s.handleUnlike)
 	r.Post("/action/repost", s.handleRepost)
 	r.Post("/action/unrepost", s.handleUnrepost)
+	r.Get("/my/posts/new", s.handleComposeNew)
+	r.Post("/my/posts", s.handleCreatePost)
 	r.Get("/", s.handleHome)
 	r.Get("/feed/{feedSlug}", s.handleHome)
 	r.Get("/tagged/{tag}", s.handleTag)

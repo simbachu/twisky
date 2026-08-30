@@ -37,6 +37,10 @@ func TestHome_MarksSiteNavCurrentAndRendersFeed(t *testing.T) {
 		`aria-label="Site"`,
 		`property="og:title" content="Home · Twisky"`,
 		`rel="canonical" href="https://twisky.test/"`,
+		`href="/my/posts/new"`,
+		`data-compose-open`,
+		`id="compose-dialog"`,
+		`id="compose-text"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html missing %q; got:\n%s", want, html)

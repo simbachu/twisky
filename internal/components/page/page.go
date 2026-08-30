@@ -116,6 +116,7 @@ func pageHead(meta PageMeta) []g.Node {
 		Script(g.Attr("src", "/static/scripts/post-counts-live.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-page-reply-view.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/post-share.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/compose-dialog.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/nav-back.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/page-alert.js"), g.Attr("defer", "")),
 		Link(

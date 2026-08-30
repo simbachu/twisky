@@ -19,6 +19,7 @@ var partials = []string{
 	"profile.css",
 	"post.css",
 	"feed.css",
+	"compose.css",
 	"postpage.css",
 }
 

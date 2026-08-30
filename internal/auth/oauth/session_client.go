@@ -85,6 +85,29 @@ func (c *SessionClient) DeleteRepost(ctx context.Context, recordURI string) erro
 	return c.deleteRecord(ctx, recordURI)
 }
 
+// CreatePost writes an app.bsky.feed.post record with plain text.
+func (c *SessionClient) CreatePost(ctx context.Context, text string) (string, error) {
+	if c == nil || c.client == nil || c.client.AccountDID == nil {
+		return "", fmt.Errorf("oauth: session client not configured")
+	}
+	body := map[string]any{
+		"repo":       c.client.AccountDID.String(),
+		"collection": "app.bsky.feed.post",
+		"record": map[string]any{
+			"$type":     "app.bsky.feed.post",
+			"text":      text,
+			"createdAt": syntax.DatetimeNow(),
+		},
+	}
+	var resp struct {
+		URI string `json:"uri"`
+	}
+	if err := c.client.Post(ctx, "com.atproto.repo.createRecord", body, &resp); err != nil {
+		return "", err
+	}
+	return resp.URI, nil
+}
+
 func (c *SessionClient) deleteRecord(ctx context.Context, recordURI string) error {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
 		return fmt.Errorf("oauth: session client not configured")

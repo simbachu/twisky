@@ -8,7 +8,6 @@ import (
 	"github.com/simbachu/twisky/internal/components/ui"
 	homequery "github.com/simbachu/twisky/internal/query/home"
 	g "maragu.dev/gomponents"
-	. "maragu.dev/gomponents/html"
 )
 
 func Home(view homequery.HomeView, now time.Time, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, publicBaseURL string) g.Node {
@@ -23,9 +22,8 @@ func Home(view homequery.HomeView, now time.Time, suggested []ui.AuthorInfo, acc
 		}
 	}
 	children := []g.Node{
-		Header(
-			H1(g.Text("Home")),
-		),
+		FeedHeader(),
+		ui.ComposeModal(ui.ComposeFieldConfig{TextareaID: "compose-text"}),
 		ui.TabNav("Home feeds", tabs),
 	}
 	if len(view.Feed.Posts) > 0 {

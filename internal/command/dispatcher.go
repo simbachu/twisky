@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/simbachu/twisky/internal/command/like"
+	"github.com/simbachu/twisky/internal/command/post"
 	"github.com/simbachu/twisky/internal/command/repost"
 	"github.com/simbachu/twisky/internal/intent"
 )
@@ -45,6 +46,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, i intent.Intent, writer any) 
 			return "", fmt.Errorf("command: repost writer is required")
 		}
 		return "", repost.NewHandler(w).HandleUnrepost(ctx, i)
+	case intent.CreatePost:
+		w, ok := writer.(post.Writer)
+		if !ok {
+			return "", fmt.Errorf("command: post writer is required")
+		}
+		return post.NewHandler(w).HandleCreate(ctx, i)
 	default:
 		return "", fmt.Errorf("command: unknown intent %T", i)
 	}

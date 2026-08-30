@@ -1,0 +1,127 @@
+.feed-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  > h1 {
+    margin: 0;
+  }
+}
+
+.compose-summoner {
+  display: block;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--iface-divider);
+  border-radius: var(--iface-radius);
+  background-color: var(--iface-bg);
+  color: dimgrey;
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--iface-hover-bg);
+    color: black;
+  }
+}
+
+.compose-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  textarea {
+    font: inherit;
+    font-family: "Ysabeau Infant", serif;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--iface-divider);
+    border-radius: 0.5rem;
+    resize: vertical;
+    min-block-size: 6rem;
+
+    &:focus {
+      outline: 2px solid black;
+      outline-offset: 2px;
+    }
+  }
+
+  button[type="submit"] {
+    align-self: flex-end;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--iface-divider);
+    border-radius: var(--iface-radius);
+    background: canvas;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--iface-hover-bg);
+    }
+  }
+
+  p[role="alert"] {
+    margin: 0;
+    color: var(--action-like-fg, #e11d48);
+    font-size: 0.9em;
+  }
+}
+
+.iface-dialog {
+  border: 1px solid var(--iface-divider);
+  border-radius: 0.75rem;
+  padding: 0;
+  max-inline-size: min(36rem, calc(100% - 2rem));
+  width: 100%;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.15);
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-block-end: 1px solid var(--iface-divider);
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    button {
+      border: none;
+      background: transparent;
+      font-size: 1.5rem;
+      line-height: 1;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      color: dimgrey;
+
+      &:hover {
+        color: black;
+      }
+    }
+  }
+
+  .compose-field {
+    padding: 1rem;
+  }
+}
