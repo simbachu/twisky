@@ -143,3 +143,91 @@ func TestSessionClient_GetTimeline_LenientFeedDecode(t *testing.T) {
 		t.Fatalf("Feed[1].Text = %q, want also kept", resp.Feed[1].Post.Record.Text)
 	}
 }
+
+const postThreadFixture = `{
+	"thread": {
+		"$type": "app.bsky.feed.defs#threadViewPost",
+		"post": {
+			"uri": "at://did:plc:example/app.bsky.feed.post/root",
+			"author": {"did": "did:plc:example", "handle": "alice.test"},
+			"record": {"text": "hello thread", "createdAt": "2026-01-15T12:00:00.000Z"}
+		}
+	}
+}`
+
+func TestSessionClient_GetPostThread_UsesAppViewProxy(t *testing.T) {
+	t.Parallel()
+
+	const postURI = "at://did:plc:example/app.bsky.feed.post/root"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %q, want GET", r.Method)
+		}
+		if r.URL.Path != "/xrpc/app.bsky.feed.getPostThread" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.feed.getPostThread", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("uri"); got != postURI {
+			t.Fatalf("uri = %q, want %q", got, postURI)
+		}
+		if got := r.URL.Query().Get("depth"); got != "6" {
+			t.Fatalf("depth = %q, want 6", got)
+		}
+		if got := r.URL.Query().Get("parentHeight"); got != "25" {
+			t.Fatalf("parentHeight = %q, want 25", got)
+		}
+		if got := r.Header.Get("Atproto-Proxy"); got != "did:web:api.bsky.app#bsky_appview" {
+			t.Fatalf("Atproto-Proxy = %q, want did:web:api.bsky.app#bsky_appview", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(postThreadFixture))
+	}))
+	t.Cleanup(server.Close)
+
+	client := authoauth.NewSessionClient(atclient.NewAPIClient(server.URL))
+	node, err := client.GetPostThread(context.Background(), postURI, nil)
+	if err != nil {
+		t.Fatalf("GetPostThread() err = %v", err)
+	}
+	root, ok := node.(bluesky.ThreadViewPost)
+	if !ok {
+		t.Fatalf("node type = %T, want ThreadViewPost", node)
+	}
+	if root.Post.Record.Text != "hello thread" {
+		t.Fatalf("text = %q, want hello thread", root.Post.Record.Text)
+	}
+}
+
+func TestSessionClient_GetProfile_UsesAppViewProxy(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %q, want GET", r.Method)
+		}
+		if r.URL.Path != "/xrpc/app.bsky.actor.getProfile" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.actor.getProfile", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("actor"); got != "alice.test" {
+			t.Fatalf("actor = %q, want alice.test", got)
+		}
+		if got := r.Header.Get("Atproto-Proxy"); got != "did:web:api.bsky.app#bsky_appview" {
+			t.Fatalf("Atproto-Proxy = %q, want did:web:api.bsky.app#bsky_appview", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"did": "did:plc:alice",
+			"handle": "alice.test",
+			"displayName": "Alice"
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := authoauth.NewSessionClient(atclient.NewAPIClient(server.URL))
+	profile, err := client.GetProfile(context.Background(), "alice.test")
+	if err != nil {
+		t.Fatalf("GetProfile() err = %v", err)
+	}
+	if profile.DID != "did:plc:alice" || profile.Handle != "alice.test" {
+		t.Fatalf("profile = %#v, want alice", profile)
+	}
+}

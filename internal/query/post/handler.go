@@ -60,6 +60,23 @@ func NewHandler(reader Reader, prefs moderation.PrefsProvider, dir *identity.Dir
 	}
 }
 
+// WithReader returns a copy of h that reads via r while sharing TTL caches.
+func (h *Handler) WithReader(r Reader) *Handler {
+	if h == nil {
+		return nil
+	}
+	if r == nil {
+		return h
+	}
+	return &Handler{
+		reader:      r,
+		prefs:       h.prefs,
+		dir:         h.dir,
+		countsCache: h.countsCache,
+		threadCache: h.threadCache,
+	}
+}
+
 func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Response {
 	slug, err := actor.ParseSlug(i.Slug)
 	if err != nil {

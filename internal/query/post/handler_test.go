@@ -608,3 +608,39 @@ func TestHandler_Handle_FullAndAncestorsShareThreadCache(t *testing.T) {
 		t.Fatalf("lastThreadOpts = %#v, want depth=6 parentHeight=25", reader.lastThreadOpts)
 	}
 }
+
+func TestHandler_WithReader_SharesThreadCache(t *testing.T) {
+	t.Parallel()
+
+	thread := bluesky.ThreadViewPost{
+		Post: bluesky.Post{
+			URI:    "at://did:plc:example/app.bsky.feed.post/root",
+			Author: bluesky.Author{Handle: "bsky.app", DisplayName: "Bluesky"},
+			Record: bluesky.PostRecord{Text: "root post"},
+		},
+	}
+	public := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread:  thread,
+	}
+	auth := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:example", Handle: "bsky.app"},
+		thread:  thread,
+	}
+
+	handler := post.NewHandler(public, nil, nil)
+	intent := intent.ViewPost{Slug: "bsky.app", ID: "root"}
+
+	if _, ok := handler.WithReader(auth).Handle(context.Background(), intent).(feedquery.PostPageView); !ok {
+		t.Fatal("first Handle() want PostPageView")
+	}
+	if _, ok := handler.WithReader(auth).Handle(context.Background(), intent).(feedquery.PostPageView); !ok {
+		t.Fatal("second Handle() want PostPageView")
+	}
+	if got := atomic.LoadInt32(&public.getPostThreadCalls); got != 0 {
+		t.Fatalf("public GetPostThread calls = %d, want 0", got)
+	}
+	if got := atomic.LoadInt32(&auth.getPostThreadCalls); got != 1 {
+		t.Fatalf("auth GetPostThread calls = %d, want 1 (shared cache)", got)
+	}
+}

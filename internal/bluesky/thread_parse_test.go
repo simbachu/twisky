@@ -10,7 +10,7 @@ func TestParseThreadNode_NotFound(t *testing.T) {
 	t.Parallel()
 
 	raw := json.RawMessage(`{"$type":"app.bsky.feed.defs#notFoundPost","uri":"at://did:plc:x/app.bsky.feed.post/abc"}`)
-	node, err := parseThreadNode(raw)
+	node, err := ParseThreadNode(raw)
 	if err != nil {
 		t.Fatalf("parseThreadNode: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestParseThreadNode_Blocked(t *testing.T) {
 	t.Parallel()
 
 	raw := json.RawMessage(`{"$type":"app.bsky.feed.defs#blockedPost","uri":"at://did:plc:x/app.bsky.feed.post/abc"}`)
-	node, err := parseThreadNode(raw)
+	node, err := ParseThreadNode(raw)
 	if err != nil {
 		t.Fatalf("parseThreadNode: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestParseThreadNode_Blocked(t *testing.T) {
 func TestParseThreadNode_UnknownType(t *testing.T) {
 	t.Parallel()
 
-	_, err := parseThreadNode(json.RawMessage(`{"$type":"app.bsky.feed.defs#mystery"}`))
+	_, err := ParseThreadNode(json.RawMessage(`{"$type":"app.bsky.feed.defs#mystery"}`))
 	if err == nil || !strings.Contains(err.Error(), "unknown thread node type") {
 		t.Fatalf("err = %v, want unknown type", err)
 	}
@@ -52,7 +52,7 @@ func TestParseThreadNode_UnknownType(t *testing.T) {
 func TestParseThreadNode_EmptyRaw(t *testing.T) {
 	t.Parallel()
 
-	node, err := parseThreadNode(nil)
+	node, err := ParseThreadNode(nil)
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
@@ -73,7 +73,7 @@ func TestParseThreadNode_NestedParentAndReplies(t *testing.T) {
 			{"$type":"app.bsky.feed.defs#threadViewPost","post":{"uri":"at://did:plc:reply/app.bsky.feed.post/r2","cid":"cidr","author":{"did":"did:plc:reply","handle":"reply.test"},"record":{"text":"ok","createdAt":"2026-01-01T00:00:00Z"}}}
 		]
 	}`)
-	node, err := parseThreadNode(raw)
+	node, err := ParseThreadNode(raw)
 	if err != nil {
 		t.Fatalf("parseThreadNode: %v", err)
 	}

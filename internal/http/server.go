@@ -34,6 +34,7 @@ import (
 	"github.com/simbachu/twisky/internal/query"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 	homequery "github.com/simbachu/twisky/internal/query/home"
+	postquery "github.com/simbachu/twisky/internal/query/post"
 	"github.com/simbachu/twisky/internal/query/profile"
 	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
@@ -60,6 +61,8 @@ type Server struct {
 	postWriter postcommand.Writer
 	// homeReader, when set, is used for the home timeline instead of the session client (tests).
 	homeReader homequery.Reader
+	// postPageReaderOverride, when set, is used for post-page reads instead of the session client (tests).
+	postPageReaderOverride postquery.Reader
 	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
 	// traffic from authenticated poll/enrichment paths.
 	sessionClients *sessionClientCache
@@ -102,6 +105,12 @@ func (s *Server) WithPostWriter(w postcommand.Writer) *Server {
 // WithHomeReader overrides the session client used for the home timeline (tests).
 func (s *Server) WithHomeReader(r homequery.Reader) *Server {
 	s.homeReader = r
+	return s
+}
+
+// WithPostPageReader overrides the reader used for post-page AppView reads (tests).
+func (s *Server) WithPostPageReader(r postquery.Reader) *Server {
+	s.postPageReaderOverride = r
 	return s
 }
 
@@ -215,6 +224,19 @@ func (s *Server) homeTimelineReader(r *http.Request) (homequery.Reader, bool) {
 	return client, true
 }
 
+func (s *Server) postPageReader(r *http.Request) postquery.Reader {
+	if s.postPageReaderOverride != nil {
+		return s.postPageReaderOverride
+	}
+	if client := s.sessionClient(r); client != nil {
+		return client
+	}
+	if reader, ok := s.profileReader.(postquery.Reader); ok {
+		return reader
+	}
+	return nil
+}
+
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	if acceptsHTML(r) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -322,19 +344,11 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.queries.Dispatch(r.Context(), intent.ViewPost{
+	resp := s.queries.Post().WithReader(s.postPageReader(r)).Handle(r.Context(), intent.ViewPost{
 		Slug: chi.URLParam(r, "slug"),
 		ID:   postID,
 		Part: postPagePart(r),
 	})
-	if err != nil {
-		s.writeQueryError(w, r, response.ErrorResponse{
-			Status:  http.StatusInternalServerError,
-			Message: "Something went wrong loading this page",
-		})
-		return
-	}
-
 	switch v := resp.(type) {
 	case feedquery.PostPageView:
 		part := postPagePart(r)

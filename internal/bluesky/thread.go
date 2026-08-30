@@ -69,7 +69,7 @@ func (c *Client) GetPostThread(ctx context.Context, postURI string, opts *PostTh
 		return nil, err
 	}
 
-	node, err := parseThreadNode(threadResp.Thread)
+	node, err := ParseThreadNode(threadResp.Thread)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,13 @@ func threadOptOrDefault(opts *PostThreadOpts, depth bool) int {
 	return DefaultThreadParentHeight
 }
 
-func parseThreadNode(raw json.RawMessage) (ThreadNode, error) {
+// ThreadOptOrDefault returns depth or parentHeight from opts, or the package default.
+func ThreadOptOrDefault(opts *PostThreadOpts, depth bool) int {
+	return threadOptOrDefault(opts, depth)
+}
+
+// ParseThreadNode decodes a getPostThread thread JSON node.
+func ParseThreadNode(raw json.RawMessage) (ThreadNode, error) {
 	if len(raw) == 0 {
 		return nil, nil
 	}
@@ -117,14 +123,14 @@ func parseThreadNode(raw json.RawMessage) (ThreadNode, error) {
 			return nil, err
 		}
 
-		parent, err := parseThreadNode(payload.Parent)
+		parent, err := ParseThreadNode(payload.Parent)
 		if err != nil {
 			return nil, err
 		}
 
 		replies := make([]ThreadNode, 0, len(payload.Replies))
 		for _, replyRaw := range payload.Replies {
-			reply, err := parseThreadNode(replyRaw)
+			reply, err := ParseThreadNode(replyRaw)
 			if err != nil {
 				return nil, err
 			}

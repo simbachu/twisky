@@ -22,6 +22,11 @@ func NewDispatcher(profileHandler *profile.Handler, tagHandler *tag.Handler, pos
 	return &Dispatcher{profile: profileHandler, tag: tagHandler, post: postHandler}
 }
 
+// Post returns the shared post query handler (including TTL caches).
+func (d *Dispatcher) Post() *post.Handler {
+	return d.post
+}
+
 func (d *Dispatcher) Dispatch(ctx context.Context, i intent.Intent) (response.Response, error) {
 	switch i := i.(type) {
 	case intent.ViewProfile:

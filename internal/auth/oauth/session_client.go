@@ -124,6 +124,46 @@ func (c *SessionClient) deleteRecord(ctx context.Context, recordURI string) erro
 	return c.client.Post(ctx, "com.atproto.repo.deleteRecord", body, nil)
 }
 
+// GetProfile fetches an actor profile via the AppView proxy.
+func (c *SessionClient) GetProfile(ctx context.Context, actor string) (*bluesky.Profile, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	appview := c.client.WithService(appViewService)
+	var profile bluesky.Profile
+	if err := appview.Get(ctx, "app.bsky.actor.getProfile", map[string]any{"actor": actor}, &profile); err != nil {
+		return nil, mapAppViewReadErr(err)
+	}
+	return &profile, nil
+}
+
+// GetPostThread fetches a post thread via the AppView proxy.
+func (c *SessionClient) GetPostThread(ctx context.Context, postURI string, opts *bluesky.PostThreadOpts) (bluesky.ThreadNode, error) {
+	if c == nil || c.client == nil {
+		return nil, fmt.Errorf("oauth: session client not configured")
+	}
+	appview := c.client.WithService(appViewService)
+	params := map[string]any{
+		"uri":          postURI,
+		"depth":        bluesky.ThreadOptOrDefault(opts, true),
+		"parentHeight": bluesky.ThreadOptOrDefault(opts, false),
+	}
+	var resp struct {
+		Thread json.RawMessage `json:"thread"`
+	}
+	if err := appview.Get(ctx, "app.bsky.feed.getPostThread", params, &resp); err != nil {
+		return nil, mapAppViewReadErr(err)
+	}
+	node, err := bluesky.ParseThreadNode(resp.Thread)
+	if err != nil {
+		return nil, err
+	}
+	if node == nil {
+		return nil, bluesky.ErrNotFound
+	}
+	return node, nil
+}
+
 // GetPosts fetches posts via the AppView proxy (includes viewer state when authenticated).
 func (c *SessionClient) GetPosts(ctx context.Context, uris []string) ([]bluesky.Post, error) {
 	if c == nil || c.client == nil {
@@ -145,7 +185,7 @@ func (c *SessionClient) GetPosts(ctx context.Context, uris []string) ([]bluesky.
 		}
 		params := map[string]any{"uris": uris[start:end]}
 		if err := appview.Get(ctx, "app.bsky.feed.getPosts", params, &resp); err != nil {
-			return nil, err
+			return nil, mapAppViewReadErr(err)
 		}
 		out = append(out, resp.Posts...)
 	}
