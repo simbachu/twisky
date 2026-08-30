@@ -89,6 +89,14 @@ func TestAccountMenu_RendersDetailsWithLogout(t *testing.T) {
 	if !strings.Contains(html, "Add account") {
 		t.Fatalf("html = %q, want Add account text", html)
 	}
+	settingsIdx := strings.Index(html, `href="/settings"`)
+	logoutIdx := strings.Index(html, `action="/oauth/logout"`)
+	if settingsIdx < 0 {
+		t.Fatalf("html = %q, want Settings href", html)
+	}
+	if settingsIdx > logoutIdx {
+		t.Fatalf("html = %q, want Settings before Log out", html)
+	}
 	if !strings.Contains(html, `class="account-menu-panel"`) {
 		t.Fatalf("html = %q, want account-menu-panel", html)
 	}

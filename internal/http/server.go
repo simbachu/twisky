@@ -19,6 +19,7 @@ import (
 	"github.com/simbachu/twisky/internal/command/like"
 	postcommand "github.com/simbachu/twisky/internal/command/post"
 	"github.com/simbachu/twisky/internal/command/repost"
+	settingscommand "github.com/simbachu/twisky/internal/command/settings"
 	errorpage "github.com/simbachu/twisky/internal/components/errorpage"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
@@ -36,6 +37,7 @@ import (
 	homequery "github.com/simbachu/twisky/internal/query/home"
 	postquery "github.com/simbachu/twisky/internal/query/post"
 	"github.com/simbachu/twisky/internal/query/profile"
+	settingsquery "github.com/simbachu/twisky/internal/query/settings"
 	"github.com/simbachu/twisky/internal/query/suggestions"
 	"github.com/simbachu/twisky/internal/query/tag"
 	"github.com/simbachu/twisky/internal/response"
@@ -63,6 +65,8 @@ type Server struct {
 	homeReader homequery.Reader
 	// postPageReaderOverride, when set, is used for post-page reads instead of the session client (tests).
 	postPageReaderOverride postquery.Reader
+	settingsReader         settingsquery.Reader
+	settingsWriter         settingscommand.Writer
 	// sessionClients caches resumed OAuth API clients briefly to cut ResumeSession
 	// traffic from authenticated poll/enrichment paths.
 	sessionClients *sessionClientCache
@@ -114,6 +118,18 @@ func (s *Server) WithPostPageReader(r postquery.Reader) *Server {
 	return s
 }
 
+// WithSettingsReader overrides the session client used for settings reads (tests).
+func (s *Server) WithSettingsReader(r settingsquery.Reader) *Server {
+	s.settingsReader = r
+	return s
+}
+
+// WithSettingsWriter overrides the session client used for settings writes (tests).
+func (s *Server) WithSettingsWriter(w settingscommand.Writer) *Server {
+	s.settingsWriter = w
+	return s
+}
+
 func (s *Server) suggestedAccounts(ctx context.Context) []ui.AuthorInfo {
 	if s.suggestions == nil {
 		return nil
@@ -159,6 +175,9 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/my/posts", s.handleCreatePost)
 	r.Get("/", s.handleHome)
 	r.Get("/feed/{feedSlug}", s.handleHome)
+	r.Get("/settings", s.handleSettings)
+	r.Post("/settings/content-filtering", s.handleUpdateContentFiltering)
+	r.Post("/settings/threading", s.handleUpdateThreading)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))

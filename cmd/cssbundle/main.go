@@ -21,6 +21,7 @@ var partials = []string{
 	"feed.css",
 	"compose.css",
 	"postpage.css",
+	"settings.css",
 }
 
 const styleHeader = `/* DO NOT EDIT.

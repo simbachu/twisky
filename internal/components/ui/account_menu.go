@@ -31,6 +31,7 @@ func AccountMenu(view AccountMenuView) g.Node {
 		),
 		accountSwitcher(view.Additional),
 		Ul(
+			Li(A(g.Attr("href", "/settings"), g.Text("Settings"))),
 			Li(A(g.Attr("href", "/oauth/login"), g.Text("Add account"))),
 			Li(
 				Form(

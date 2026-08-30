@@ -217,55 +217,42 @@ func (c *SessionClient) GetTimeline(ctx context.Context, req bluesky.TimelineReq
 
 // GetSavedFeeds returns the authenticated user's saved-feed preferences.
 func (c *SessionClient) GetSavedFeeds(ctx context.Context) ([]bluesky.SavedFeed, error) {
+	prefs, err := c.GetPreferences(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return prefs.SavedFeeds, nil
+}
+
+func parseSavedFeeds(preferences []json.RawMessage) ([]bluesky.SavedFeed, error) {
+	prefs, err := bluesky.ParsePreferences(preferences)
+	if err != nil {
+		return nil, err
+	}
+	return prefs.SavedFeeds, nil
+}
+
+// GetPreferences fetches the authenticated user's Bluesky preferences from the PDS.
+func (c *SessionClient) GetPreferences(ctx context.Context) (bluesky.Preferences, error) {
 	if c == nil || c.client == nil {
-		return nil, fmt.Errorf("oauth: session client not configured")
+		return bluesky.Preferences{}, fmt.Errorf("oauth: session client not configured")
 	}
 	var resp struct {
 		Preferences []json.RawMessage `json:"preferences"`
 	}
 	if err := c.client.Get(ctx, "app.bsky.actor.getPreferences", map[string]any{}, &resp); err != nil {
-		return nil, err
+		return bluesky.Preferences{}, err
 	}
-	return parseSavedFeeds(resp.Preferences)
+	return bluesky.ParsePreferences(resp.Preferences)
 }
 
-func parseSavedFeeds(preferences []json.RawMessage) ([]bluesky.SavedFeed, error) {
-	var legacy []bluesky.SavedFeed
-	for _, raw := range preferences {
-		var header struct {
-			Type string `json:"$type"`
-		}
-		if err := json.Unmarshal(raw, &header); err != nil {
-			return nil, err
-		}
-		switch header.Type {
-		case "app.bsky.actor.defs#savedFeedsPrefV2":
-			var pref struct {
-				Items []bluesky.SavedFeed `json:"items"`
-			}
-			if err := json.Unmarshal(raw, &pref); err != nil {
-				return nil, err
-			}
-			return pref.Items, nil
-		case "app.bsky.actor.defs#savedFeedsPref":
-			var pref struct {
-				Pinned []string `json:"pinned"`
-			}
-			if err := json.Unmarshal(raw, &pref); err != nil {
-				return nil, err
-			}
-			legacy = make([]bluesky.SavedFeed, 0, len(pref.Pinned))
-			for _, uri := range pref.Pinned {
-				legacy = append(legacy, bluesky.SavedFeed{
-					ID:     uri,
-					Pinned: true,
-					Type:   "feed",
-					URI:    uri,
-				})
-			}
-		}
+// PutPreferences replaces the authenticated user's Bluesky preferences on the PDS.
+func (c *SessionClient) PutPreferences(ctx context.Context, prefs bluesky.Preferences) error {
+	if c == nil || c.client == nil {
+		return fmt.Errorf("oauth: session client not configured")
 	}
-	return legacy, nil
+	body := map[string]any{"preferences": prefs.Raw}
+	return c.client.Post(ctx, "app.bsky.actor.putPreferences", body, nil)
 }
 
 // GetFeedGenerators resolves feed-generator metadata via the AppView proxy.

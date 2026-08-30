@@ -7,6 +7,7 @@ import (
 	"github.com/simbachu/twisky/internal/command/like"
 	"github.com/simbachu/twisky/internal/command/post"
 	"github.com/simbachu/twisky/internal/command/repost"
+	"github.com/simbachu/twisky/internal/command/settings"
 	"github.com/simbachu/twisky/internal/intent"
 )
 
@@ -52,6 +53,20 @@ func (d *Dispatcher) Dispatch(ctx context.Context, i intent.Intent, writer any) 
 			return "", fmt.Errorf("command: post writer is required")
 		}
 		return post.NewHandler(w).HandleCreate(ctx, i)
+	case intent.UpdateContentFiltering:
+		w, ok := writer.(settings.Writer)
+		if !ok {
+			return "", fmt.Errorf("command: settings writer is required")
+		}
+		_, err := settings.NewHandler(w).HandleContentFiltering(ctx, i)
+		return "", err
+	case intent.UpdateThreading:
+		w, ok := writer.(settings.Writer)
+		if !ok {
+			return "", fmt.Errorf("command: settings writer is required")
+		}
+		_, err := settings.NewHandler(w).HandleThreading(ctx, i)
+		return "", err
 	default:
 		return "", fmt.Errorf("command: unknown intent %T", i)
 	}

@@ -2,6 +2,7 @@ package oauth_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -98,6 +99,84 @@ func TestSessionClient_GetSavedFeeds_UsesPDSWithoutProxy(t *testing.T) {
 	}
 	if feeds[0].URI != "at://did:plc:one/app.bsky.feed.generator/one" {
 		t.Fatalf("feeds[0].URI = %q, want pinned feed URI", feeds[0].URI)
+	}
+}
+
+func TestSessionClient_GetPreferences_UsesPDSWithoutProxy(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %q, want GET", r.Method)
+		}
+		if r.URL.Path != "/xrpc/app.bsky.actor.getPreferences" {
+			t.Fatalf("path = %q, want /xrpc/app.bsky.actor.getPreferences", r.URL.Path)
+		}
+		if proxy := r.Header.Get("Atproto-Proxy"); proxy != "" {
+			t.Fatalf("Atproto-Proxy = %q, want empty", proxy)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"preferences": [
+				{"$type":"app.bsky.actor.defs#adultContentPref","enabled":true},
+				{"$type":"app.bsky.actor.defs#threadViewPref","sort":"oldest"}
+			]
+		}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := authoauth.NewSessionClient(atclient.NewAPIClient(server.URL))
+	prefs, err := client.GetPreferences(context.Background())
+	if err != nil {
+		t.Fatalf("GetPreferences() err = %v", err)
+	}
+	if !prefs.AdultContentEnabled {
+		t.Fatal("AdultContentEnabled = false, want true")
+	}
+	if prefs.ThreadView.Sort != bluesky.ThreadSortOldest {
+		t.Fatalf("sort = %q, want oldest", prefs.ThreadView.Sort)
+	}
+}
+
+func TestSessionClient_PutPreferences_UsesPDSWithoutProxy(t *testing.T) {
+	t.Parallel()
+
+	var gotPath, gotProxy, gotBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotProxy = r.Header.Get("Atproto-Proxy")
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q, want POST", r.Method)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		gotBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	prefs, err := bluesky.ParsePreferences(nil)
+	if err != nil {
+		t.Fatalf("ParsePreferences() err = %v", err)
+	}
+	updated, err := prefs.WithAdultContent(true)
+	if err != nil {
+		t.Fatalf("WithAdultContent() err = %v", err)
+	}
+	client := authoauth.NewSessionClient(atclient.NewAPIClient(server.URL))
+	if err := client.PutPreferences(context.Background(), updated); err != nil {
+		t.Fatalf("PutPreferences() err = %v", err)
+	}
+	if gotPath != "/xrpc/app.bsky.actor.putPreferences" {
+		t.Fatalf("path = %q, want /xrpc/app.bsky.actor.putPreferences", gotPath)
+	}
+	if gotProxy != "" {
+		t.Fatalf("Atproto-Proxy = %q, want empty", gotProxy)
+	}
+	if !strings.Contains(gotBody, "app.bsky.actor.defs#adultContentPref") {
+		t.Fatalf("body = %q, want adultContentPref", gotBody)
 	}
 }
 

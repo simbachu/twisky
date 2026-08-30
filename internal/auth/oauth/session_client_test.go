@@ -112,6 +112,26 @@ func TestSessionClient_GetSavedFeeds_NilClient(t *testing.T) {
 	}
 }
 
+func TestSessionClient_GetPreferences_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+	_, err := client.GetPreferences(context.Background())
+	if err == nil {
+		t.Fatal("GetPreferences() err = nil, want error")
+	}
+}
+
+func TestSessionClient_PutPreferences_NilClient(t *testing.T) {
+	t.Parallel()
+
+	client := authoauth.NewSessionClient(nil)
+	err := client.PutPreferences(context.Background(), bluesky.Preferences{})
+	if err == nil {
+		t.Fatal("PutPreferences() err = nil, want error")
+	}
+}
+
 func TestSessionClient_GetFeedGenerators_NilClient(t *testing.T) {
 	t.Parallel()
 
