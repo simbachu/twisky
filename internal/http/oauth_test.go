@@ -368,6 +368,68 @@ func TestOAuthCallback_SuccessSetsCookieAndRedirects(t *testing.T) {
 	}
 }
 
+func TestOAuthCallback_AddsSecondAccountToExistingCookie(t *testing.T) {
+	t.Parallel()
+
+	app := &stubOAuthApp{
+		callbackData: &indigooauth.ClientSessionData{
+			AccountDID: syntax.DID("did:plc:bob"),
+			SessionID:  "sess-bob",
+		},
+	}
+	handler, auth, _ := newAuthTestServerWithApp(t, "https://dev.twisky.app", app)
+
+	recCookie := httptest.NewRecorder()
+	if err := auth.Jar.Save(recCookie, session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts: []session.Account{
+			{DID: "did:plc:alice", SessionID: "sess-alice", Handle: "alice.test"},
+		},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?code=abc&state=xyz", nil)
+	req.AddCookie(recCookie.Result().Cookies()[0])
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rec.Code)
+	}
+
+	var saved *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == session.CookieName {
+			saved = c
+		}
+	}
+	if saved == nil || saved.Value == "" {
+		t.Fatalf("expected session cookie, got %#v", rec.Result().Cookies())
+	}
+
+	state, err := auth.Jar.Load(cookieRequest(saved))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if state.ActiveDID != "did:plc:bob" {
+		t.Fatalf("ActiveDID = %q, want did:plc:bob", state.ActiveDID)
+	}
+	if len(state.Accounts) != 2 {
+		t.Fatalf("len(Accounts) = %d, want 2", len(state.Accounts))
+	}
+	byDID := map[string]session.Account{}
+	for _, account := range state.Accounts {
+		byDID[account.DID] = account
+	}
+	if byDID["did:plc:alice"].SessionID != "sess-alice" {
+		t.Fatalf("alice = %#v, want preserved session", byDID["did:plc:alice"])
+	}
+	if byDID["did:plc:bob"].SessionID != "sess-bob" {
+		t.Fatalf("bob = %#v, want new session", byDID["did:plc:bob"])
+	}
+}
+
 func TestOAuthCallback_ProcessError(t *testing.T) {
 	t.Parallel()
 
@@ -534,5 +596,198 @@ func TestResumeActiveSession_ResumeError(t *testing.T) {
 	_, err := server.ResumeActiveSession(cookieRequest(recCookie.Result().Cookies()[0]))
 	if err == nil || !strings.Contains(err.Error(), "expired") {
 		t.Fatalf("err = %v, want expired", err)
+	}
+}
+
+func TestOAuthSwitch_SetsActiveDID(t *testing.T) {
+	t.Parallel()
+
+	app := &stubOAuthApp{}
+	handler, auth, _ := newAuthTestServerWithApp(t, "https://dev.twisky.app", app)
+
+	recCookie := httptest.NewRecorder()
+	if err := auth.Jar.Save(recCookie, session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts: []session.Account{
+			{DID: "did:plc:alice", SessionID: "s1", Handle: "alice.test"},
+			{DID: "did:plc:bob", SessionID: "s2", Handle: "bob.test"},
+		},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth/switch", strings.NewReader("did=did:plc:bob"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Host = "dev.twisky.app"
+	req.Header.Set("Referer", "https://dev.twisky.app/bsky.app")
+	req.AddCookie(recCookie.Result().Cookies()[0])
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rec.Code)
+	}
+	if got := rec.Header().Get("Location"); got != "/bsky.app" {
+		t.Fatalf("Location = %q, want /bsky.app", got)
+	}
+
+	var saved *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == session.CookieName {
+			saved = c
+		}
+	}
+	if saved == nil || saved.Value == "" {
+		t.Fatalf("expected updated session cookie, got %#v", rec.Result().Cookies())
+	}
+	state, err := auth.Jar.Load(cookieRequest(saved))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if state.ActiveDID != "did:plc:bob" {
+		t.Fatalf("ActiveDID = %q, want did:plc:bob", state.ActiveDID)
+	}
+	if len(state.Accounts) != 2 {
+		t.Fatalf("len(Accounts) = %d, want 2", len(state.Accounts))
+	}
+	if app.resumeCalls != 1 {
+		t.Fatalf("ResumeSession calls = %d, want 1", app.resumeCalls)
+	}
+}
+
+func TestOAuthSwitch_UnknownDID(t *testing.T) {
+	t.Parallel()
+
+	app := &stubOAuthApp{}
+	handler, auth, _ := newAuthTestServerWithApp(t, "https://dev.twisky.app", app)
+
+	recCookie := httptest.NewRecorder()
+	if err := auth.Jar.Save(recCookie, session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts:  []session.Account{{DID: "did:plc:alice", SessionID: "s1", Handle: "alice.test"}},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth/switch", strings.NewReader("did=did:plc:missing"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(recCookie.Result().Cookies()[0])
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if app.resumeCalls != 0 {
+		t.Fatalf("ResumeSession calls = %d, want 0", app.resumeCalls)
+	}
+}
+
+func TestOAuthSwitch_MissingCookie(t *testing.T) {
+	t.Parallel()
+
+	app := &stubOAuthApp{}
+	handler, _, _ := newAuthTestServerWithApp(t, "https://dev.twisky.app", app)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth/switch", strings.NewReader("did=did:plc:alice"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestOAuthSwitch_GETNotAllowed(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := newAuthTestServer(t, "https://dev.twisky.app")
+	req := httptest.NewRequest(http.MethodGet, "/oauth/switch", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}
+
+func TestOAuthSwitch_ResumeFailureRemovesAccount(t *testing.T) {
+	t.Parallel()
+
+	app := &stubOAuthApp{resumeErr: errors.New("expired")}
+	handler, auth, _ := newAuthTestServerWithApp(t, "https://dev.twisky.app", app)
+
+	recCookie := httptest.NewRecorder()
+	if err := auth.Jar.Save(recCookie, session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts: []session.Account{
+			{DID: "did:plc:alice", SessionID: "s1", Handle: "alice.test"},
+			{DID: "did:plc:bob", SessionID: "s2", Handle: "bob.test"},
+		},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth/switch", strings.NewReader("did=did:plc:bob"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(recCookie.Result().Cookies()[0])
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rec.Code)
+	}
+	if got := rec.Header().Get("Location"); got != "/" {
+		t.Fatalf("Location = %q, want /", got)
+	}
+
+	var saved *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == session.CookieName {
+			saved = c
+		}
+	}
+	if saved == nil || saved.Value == "" {
+		t.Fatalf("expected updated session cookie, got %#v", rec.Result().Cookies())
+	}
+	state, err := auth.Jar.Load(cookieRequest(saved))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if state.ActiveDID != "did:plc:alice" {
+		t.Fatalf("ActiveDID = %q, want did:plc:alice", state.ActiveDID)
+	}
+	if len(state.Accounts) != 1 || state.Accounts[0].DID != "did:plc:alice" {
+		t.Fatalf("Accounts = %#v, want alice only", state.Accounts)
+	}
+}
+
+func TestOAuthLogin_GETAddAnotherAccountWhenCookied(t *testing.T) {
+	t.Parallel()
+
+	handler, auth := newAuthTestServer(t, "https://dev.twisky.app")
+	recCookie := httptest.NewRecorder()
+	if err := auth.Jar.Save(recCookie, session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts:  []session.Account{{DID: "did:plc:alice", SessionID: "s1", Handle: "alice.test"}},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/login", nil)
+	req.AddCookie(recCookie.Result().Cookies()[0])
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Add another account") {
+		t.Fatalf("body missing add-account copy: %s", body)
+	}
+	if !strings.Contains(body, `action="/oauth/login"`) {
+		t.Fatalf("body missing login form: %s", body)
 	}
 }

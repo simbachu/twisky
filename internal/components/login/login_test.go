@@ -12,7 +12,7 @@ func TestPage_IsChromeLessLoginWithBluesky(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := login.Page("", "https://twisky.test", "/").Render(&buf); err != nil {
+	if err := login.Page("", "https://twisky.test", "/", false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 	html := buf.String()
@@ -42,7 +42,7 @@ func TestPage_ShowsErrorAlert(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	if err := login.Page("Handle or DID is required.", "", "/oauth/login").Render(&buf); err != nil {
+	if err := login.Page("Handle or DID is required.", "", "/oauth/login", false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 	html := buf.String()
@@ -51,5 +51,24 @@ func TestPage_ShowsErrorAlert(t *testing.T) {
 	}
 	if !strings.Contains(html, "Handle or DID is required.") {
 		t.Fatalf("html missing error message; got:\n%s", html)
+	}
+}
+
+func TestPage_AddAnotherAccountCopy(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := login.Page("", "https://twisky.test", "/oauth/login", true).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "Add another account") {
+		t.Fatalf("html missing add-account heading; got:\n%s", html)
+	}
+	if !strings.Contains(html, `action="/oauth/login"`) {
+		t.Fatalf("html missing login form; got:\n%s", html)
+	}
+	if strings.Contains(html, `aria-label="Site"`) {
+		t.Fatalf("html unexpectedly contains site nav")
 	}
 }

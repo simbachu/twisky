@@ -17,8 +17,8 @@ import (
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/command"
 	"github.com/simbachu/twisky/internal/command/like"
-	"github.com/simbachu/twisky/internal/command/repost"
 	postcommand "github.com/simbachu/twisky/internal/command/post"
+	"github.com/simbachu/twisky/internal/command/repost"
 	errorpage "github.com/simbachu/twisky/internal/components/errorpage"
 	feedcomponent "github.com/simbachu/twisky/internal/components/feed"
 	healthzpage "github.com/simbachu/twisky/internal/components/healthz"
@@ -150,6 +150,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/oauth/login", s.handleOAuthLogin)
 	r.Get("/oauth/callback", s.handleOAuthCallback)
 	r.Post("/oauth/logout", s.handleOAuthLogout)
+	r.Post("/oauth/switch", s.handleOAuthSwitch)
 	r.Post("/action/like", s.handleLike)
 	r.Post("/action/unlike", s.handleUnlike)
 	r.Post("/action/repost", s.handleRepost)
@@ -174,7 +175,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	reader, ok := s.homeTimelineReader(r)
 	if !ok {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginpage.Page("", s.publicBaseURL, "/").Render(w)
+		_ = loginpage.Page("", s.publicBaseURL, "/", false).Render(w)
 		return
 	}
 

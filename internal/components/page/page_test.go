@@ -44,6 +44,12 @@ func TestPage_ComposesSiteNavAndLoggedInAccountMenu(t *testing.T) {
 	if !strings.Contains(html, `action="/oauth/logout"`) {
 		t.Fatalf("html = %q, want logout action in header chrome", html)
 	}
+	if !strings.Contains(html, `href="/oauth/login"`) {
+		t.Fatalf("html = %q, want Add account href in header chrome", html)
+	}
+	if !strings.Contains(html, "Add account") {
+		t.Fatalf("html = %q, want Add account in header chrome", html)
+	}
 	if !strings.Contains(html, "Alice") {
 		t.Fatalf("html = %q, want current account name", html)
 	}

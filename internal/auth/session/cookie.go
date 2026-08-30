@@ -63,6 +63,17 @@ func (s State) AddAccount(account Account) State {
 	return s
 }
 
+// SetActive makes did the active account. ok is false when the DID is absent.
+func (s State) SetActive(did string) (State, bool) {
+	for _, account := range s.Accounts {
+		if account.DID == did {
+			s.ActiveDID = did
+			return s, true
+		}
+	}
+	return s, false
+}
+
 // UpdateAuthorChrome sets display name and avatar for a cookied DID when they differ.
 // ok is false when the DID is absent or chrome is already current (no save needed).
 func (s State) UpdateAuthorChrome(did, handle, displayName, avatar string) (State, bool) {

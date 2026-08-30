@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -132,7 +133,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginpage.Page("", s.publicBaseURL, "/oauth/login").Render(w)
+		_ = loginpage.Page("", s.publicBaseURL, "/oauth/login", s.hasCookiedAccounts(r)).Render(w)
 		return
 	}
 
@@ -141,10 +142,11 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.TrimSpace(r.PostFormValue("username"))
+	adding := s.hasCookiedAccounts(r)
 	if username == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page("Handle or DID is required.", s.publicBaseURL, "/oauth/login").Render(w)
+		_ = loginpage.Page("Handle or DID is required.", s.publicBaseURL, "/oauth/login", adding).Render(w)
 		return
 	}
 
@@ -160,7 +162,7 @@ func (s *Server) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("oauth login failed", "err", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.publicBaseURL, "/oauth/login").Render(w)
+		_ = loginpage.Page(fmt.Sprintf("Login failed: %v", err), s.publicBaseURL, "/oauth/login", adding).Render(w)
 		return
 	}
 	http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -244,6 +246,89 @@ func (s *Server) handleOAuthLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+func (s *Server) handleOAuthSwitch(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth() {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	did := strings.TrimSpace(r.PostFormValue("did"))
+	if did == "" {
+		http.Error(w, "did is required", http.StatusBadRequest)
+		return
+	}
+
+	state, err := s.auth.Jar.Load(r)
+	if err != nil {
+		http.Error(w, "not signed in", http.StatusBadRequest)
+		return
+	}
+	next, ok := state.SetActive(did)
+	if !ok {
+		http.Error(w, "unknown account", http.StatusBadRequest)
+		return
+	}
+
+	account, _ := next.ActiveAccount()
+	parsed, parseErr := syntax.ParseDID(account.DID)
+	if parseErr != nil {
+		http.Error(w, "unknown account", http.StatusBadRequest)
+		return
+	}
+	if _, err := s.auth.App.ResumeSession(r.Context(), parsed, account.SessionID); err != nil {
+		slog.Warn("oauth switch resume failed", "did", account.DID, "err", err)
+		s.invalidateOAuthSession(&account)
+		state = state.RemoveAccount(account.DID)
+		if len(state.Accounts) == 0 {
+			s.auth.Jar.Clear(w)
+		} else if saveErr := s.auth.Jar.Save(w, state); saveErr != nil {
+			http.Error(w, saveErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, sameOriginRedirect(r), http.StatusFound)
+		return
+	}
+
+	if err := s.auth.Jar.Save(w, next); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, sameOriginRedirect(r), http.StatusFound)
+}
+
+func (s *Server) hasCookiedAccounts(r *http.Request) bool {
+	if s.auth == nil {
+		return false
+	}
+	state, err := s.auth.Jar.Load(r)
+	return err == nil && len(state.Accounts) > 0
+}
+
+func sameOriginRedirect(r *http.Request) string {
+	ref := strings.TrimSpace(r.Referer())
+	if ref == "" {
+		return "/"
+	}
+	parsed, err := url.Parse(ref)
+	if err != nil || parsed.Path == "" || strings.HasPrefix(parsed.Path, "//") {
+		return "/"
+	}
+	if parsed.IsAbs() && parsed.Host != r.Host {
+		return "/"
+	}
+	if parsed.RawQuery != "" {
+		return parsed.Path + "?" + parsed.RawQuery
+	}
+	return parsed.Path
 }
 
 // ResumeActiveSession returns the active browser account after validating the OAuth session.

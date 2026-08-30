@@ -18,7 +18,7 @@ func (s *Server) handleComposeNew(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.loadActiveAccount(r); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginpage.Page("", s.publicBaseURL, "/my/posts/new").Render(w)
+		_ = loginpage.Page("", s.publicBaseURL, "/my/posts/new", false).Render(w)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

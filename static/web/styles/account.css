@@ -45,6 +45,8 @@
 }
 
 .account-menu {
+  position: relative;
+
   .mini-profile {
     .profile-icon img {
       max-width: 2.5rem;
@@ -55,6 +57,84 @@
       width: 2.5rem;
       height: 2.5rem;
       font-size: 1.25rem;
+    }
+  }
+}
+
+.account-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 16rem;
+  max-block-size: min(70vh, 24rem);
+  overflow: auto;
+  padding: 0.5rem;
+  background-color: canvas;
+  border: 1px solid var(--iface-divider);
+  border-radius: var(--iface-radius);
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
+
+  > ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  a,
+  > ul button {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5em 0.75em;
+    border: none;
+    background: transparent;
+    color: inherit;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  [aria-label="Switch account"] {
+    h3 {
+      margin: 0;
+      padding: 0.25em 0.75em;
+      font-size: 0.85rem;
+    }
+
+    menu {
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      padding: 0;
+    }
+
+    li {
+      display: block;
+    }
+
+    button {
+      display: flex;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.5em 0.75em;
+      border: none;
+      background: transparent;
+      color: inherit;
+      text-align: start;
+      cursor: pointer;
+      font: inherit;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
     }
   }
 }

@@ -83,6 +83,12 @@ func TestAccountMenu_RendersDetailsWithLogout(t *testing.T) {
 	if strings.Contains(html, "Switch account") {
 		t.Fatalf("html = %q, want no switcher when Additional empty", html)
 	}
+	if !strings.Contains(html, `href="/oauth/login"`) {
+		t.Fatalf("html = %q, want Add account href", html)
+	}
+	if !strings.Contains(html, "Add account") {
+		t.Fatalf("html = %q, want Add account text", html)
+	}
 }
 
 func TestAccountMenu_RendersAdditionalSwitcher(t *testing.T) {
@@ -115,5 +121,14 @@ func TestAccountMenu_RendersAdditionalSwitcher(t *testing.T) {
 	}
 	if !strings.Contains(html, "@bob.test") {
 		t.Fatalf("html = %q, want additional handle", html)
+	}
+	if !strings.Contains(html, `action="/oauth/switch"`) {
+		t.Fatalf("html = %q, want switch action", html)
+	}
+	if !strings.Contains(html, `name="did"`) {
+		t.Fatalf("html = %q, want did field", html)
+	}
+	if !strings.Contains(html, `value="did:plc:bob"`) {
+		t.Fatalf("html = %q, want bob DID", html)
 	}
 }

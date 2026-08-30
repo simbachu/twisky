@@ -96,6 +96,59 @@ func TestState_AddAccountReplacesSameDID(t *testing.T) {
 	}
 }
 
+func TestState_SetActive(t *testing.T) {
+	t.Parallel()
+
+	state := session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts: []session.Account{
+			{DID: "did:plc:alice", SessionID: "a"},
+			{DID: "did:plc:bob", SessionID: "b"},
+		},
+	}
+
+	updated, ok := state.SetActive("did:plc:bob")
+	if !ok {
+		t.Fatal("SetActive(bob) = false, want true")
+	}
+	if updated.ActiveDID != "did:plc:bob" {
+		t.Fatalf("ActiveDID = %q, want did:plc:bob", updated.ActiveDID)
+	}
+	if len(updated.Accounts) != 2 {
+		t.Fatalf("len(Accounts) = %d, want 2", len(updated.Accounts))
+	}
+	if state.ActiveDID != "did:plc:alice" {
+		t.Fatalf("original ActiveDID = %q, want unchanged", state.ActiveDID)
+	}
+
+	same, ok := updated.SetActive("did:plc:bob")
+	if !ok {
+		t.Fatal("SetActive(already active) = false, want true")
+	}
+	if same.ActiveDID != "did:plc:bob" {
+		t.Fatalf("ActiveDID = %q, want did:plc:bob", same.ActiveDID)
+	}
+}
+
+func TestState_SetActiveUnknownDID(t *testing.T) {
+	t.Parallel()
+
+	state := session.State{
+		ActiveDID: "did:plc:alice",
+		Accounts:  []session.Account{{DID: "did:plc:alice", SessionID: "a"}},
+	}
+	updated, ok := state.SetActive("did:plc:missing")
+	if ok {
+		t.Fatal("SetActive(missing) = true, want false")
+	}
+	if updated.ActiveDID != "did:plc:alice" {
+		t.Fatalf("ActiveDID = %q, want unchanged", updated.ActiveDID)
+	}
+	if len(updated.Accounts) != 1 {
+		t.Fatalf("len(Accounts) = %d, want 1", len(updated.Accounts))
+	}
+}
+
 func TestState_RemoveActivePromotesNext(t *testing.T) {
 	t.Parallel()
 

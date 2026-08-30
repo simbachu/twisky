@@ -25,7 +25,9 @@ func AccountMenu(view AccountMenuView) g.Node {
 	}
 
 	content := []g.Node{
+		accountSwitcher(view.Additional),
 		Ul(
+			Li(A(g.Attr("href", "/oauth/login"), g.Text("Add account"))),
 			Li(
 				Form(
 					g.Attr("method", "post"),
@@ -35,17 +37,17 @@ func AccountMenu(view AccountMenuView) g.Node {
 			),
 		),
 	}
-	if len(view.Additional) > 0 {
-		content = append(content, accountSwitcher(view.Additional))
-	}
 	return Disclosure(
 		"account-menu",
 		MiniProfile(*view.Current, AuthorStatic),
-		content...,
+		Div(g.Attr("class", "account-menu-panel"), g.Group(content)),
 	)
 }
 
 func accountSwitcher(accounts []AuthorInfo) g.Node {
+	if len(accounts) == 0 {
+		return nil
+	}
 	return Nav(
 		g.Attr("aria-label", "Switch account"),
 		Header(H3(g.Text("Switch account"))),
@@ -54,5 +56,24 @@ func accountSwitcher(accounts []AuthorInfo) g.Node {
 }
 
 func accountSwitcherItem(account AuthorInfo) g.Node {
-	return Li(MiniProfile(account, AuthorStatic))
+	label := account.DisplayName
+	if label == "" {
+		label = account.Handle
+	}
+	return Li(
+		Form(
+			g.Attr("method", "post"),
+			g.Attr("action", "/oauth/switch"),
+			Input(
+				g.Attr("type", "hidden"),
+				g.Attr("name", "did"),
+				g.Attr("value", account.DID),
+			),
+			Button(
+				g.Attr("type", "submit"),
+				g.Attr("aria-label", label),
+				MiniProfile(account, AuthorStatic),
+			),
+		),
+	)
 }
