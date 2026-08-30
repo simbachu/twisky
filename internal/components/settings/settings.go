@@ -81,6 +81,7 @@ func ContentFilteringSection(view settingsquery.SettingsView) g.Node {
 func labelSelect(setting settingsquery.LabelSetting) g.Node {
 	id := "label-" + setting.Identifier
 	return Div(
+		g.Attr("class", "settings-field"),
 		Label(g.Attr("for", id), g.Text(setting.Name)),
 		Select(
 			g.Attr("id", id),
@@ -135,17 +136,20 @@ func ThreadingSection(view settingsquery.SettingsView) g.Node {
 			g.Attr("hx-target", "closest section"),
 			g.Attr("hx-swap", "outerHTML"),
 			g.Attr("hx-disabled-elt", "this"),
-			Label(
-				g.Attr("for", "thread-sort"),
-				g.Text("Sort order"),
-			),
-			Select(
-				g.Attr("id", "thread-sort"),
-				g.Attr("name", "sort"),
-				sortOption(bluesky.ThreadSortHotness, "Hot", view.ThreadSort),
-				sortOption(bluesky.ThreadSortNewest, "Newest", view.ThreadSort),
-				sortOption(bluesky.ThreadSortOldest, "Oldest", view.ThreadSort),
-				sortOption(bluesky.ThreadSortMostLikes, "Most liked", view.ThreadSort),
+			Div(
+				g.Attr("class", "settings-field"),
+				Label(
+					g.Attr("for", "thread-sort"),
+					g.Text("Sort order"),
+				),
+				Select(
+					g.Attr("id", "thread-sort"),
+					g.Attr("name", "sort"),
+					sortOption(bluesky.ThreadSortHotness, "Hot", view.ThreadSort),
+					sortOption(bluesky.ThreadSortNewest, "Newest", view.ThreadSort),
+					sortOption(bluesky.ThreadSortOldest, "Oldest", view.ThreadSort),
+					sortOption(bluesky.ThreadSortMostLikes, "Most liked", view.ThreadSort),
+				),
 			),
 			Label(
 				Input(
@@ -172,6 +176,7 @@ func sortOption(value, label, current string) g.Node {
 func signOutSection() g.Node {
 	return Section(
 		g.Attr("id", "settings-sign-out"),
+		g.Attr("class", "destructive"),
 		H2(g.Text("Sign out")),
 		P(g.Text("Sign out of Twisky on this device. Your Bluesky account stays intact.")),
 		Form(

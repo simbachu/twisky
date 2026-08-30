@@ -1,7 +1,7 @@
 .settings {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.5rem;
   padding-block: 1rem;
 
   > h1 {
@@ -13,9 +13,15 @@
     flex-direction: column;
     gap: 0.75rem;
 
+    &:not(:first-of-type) {
+      border-block-start: 1px solid var(--iface-divider);
+      padding-block-start: 1.5rem;
+    }
+
     > h2 {
       margin: 0;
       font-size: 1.15rem;
+      font-weight: 600;
     }
 
     form {
@@ -23,6 +29,7 @@
       flex-direction: column;
       gap: 0.75rem;
       align-items: flex-start;
+      width: 100%;
     }
 
     fieldset {
@@ -30,10 +37,29 @@
       flex-direction: column;
       gap: 0.5rem;
       margin: 0;
-      padding: 0.75rem 0 0;
+      padding: 0;
       border: none;
-      border-block-start: 1px solid var(--iface-divider);
       width: 100%;
+    }
+
+    legend {
+      margin: 0;
+      padding: 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted-fg);
+    }
+
+    .settings-field {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+
+      select {
+        min-inline-size: 8rem;
+      }
     }
 
     select,
@@ -50,8 +76,13 @@
     }
   }
 
-  #settings-sign-out {
-    border-block-start: var(--separator-weak);
-    padding-block-start: 1.5rem;
+  .destructive {
+    > h2 {
+      font-weight: 600;
+    }
+
+    button[type="submit"] {
+      font-weight: 600;
+    }
   }
 }

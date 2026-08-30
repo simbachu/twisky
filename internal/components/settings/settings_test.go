@@ -60,6 +60,13 @@ func TestSettings_SectionOrderAndHypermedia(t *testing.T) {
 		`class="mini-profile"`,
 		"Enable adult content",
 		"Prioritize people you follow",
+		`<legend>Content labels</legend>`,
+		`class="destructive"`,
+		`class="settings-field"`,
+		`for="label-porn"`,
+		`id="label-porn"`,
+		`for="thread-sort"`,
+		`id="thread-sort"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html missing %q; got:\n%s", want, html)
@@ -83,6 +90,29 @@ func TestSettings_SectionOrderAndHypermedia(t *testing.T) {
 	}
 	if strings.Count(html, `aria-current="page"`) != 1 {
 		t.Fatalf("want exactly one aria-current; got:\n%s", html)
+	}
+	if strings.Count(html, `class="settings-field"`) != 5 {
+		t.Fatalf("want five settings-field rows (four labels + sort order); got %d in:\n%s", strings.Count(html, `class="settings-field"`), html)
+	}
+}
+
+func TestContentFilteringFragment_FieldRows(t *testing.T) {
+	t.Parallel()
+
+	prefs, err := bluesky.ParsePreferences(nil)
+	if err != nil {
+		t.Fatalf("ParsePreferences() err = %v", err)
+	}
+	var buf bytes.Buffer
+	if err := settingspage.ContentFilteringFragment(prefs).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `<fieldset>`) || !strings.Contains(html, `<legend>Content labels</legend>`) {
+		t.Fatalf("html = %q, want fieldset with content labels legend", html)
+	}
+	if strings.Count(html, `class="settings-field"`) != len(bluesky.ContentFilterLabels) {
+		t.Fatalf("html has %d settings-field rows, want %d", strings.Count(html, `class="settings-field"`), len(bluesky.ContentFilterLabels))
 	}
 }
 
