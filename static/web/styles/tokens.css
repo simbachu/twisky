@@ -42,6 +42,9 @@
   --post-byline-avatar-margin: var(--post-avatar-margin-block);
   --post-byline-avatar-max-width: var(--post-avatar-size);
 
+  /* Compact author chrome (MiniProfile, account menu, settings account section). */
+  --mini-profile-avatar-size: 2.5rem;
+
   /* Strong: peer contexts (feed items, reply threads). Weak: parts of one context. */
   --separator-strong-color: black;
   --separator-strong: 1px solid var(--separator-strong-color);

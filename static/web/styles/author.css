@@ -82,7 +82,7 @@
   }
 }
 
-/* Thin profile structure; parents set density (.account-list, .account-menu, .profile-card). */
+/* Compact author chrome: avatar, name, handle. */
 .mini-profile {
   display: flex;
   align-items: center;
@@ -100,6 +100,21 @@
   .profile-icon {
     margin: 0;
     flex-shrink: 0;
+
+    img {
+      max-width: var(--mini-profile-avatar-size);
+      max-height: var(--mini-profile-avatar-size);
+    }
+  }
+
+  .profile-icon-emoji {
+    width: var(--mini-profile-avatar-size);
+    height: var(--mini-profile-avatar-size);
+    font-size: calc(var(--mini-profile-avatar-size) * 0.5);
+  }
+
+  .profile-icon-moderated {
+    width: var(--mini-profile-avatar-size);
   }
 
   .mini-profile-info {

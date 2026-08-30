@@ -57,6 +57,7 @@ func TestSettings_SectionOrderAndHypermedia(t *testing.T) {
 		"Log out",
 		"For You · Pinned",
 		`href="/alice.test"`,
+		`class="mini-profile"`,
 		"Enable adult content",
 		"Prioritize people you follow",
 	} {

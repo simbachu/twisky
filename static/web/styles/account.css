@@ -30,35 +30,11 @@
 
   .mini-profile {
     flex: 1;
-
-    .profile-icon img {
-      max-width: 2.5rem;
-      max-height: 2.5rem;
-    }
-
-    .profile-icon-emoji {
-      width: 2.5rem;
-      height: 2.5rem;
-      font-size: 1.25rem;
-    }
   }
 }
 
 .account-menu {
   position: relative;
-
-  .mini-profile {
-    .profile-icon img {
-      max-width: 2.5rem;
-      max-height: 2.5rem;
-    }
-
-    .profile-icon-emoji {
-      width: 2.5rem;
-      height: 2.5rem;
-      font-size: 1.25rem;
-    }
-  }
 }
 
 .account-menu-panel {

@@ -466,17 +466,6 @@ body {
             white-space: normal;
           }
 
-          > summary .profile-icon img {
-            max-width: 2.5rem;
-            max-height: 2.5rem;
-          }
-
-          > summary .profile-icon-emoji {
-            width: 2.5rem;
-            height: 2.5rem;
-            font-size: 1.25rem;
-          }
-
           .account-menu-panel {
             position: absolute;
             inset-block-start: 100%;
