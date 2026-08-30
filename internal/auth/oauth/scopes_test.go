@@ -14,7 +14,7 @@ func TestDefaultScopes_IncludeTimelineAndPrefs(t *testing.T) {
 	for _, want := range []string{
 		"atproto",
 		"include:app.bsky.authViewAll?aud=did:web:api.bsky.app%23bsky_appview",
-		"include:app.bsky.authManagePrefs",
+		"rpc:app.bsky.actor.putPreferences?aud=*",
 		"repo:app.bsky.feed.like?action=create",
 		"repo:app.bsky.feed.like?action=delete",
 		"repo:app.bsky.feed.repost?action=create",
@@ -27,6 +27,7 @@ func TestDefaultScopes_IncludeTimelineAndPrefs(t *testing.T) {
 	}
 	for _, invalid := range []string{
 		"transition:generic",
+		"authManagePrefs",
 		"action=manage",
 	} {
 		if strings.Contains(joined, invalid) {
