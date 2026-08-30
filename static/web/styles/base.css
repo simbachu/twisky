@@ -40,12 +40,17 @@ nav menu {
   display: flex;
 
   &[role="tablist"] {
+    /* Labels stay one line; shrink stops at content width, then scroll sideways. */
     overflow-x: auto;
+    scrollbar-width: none;
     border: 1px solid dimgrey;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     > li {
       flex: 1 1 0;
-      min-width: 5rem;
     }
 
     a[role="tab"] {
@@ -54,6 +59,7 @@ nav menu {
       box-sizing: border-box;
       text-align: center;
       padding: 0.5rem 1rem;
+      white-space: nowrap;
       color: dimgrey;
       text-decoration: none;
 
