@@ -188,6 +188,11 @@ body {
       overflow: auto;
     }
 
+    /* Account menu panel is absolutely positioned; don't clip it. */
+    > header {
+      overflow: visible;
+    }
+
     /* max-content column + justify end: brand and menu share width, hug main */
     > header {
       display: grid;
@@ -437,7 +442,21 @@ body {
         }
 
         > .account-menu {
-          .mini-profile-info {
+          flex-direction: column;
+          align-items: stretch;
+
+          > summary {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--iface-radius);
+
+            &:hover {
+              background-color: var(--iface-hover-bg);
+            }
+          }
+
+          > summary .mini-profile-info {
             position: static;
             width: auto;
             height: auto;
@@ -447,21 +466,26 @@ body {
             white-space: normal;
           }
 
-          .profile-icon img {
+          > summary .profile-icon img {
             max-width: 2.5rem;
             max-height: 2.5rem;
           }
 
-          .profile-icon-emoji {
+          > summary .profile-icon-emoji {
             width: 2.5rem;
             height: 2.5rem;
             font-size: 1.25rem;
           }
 
           .account-menu-panel {
-            position: static;
-            inset: auto;
+            position: absolute;
+            inset-block-start: 100%;
+            inset-inline-start: 0;
+            inset-block-end: auto;
+            inset-inline-end: auto;
             margin-block-end: 0;
+            min-inline-size: 100%;
+            z-index: 110;
           }
         }
 

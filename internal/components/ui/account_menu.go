@@ -25,6 +25,10 @@ func AccountMenu(view AccountMenuView) g.Node {
 	}
 
 	content := []g.Node{
+		Div(
+			g.Attr("class", "account-menu-current"),
+			MiniProfile(*view.Current, AuthorStatic),
+		),
 		accountSwitcher(view.Additional),
 		Ul(
 			Li(A(g.Attr("href", "/oauth/login"), g.Text("Add account"))),

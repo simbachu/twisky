@@ -89,6 +89,21 @@ func TestAccountMenu_RendersDetailsWithLogout(t *testing.T) {
 	if !strings.Contains(html, "Add account") {
 		t.Fatalf("html = %q, want Add account text", html)
 	}
+	if !strings.Contains(html, `class="account-menu-panel"`) {
+		t.Fatalf("html = %q, want account-menu-panel", html)
+	}
+	if !strings.Contains(html, `class="account-menu-current"`) {
+		t.Fatalf("html = %q, want current account in panel", html)
+	}
+	if strings.Count(html, "Alice") < 2 {
+		t.Fatalf("html = %q, want current name in summary and panel", html)
+	}
+	if strings.Count(html, "@alice.test") < 2 {
+		t.Fatalf("html = %q, want current handle in summary and panel", html)
+	}
+	if strings.Contains(html, `href="/alice.test"`) {
+		t.Fatalf("html = %q, want no profile href on account chrome", html)
+	}
 }
 
 func TestAccountMenu_RendersAdditionalSwitcher(t *testing.T) {
