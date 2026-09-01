@@ -1008,6 +1008,7 @@ func TestHandleThread_OK(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
+		`class="post-spine"`,
 		`id="thought-thread-list"`,
 		`first thought`,
 		`second thought`,

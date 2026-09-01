@@ -18,6 +18,7 @@ var partials = []string{
 	"account.css",
 	"profile.css",
 	"post.css",
+	"post-spine.css",
 	"feed.css",
 	"compose.css",
 	"postpage.css",

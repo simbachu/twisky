@@ -55,6 +55,9 @@
 
   --post-border: var(--separator-strong);
 
+  --post-spine-connector-color: var(--separator-weak-color);
+  --post-spine-connector-width: 2px;
+
   --iface-radius: 999rem;
   --iface-bg: rgba(0, 0, 0, 0.06);
   --iface-divider: rgba(0, 0, 0, 0.1);

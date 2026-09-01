@@ -152,9 +152,11 @@ func postPageAncestorsSlot(post feedquery.PostView) g.Node {
 }
 
 func postPageAncestorsContent(ancestors []feedquery.AncestorNodeView, now time.Time) g.Node {
-	return g.Group(g.Map(ancestors, func(ancestor feedquery.AncestorNodeView) g.Node {
-		return ancestorItem(ancestor, now)
-	}))
+	items := make([]g.Node, 0, len(ancestors))
+	for _, ancestor := range ancestors {
+		items = append(items, ancestorItem(ancestor, now))
+	}
+	return PostSpine("", items)
 }
 
 func ancestorItem(node feedquery.AncestorNodeView, now time.Time) g.Node {

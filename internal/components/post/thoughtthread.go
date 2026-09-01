@@ -20,6 +20,13 @@ func ThoughtThreadPage(view feedquery.ThoughtThreadView, now time.Time, suggeste
 		CanonicalURL: page.AbsoluteURL(publicBaseURL, path),
 		Path:         path,
 	}
+	items := make([]g.Node, 0, len(view.Posts))
+	for _, postView := range view.Posts {
+		if postView.Moderation.Filtered {
+			continue
+		}
+		items = append(items, PostInThread(postView, now))
+	}
 	return page.Page(
 		meta,
 		suggested,
@@ -29,15 +36,6 @@ func ThoughtThreadPage(view feedquery.ThoughtThreadView, now time.Time, suggeste
 			ui.BackButton("/"),
 			H2(g.Text("Thread")),
 		),
-		Ul(
-			g.Attr("id", "thought-thread-list"),
-			g.Attr("class", "thought-thread-list"),
-			g.Map(view.Posts, func(postView feedquery.PostView) g.Node {
-				if postView.Moderation.Filtered {
-					return nil
-				}
-				return Li(PostInThread(postView, now))
-			}),
-		),
+		PostSpine("thought-thread-list", items),
 	)
 }

@@ -1,0 +1,43 @@
+/* Connected multi-post sequences (thought-thread, ancestor context). */
+.post-spine {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: var(--post-border);
+
+  .post {
+    border: none;
+  }
+
+  > li {
+    position: relative;
+  }
+
+  /* Avatar-rail connector between spine items (bsky/X-style). */
+  > li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    left: calc(
+      var(--post-avatar-margin-inline-start)
+      + var(--post-avatar-size) / 2
+      - var(--post-spine-connector-width) / 2
+    );
+    top: calc(var(--post-avatar-margin-block) + var(--post-avatar-size));
+    bottom: 0;
+    width: var(--post-spine-connector-width);
+    background: var(--post-spine-connector-color);
+    pointer-events: none;
+  }
+
+  > li:not(:last-child) .post > footer {
+    margin-block-end: 0;
+    padding-block-end: 0.25rem;
+  }
+
+  > li > .feed-item,
+  > li > .post {
+    position: relative;
+    z-index: 1;
+  }
+}

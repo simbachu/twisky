@@ -363,6 +363,7 @@ func TestPostPageAncestors_RendersAncestorPosts(t *testing.T) {
 		t.Fatalf("html order wrong: parent@%d grandparent@%d", parentIdx, grandparentIdx)
 	}
 	for _, want := range []string{
+		`class="post-spine"`,
 		`href="/other.example/post/grandparent"`,
 		`href="/bsky.app/post/parent"`,
 		`aria-label="View post"`,
