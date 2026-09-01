@@ -108,6 +108,54 @@ func (h *Handler) Handle(ctx context.Context, i intent.ViewPost) response.Respon
 	return h.postPageFromThread(ctx, threadNode, postID, i.Part)
 }
 
+func (h *Handler) HandleThread(ctx context.Context, i intent.ViewThread) response.Response {
+	slug, err := actor.ParseSlug(i.Slug)
+	if err != nil {
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid handle or DID"}
+	}
+
+	rootID := strings.TrimSpace(i.ID)
+	if rootID == "" {
+		return response.ErrorResponse{Status: http.StatusBadRequest, Message: "Invalid post identifier"}
+	}
+
+	did, errResp := h.resolveDID(ctx, slug)
+	if errResp != nil {
+		return *errResp
+	}
+
+	threadNode, err := h.getThread(ctx, i.Slug, rootID, did)
+	if err != nil {
+		if errors.Is(err, bluesky.ErrNotFound) {
+			return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find thread %s", rootID)}
+		}
+		return response.ErrorResponse{Status: http.StatusBadGateway, Message: fmt.Sprintf("Failed to load thread %s", rootID)}
+	}
+
+	root, ok := threadNode.(bluesky.ThreadViewPost)
+	if !ok {
+		return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find thread %s", rootID)}
+	}
+
+	posts := feedquery.CollectOPThoughtSpine(root)
+	if len(posts) == 0 {
+		return response.ErrorResponse{Status: http.StatusNotFound, Message: fmt.Sprintf("Could not find thread %s", rootID)}
+	}
+
+	for index := range posts {
+		posts[index] = feedquery.ApplyIdentity(h.dir, posts[index])
+	}
+	feed := feedquery.ResolveMentionHandles(ctx, h.reader, feedquery.FeedView{Posts: posts})
+	feed = feedquery.ApplyModeration(ctx, h.prefs, feed, moderation.UIContextContentList)
+
+	return feedquery.ThoughtThreadView{
+		Posts:      feed.Posts,
+		RootHandle: root.Post.Author.Handle,
+		RootDID:    root.Post.Author.DID,
+		RootID:     rootID,
+	}
+}
+
 // resolveDID returns the account DID for the post URI. When the slug is already
 // a DID, GetProfile is skipped entirely (counts/replies/full page only need DID).
 func (h *Handler) resolveDID(ctx context.Context, slug actor.Slug) (string, *response.ErrorResponse) {

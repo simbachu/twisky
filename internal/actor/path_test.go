@@ -49,3 +49,14 @@ func TestPostPath(t *testing.T) {
 		t.Fatalf("PostPath() = %q", got)
 	}
 }
+
+func TestThreadPath(t *testing.T) {
+	t.Parallel()
+
+	if got := actor.ThreadPath("alice.example", "did:plc:alice", "root1"); got != "/alice.example/thread/root1" {
+		t.Fatalf("ThreadPath() = %q", got)
+	}
+	if got := actor.ThreadPathWithFragment("alice.example", "did:plc:alice", "root1", "p2"); got != "/alice.example/thread/root1#post-p2" {
+		t.Fatalf("ThreadPathWithFragment() = %q", got)
+	}
+}

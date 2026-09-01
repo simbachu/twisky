@@ -15,7 +15,12 @@ import (
 )
 
 func Post(view feedquery.PostView, now time.Time) g.Node {
-	return PostArticle(view, now, "post", false, false, "")
+	return PostArticle(view, now, "post", false, false, "", true)
+}
+
+// PostInThread renders a post on the thought-thread page without numbering.
+func PostInThread(view feedquery.PostView, now time.Time) g.Node {
+	return PostArticle(view, now, "post", false, false, "", false)
 }
 
 // ClickablePostItem wraps post content with a full-card overlay link to the
@@ -33,13 +38,14 @@ func ClickablePostItem(content g.Node, view feedquery.PostView) g.Node {
 }
 
 func postReply(view feedquery.PostView, now time.Time, opAuthorDID string) g.Node {
-	return PostArticle(view, now, "post", false, false, opAuthorDID)
+	return PostArticle(view, now, "post", false, false, opAuthorDID, false)
 }
 
 // PostArticle renders a post. pollCounts enables the live-counts toggle and
 // poller (only used for the focused post on its own page); live is the
-// initial polling state when pollCounts is true.
-func PostArticle(view feedquery.PostView, now time.Time, class string, pollCounts, live bool, opAuthorDID string, extra ...g.Node) g.Node {
+// initial polling state when pollCounts is true. showOPThreadNumber renders
+// the thought-thread position link on feed and profile lists.
+func PostArticle(view feedquery.PostView, now time.Time, class string, pollCounts, live bool, opAuthorDID string, showOPThreadNumber bool, extra ...g.Node) g.Node {
 	if view.Moderation.Filtered {
 		return nil
 	}
@@ -54,8 +60,11 @@ func PostArticle(view feedquery.PostView, now time.Time, class string, pollCount
 		ui.PostHeader(authorInfo(view), view.CreatedAt, now, repostedBy, replyParent, replyParentID, !pollCounts, isOP),
 		moderationNotice(view.Moderation),
 		moderationBody(view, now),
-		footer,
 	}
+	if showOPThreadNumber {
+		children = append(children, opThreadNumberingLink(view))
+	}
+	children = append(children, footer)
 	children = append(children, extra...)
 	return Article(g.Attr("class", class), g.Attr("id", "post-"+url.PathEscape(view.ID)), g.Group(children))
 }

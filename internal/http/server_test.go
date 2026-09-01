@@ -972,3 +972,53 @@ func TestHandlePost_FullPage_IncludesEmptyRepliesContainer(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleThread_OK(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(stubReader{
+		profile: &bluesky.Profile{
+			DID:    "did:plc:alice",
+			Handle: "alice.test",
+		},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:alice/app.bsky.feed.post/p1",
+				Author: bluesky.Author{DID: "did:plc:alice", Handle: "alice.test"},
+				Record: bluesky.PostRecord{Text: "first thought"},
+			},
+			Replies: []bluesky.ThreadNode{
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:alice/app.bsky.feed.post/p2",
+						Author: bluesky.Author{DID: "did:plc:alice", Handle: "alice.test"},
+						Record: bluesky.PostRecord{Text: "second thought"},
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/alice.test/thread/p1", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="thought-thread-list"`,
+		`first thought`,
+		`second thought`,
+		`id="post-p1"`,
+		`id="post-p2"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+	if strings.Contains(body, `class="post-op-thread-number"`) {
+		t.Fatalf("body = %q, want no op-thread numbering on thread page", body)
+	}
+}

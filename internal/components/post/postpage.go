@@ -176,7 +176,7 @@ func postPageRoot(view feedquery.PostView, replies []feedquery.ThreadNodeView, s
 	// the list even when the page first loaded with zero replies. CSS hides
 	// the section until the root ul contains li elements.
 	extra := []g.Node{repliesSection(replies, settings, now, view.ID, threadRootAuthorDID, false)}
-	return PostArticle(view, now, "post post-page", true, live, "", extra...)
+	return PostArticle(view, now, "post post-page", true, live, "", false, extra...)
 }
 
 func repliesRootID(postID string) string {

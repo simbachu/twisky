@@ -37,6 +37,20 @@ func PostPath(handle, did, postID string) string {
 	return "/" + slug + "/post/" + url.PathEscape(postID)
 }
 
+// ThreadPath returns the thought-thread page path for the root author and post id.
+func ThreadPath(handle, did, rootID string) string {
+	slug := ProfileSlug(handle, did)
+	if slug == "" {
+		return "/"
+	}
+	return "/" + slug + "/thread/" + url.PathEscape(rootID)
+}
+
+// ThreadPathWithFragment returns a thread path that focuses a post in the spine.
+func ThreadPathWithFragment(rootHandle, rootDID, rootID, postID string) string {
+	return ThreadPath(rootHandle, rootDID, rootID) + "#post-" + url.PathEscape(postID)
+}
+
 func isLinkableHandle(handle string) bool {
 	handle = strings.TrimSpace(handle)
 	if handle == "" || handle == invalidHandle {

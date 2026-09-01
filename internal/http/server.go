@@ -180,6 +180,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/settings/threading", s.handleUpdateThreading)
 	r.Get("/tagged/{tag}", s.handleTag)
 	r.Get("/{slug}/post/{id}", s.handlePost)
+	r.Get("/{slug}/thread/{id}", s.handleThread)
 	r.Get("/{slug}/media", s.handleProfile(intent.ProfileTabMedia))
 	r.Get("/{slug}", s.handleProfile(intent.ProfileTabPosts))
 	return r
@@ -395,6 +396,35 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 			suggested := s.suggestedAccounts(r.Context())
 			_ = postpage.PostPage(v, now, suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 		}
+	case response.ErrorResponse:
+		s.writeQueryError(w, r, v)
+	default:
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Message: "Something went wrong loading this page",
+		})
+	}
+}
+
+func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
+	rootID, err := url.PathUnescape(chi.URLParam(r, "id"))
+	if err != nil {
+		s.writeQueryError(w, r, response.ErrorResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid post identifier",
+		})
+		return
+	}
+
+	resp := s.queries.Post().WithReader(s.postPageReader(r)).HandleThread(r.Context(), intent.ViewThread{
+		Slug: chi.URLParam(r, "slug"),
+		ID:   rootID,
+	})
+	switch v := resp.(type) {
+	case feedquery.ThoughtThreadView:
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		suggested := s.suggestedAccounts(r.Context())
+		_ = postpage.ThoughtThreadPage(v, time.Now().UTC(), suggested, s.accountMenuView(w, r, suggested...), s.publicBaseURL).Render(w)
 	case response.ErrorResponse:
 		s.writeQueryError(w, r, v)
 	default:

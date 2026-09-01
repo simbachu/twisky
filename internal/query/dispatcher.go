@@ -35,6 +35,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, i intent.Intent) (response.Re
 		return d.tag.Handle(ctx, i), nil
 	case intent.ViewPost:
 		return d.post.Handle(ctx, i), nil
+	case intent.ViewThread:
+		return d.post.HandleThread(ctx, i), nil
 	default:
 		return nil, fmt.Errorf("query: unknown intent %T", i)
 	}

@@ -644,3 +644,50 @@ func TestHandler_WithReader_SharesThreadCache(t *testing.T) {
 		t.Fatalf("auth GetPostThread calls = %d, want 1 (shared cache)", got)
 	}
 }
+
+func TestHandler_HandleThread_OPThoughtSpine(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubReader{
+		profile: &bluesky.Profile{DID: "did:plc:alice", Handle: "alice.test"},
+		thread: bluesky.ThreadViewPost{
+			Post: bluesky.Post{
+				URI:    "at://did:plc:alice/app.bsky.feed.post/p1",
+				Author: bluesky.Author{DID: "did:plc:alice", Handle: "alice.test"},
+				Record: bluesky.PostRecord{Text: "one"},
+			},
+			Replies: []bluesky.ThreadNode{
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:bob/app.bsky.feed.post/r1",
+						Author: bluesky.Author{DID: "did:plc:bob", Handle: "bob.test"},
+						Record: bluesky.PostRecord{Text: "bob"},
+					},
+				},
+				bluesky.ThreadViewPost{
+					Post: bluesky.Post{
+						URI:    "at://did:plc:alice/app.bsky.feed.post/p2",
+						Author: bluesky.Author{DID: "did:plc:alice", Handle: "alice.test"},
+						Record: bluesky.PostRecord{Text: "two"},
+					},
+				},
+			},
+		},
+	}
+	handler := post.NewHandler(reader, nil, nil)
+
+	resp := handler.HandleThread(context.Background(), intent.ViewThread{Slug: "alice.test", ID: "p1"})
+	view, ok := resp.(feedquery.ThoughtThreadView)
+	if !ok {
+		t.Fatalf("response type = %T, want ThoughtThreadView", resp)
+	}
+	if len(view.Posts) != 2 {
+		t.Fatalf("len(Posts) = %d, want 2", len(view.Posts))
+	}
+	if view.Posts[0].ID != "p1" || view.Posts[1].ID != "p2" {
+		t.Fatalf("posts = %q %q, want p1 p2", view.Posts[0].ID, view.Posts[1].ID)
+	}
+	if view.RootID != "p1" {
+		t.Fatalf("RootID = %q, want p1", view.RootID)
+	}
+}

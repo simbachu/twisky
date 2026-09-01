@@ -20,6 +20,7 @@ const (
 	IconPause    IconName = "pause"
 	IconBluesky  IconName = "bluesky"
 	IconBrand    IconName = "brand"
+	IconThread   IconName = "thread"
 )
 
 const iconsSpritePath = "/static/icons/icons.svg"
@@ -35,7 +36,8 @@ var iconStatic = map[IconName]struct {
 	ID      string
 	ViewBox string
 }{
-	IconBrand: {ID: "icon-brand", ViewBox: "0 0 256 128"},
+	IconBrand:  {ID: "icon-brand", ViewBox: "0 0 256 128"},
+	IconThread: {ID: "icon-thread-outline", ViewBox: "0 0 64 64"},
 }
 
 var iconGlyphs = map[IconName]string{
@@ -52,6 +54,7 @@ var iconGlyphs = map[IconName]string{
 	IconPause:    "⏸",
 	IconBluesky:  "🦋",
 	IconBrand:    "Twisky",
+	IconThread:   "🧵",
 }
 
 // ActionClass returns a CSS modifier for per-action hover colors, or empty.

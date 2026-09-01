@@ -10,22 +10,28 @@ const (
 )
 
 type FeedItem struct {
-	Post   Post          `json:"post"`
-	Reply  *ReplyContext `json:"reply,omitempty"`
-	Reason *FeedReason   `json:"reason,omitempty"`
+	Post              Post          `json:"post"`
+	Reply             *ReplyContext `json:"reply,omitempty"`
+	Reason            *FeedReason   `json:"reason,omitempty"`
+	OPThreadPostIndex int           `json:"opThreadPostIndex,omitempty"`
+	OPThreadPostCount int           `json:"opThreadPostCount,omitempty"`
 }
 
 func (item *FeedItem) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Post   Post            `json:"post"`
-		Reply  *ReplyContext   `json:"reply,omitempty"`
-		Reason json.RawMessage `json:"reason,omitempty"`
+		Post              Post            `json:"post"`
+		Reply             *ReplyContext   `json:"reply,omitempty"`
+		Reason            json.RawMessage `json:"reason,omitempty"`
+		OPThreadPostIndex int             `json:"opThreadPostIndex,omitempty"`
+		OPThreadPostCount int             `json:"opThreadPostCount,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	item.Post = raw.Post
 	item.Reply = raw.Reply
+	item.OPThreadPostIndex = raw.OPThreadPostIndex
+	item.OPThreadPostCount = raw.OPThreadPostCount
 	if len(raw.Reason) == 0 {
 		item.Reason = nil
 		return nil
@@ -67,11 +73,13 @@ func (r *FeedReason) UnmarshalJSON(data []byte) error {
 
 type ReplyContext struct {
 	Parent *Post
+	Root   *Post
 }
 
 func (r *ReplyContext) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Parent json.RawMessage `json:"parent"`
+		Root   json.RawMessage `json:"root"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -81,7 +89,12 @@ func (r *ReplyContext) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	root, err := parseFeedPostUnion(raw.Root)
+	if err != nil {
+		return err
+	}
 	r.Parent = parent
+	r.Root = root
 	return nil
 }
 

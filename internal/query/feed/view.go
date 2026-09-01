@@ -78,6 +78,11 @@ type PostView struct {
 	repostURI           string
 	authorDID           string
 	threadRootAuthorDID string
+	threadRootHandle    string
+	threadRootDID       string
+	threadRootID        string
+	opThreadIndex       int
+	opThreadCount       int
 	labels              []moderation.Label
 	authorLabels        []moderation.Label
 }
@@ -167,6 +172,16 @@ func NewPostViewFromFeedItem(item bluesky.FeedItem) PostView {
 		view.ReplyParentMaybe = &parent
 		view.replyParentURI = ""
 	}
+	applyOPThreadNumbering(&view, item.OPThreadPostIndex, item.OPThreadPostCount)
+	var rootPost *bluesky.Post
+	rootURI := item.Post.URI
+	if item.Reply != nil && item.Reply.Root != nil {
+		rootPost = item.Reply.Root
+		rootURI = rootPost.URI
+	} else if item.Post.Record.Reply != nil && item.Post.Record.Reply.Root.URI != "" {
+		rootURI = item.Post.Record.Reply.Root.URI
+	}
+	applyThreadRoot(&view, rootURI, rootPost)
 	return view
 }
 
@@ -214,6 +229,12 @@ func NewPostView(post bluesky.Post) PostView {
 			view.QuotedPostMaybe = &quotedView
 		}
 	}
+
+	rootURI := post.URI
+	if post.Record.Reply != nil && post.Record.Reply.Root.URI != "" {
+		rootURI = post.Record.Reply.Root.URI
+	}
+	applyThreadRoot(&view, rootURI, nil)
 
 	return view
 }

@@ -144,7 +144,7 @@ func TestPostArticle_LiveRepostButtonIncludesPostID(t *testing.T) {
 	}, "at://did:plc:example/app.bsky.feed.post/abc123", "bafycid")
 
 	var buf bytes.Buffer
-	if err := post.PostArticle(view, time.Now().UTC(), "post", true, false, "").Render(&buf); err != nil {
+	if err := post.PostArticle(view, time.Now().UTC(), "post", true, false, "", false).Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 
