@@ -139,7 +139,7 @@ nav:has(> menu[role="tablist"]):has(+ #new-posts-slot, + #feed-list) > menu[role
   @media (min-width: 75rem) and (min-height: 40rem) {
     inset-inline-end: auto;
     inset-inline-start: calc(50% + (var(--content-width) / 2) + 0.5rem);
-    inset-block-end: auto;
-    inset-block-start: 1.25rem;
+    inset-block-start: auto;
+    inset-block-end: 1.25rem;
   }
 }
