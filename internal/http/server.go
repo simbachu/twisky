@@ -61,6 +61,8 @@ type Server struct {
 	repostWriter repost.Writer
 	// postWriter, when set, skips OAuth resume for CreatePost (tests).
 	postWriter postcommand.Writer
+	// postFetcher, when set, skips OAuth resume for reply parent GetPosts (tests).
+	postFetcher postFetcher
 	// homeReader, when set, is used for the home timeline instead of the session client (tests).
 	homeReader homequery.Reader
 	// postPageReaderOverride, when set, is used for post-page reads instead of the session client (tests).
@@ -103,6 +105,12 @@ func (s *Server) WithRepostWriter(w repost.Writer) *Server {
 // WithPostWriter overrides the OAuth session client used for CreatePost (tests).
 func (s *Server) WithPostWriter(w postcommand.Writer) *Server {
 	s.postWriter = w
+	return s
+}
+
+// WithPostFetcher overrides the session client used to load reply parents (tests).
+func (s *Server) WithPostFetcher(f postFetcher) *Server {
+	s.postFetcher = f
 	return s
 }
 

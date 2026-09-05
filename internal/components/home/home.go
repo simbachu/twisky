@@ -23,7 +23,6 @@ func Home(view homequery.HomeView, now time.Time, suggested []ui.AuthorInfo, acc
 	}
 	children := []g.Node{
 		FeedHeader(),
-		ui.ComposeModal(ui.ComposeFieldConfig{TextareaID: "compose-text"}),
 		ui.TabNav("Home feeds", tabs),
 	}
 	if len(view.Feed.Posts) > 0 {

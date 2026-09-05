@@ -14,12 +14,19 @@ type ActionButtonConfig struct {
 	Count    int
 	Disabled bool
 	HasPopup bool
-	Engaged  bool
+	// AriaHasPopup, when set, overrides HasPopup and sets aria-haspopup to this value
+	// (for example "dialog" or "menu").
+	AriaHasPopup string
+	Engaged      bool
+	// Href, when set, renders an anchor instead of a button.
+	Href string
+	// DataComposeOpen adds data-compose-open for the compose-dialog interceptor.
+	DataComposeOpen bool
 	// HxPost, when set, makes the button an HTMX POST control.
-	HxPost  string
-	HxVals  string
+	HxPost   string
+	HxVals   string
 	HxTarget string
-	HxSwap  string
+	HxSwap   string
 	// CountID, when set, forces the count span to always render (even at
 	// zero) with this id and fuzzy-number formatting, so it can be targeted
 	// by an htmx out-of-band swap when live counts polling is enabled.
@@ -38,10 +45,10 @@ func PostEngagementPollable(icon IconName, label string, count int, id string) A
 	return ActionButtonConfig{Icon: icon, Label: label, Count: count, CountID: id}
 }
 
-// ActionButton renders a button with an icon, aria-label, and optional count.
+// ActionButton renders a button (or link) with an icon, aria-label, and optional count.
 // Counts of zero or less are omitted from the label and markup.
 //
-// TODO: Add aria-haspopup on Reply, Repost, Share, and More when adding popovers.
+// TODO: Add aria-haspopup on Repost, Share, and More when adding popovers.
 func ActionButton(cfg ActionButtonConfig) g.Node {
 	return actionButtonNode(cfg, "")
 }
@@ -61,8 +68,17 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 	if cfg.Disabled {
 		attrs = append(attrs, g.Attr("disabled", ""), g.Attr("aria-disabled", "true"))
 	}
-	if cfg.HasPopup {
+	switch {
+	case cfg.AriaHasPopup != "":
+		attrs = append(attrs, g.Attr("aria-haspopup", cfg.AriaHasPopup))
+	case cfg.HasPopup:
 		attrs = append(attrs, g.Attr("aria-haspopup", "true"))
+	}
+	if cfg.DataComposeOpen {
+		attrs = append(attrs, g.Attr("data-compose-open", ""))
+	}
+	if cfg.Href != "" {
+		attrs = append(attrs, g.Attr("href", cfg.Href))
 	}
 	if cfg.HxPost != "" {
 		attrs = append(attrs,
@@ -89,6 +105,9 @@ func actionButtonNode(cfg ActionButtonConfig, class string) g.Node {
 		attrs = append(attrs, FuzzyCountSpan(cfg.CountID, cfg.Count, false))
 	case cfg.Count > 0:
 		attrs = append(attrs, FuzzyCountText(cfg.Count))
+	}
+	if cfg.Href != "" {
+		return A(g.Group(attrs))
 	}
 	return Button(g.Group(attrs))
 }

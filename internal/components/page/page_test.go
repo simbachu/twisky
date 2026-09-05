@@ -53,6 +53,28 @@ func TestPage_ComposesSiteNavAndLoggedInAccountMenu(t *testing.T) {
 	if !strings.Contains(html, "Alice") {
 		t.Fatalf("html = %q, want current account name", html)
 	}
+	if !strings.Contains(html, `id="compose-dialog"`) {
+		t.Fatalf("html = %q, want compose dialog for logged-in user", html)
+	}
+}
+
+func TestPage_OmitsComposeDialogWhenLoggedOut(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := page.Page(
+		page.PageMeta{Title: "Home", Path: "/"},
+		nil,
+		ui.AccountMenuView{Enabled: true},
+		g.Text("main"),
+	).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	if strings.Contains(html, `id="compose-dialog"`) {
+		t.Fatalf("html = %q, want no compose dialog when logged out", html)
+	}
 }
 
 func TestPage_DeclaresMobileViewport(t *testing.T) {

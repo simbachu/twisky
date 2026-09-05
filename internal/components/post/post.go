@@ -52,7 +52,7 @@ func PostArticle(view feedquery.PostView, now time.Time, class string, pollCount
 
 	repostedBy, replyParent, replyParentID := postHeaderMeta(view)
 	isOP := opAuthorDID != "" && view.AuthorDID() == opAuthorDID
-	footer := postFooter(view)
+	footer := postFooter(view, now)
 	if pollCounts {
 		footer = postFooterLive(view, now, live)
 	}
@@ -69,15 +69,11 @@ func PostArticle(view feedquery.PostView, now time.Time, class string, pollCount
 	return Article(g.Attr("class", class), g.Attr("id", "post-"+url.PathEscape(view.ID)), g.Group(children))
 }
 
-func postFooter(view feedquery.PostView) g.Node {
+func postFooter(view feedquery.PostView, now time.Time) g.Node {
 	return Footer(
 		Nav(
 			g.Attr("aria-label", "Post actions"),
-			ui.SegmentedGroup("Engagement actions",
-				ui.PostEngagement(ui.IconReply, "Reply", view.ReplyCount),
-				repostButton(view, ""),
-				likeButton(view, ""),
-			),
+			engagementActions(view, now, ""),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			shareGroup(view),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
@@ -95,11 +91,7 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 			ui.PostPageTimestamp(view.CreatedAt, now)),
 		Nav(
 			g.Attr("aria-label", "Post actions"),
-			ui.SegmentedGroup("Engagement actions",
-				ui.PostEngagementPollable(ui.IconReply, "Reply", view.ReplyCount, ids.reply),
-				repostButton(view, ids.repost),
-				likeButton(view, ids.like),
-			),
+			engagementActions(view, now, ids.reply),
 			ui.SegmentedGroup("Bookmark", ui.PostEngagement(ui.IconBookmark, "Bookmark", 0)),
 			shareGroup(view),
 			ui.SegmentedGroup("More options", ui.PostEngagement(ui.IconMore, "More options", 0)),
@@ -107,6 +99,50 @@ func postFooterLive(view feedquery.PostView, now time.Time, live bool) g.Node {
 		),
 		countsPollerData(view, now, live, false),
 		countsAnnouncer(view.ID),
+	)
+}
+
+func engagementActions(view feedquery.PostView, now time.Time, replyCountID string) g.Node {
+	repostCfg := repostButton(view, "")
+	likeCfg := likeButton(view, "")
+	if replyCountID != "" {
+		ids := newCountIDs(view.ID)
+		repostCfg = repostButton(view, ids.repost)
+		likeCfg = likeButton(view, ids.like)
+	}
+	return ui.SegmentedShell("Engagement actions", "",
+		Li(
+			ui.ActionButton(replyButton(view, replyCountID)),
+			replyParentTemplate(view, now),
+		),
+		Li(ui.ActionButton(repostCfg)),
+		Li(ui.ActionButton(likeCfg)),
+	)
+}
+
+func replyButton(view feedquery.PostView, countID string) ui.ActionButtonConfig {
+	cfg := ui.ActionButtonConfig{
+		Icon:    ui.IconReply,
+		Label:   "Reply",
+		Count:   view.ReplyCount,
+		CountID: countID,
+	}
+	if uri := view.URI(); uri != "" {
+		cfg.Href = "/my/posts/new?parent=" + url.QueryEscape(uri)
+		cfg.DataComposeOpen = true
+		cfg.AriaHasPopup = "dialog"
+	}
+	return cfg
+}
+
+func replyParentTemplate(view feedquery.PostView, now time.Time) g.Node {
+	if view.URI() == "" {
+		return nil
+	}
+	inset := feedquery.InsetPostView(view)
+	return Template(
+		g.Attr("class", "compose-parent-template"),
+		InsetPost(&inset, now),
 	)
 }
 

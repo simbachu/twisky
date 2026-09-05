@@ -7,29 +7,50 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+// PageView configures the full-page compose surface.
+type PageView struct {
+	Error         string
+	Text          string
+	ParentURI     string
+	Parent        g.Node
+	PublicBaseURL string
+	Suggested     []ui.AuthorInfo
+	Accounts      ui.AccountMenuView
+}
+
 // NewPostPage renders the full-page compose surface.
-func NewPostPage(errorMessage, text, publicBaseURL string, suggested []ui.AuthorInfo, accounts ui.AccountMenuView) g.Node {
+func NewPostPage(view PageView) g.Node {
+	title := "New post"
+	description := "Compose a new post on Twisky."
+	if view.ParentURI != "" {
+		title = "Reply"
+		description = "Reply to a post on Twisky."
+	}
 	children := []g.Node{
 		Header(
 			ui.BackButton("/"),
-			H1(g.Text("New post")),
+			H1(g.Text(title)),
 		),
-		ui.ComposeField(ui.ComposeFieldConfig{
-			TextareaID: "new-post-text",
-			Text:       text,
-			Error:      errorMessage,
-		}),
 	}
+	if view.Parent != nil {
+		children = append(children, Div(g.Attr("class", "compose-parent"), view.Parent))
+	}
+	children = append(children, ui.ComposeField(ui.ComposeFieldConfig{
+		TextareaID: "new-post-text",
+		Text:       view.Text,
+		Error:      view.Error,
+		ParentURI:  view.ParentURI,
+	}))
 	return page.Page(
 		page.PageMeta{
-			Title:        "New post · Twisky",
-			Description:  "Compose a new post on Twisky.",
-			CanonicalURL: page.AbsoluteURL(publicBaseURL, "/my/posts/new"),
+			Title:        title + " · Twisky",
+			Description:  description,
+			CanonicalURL: page.AbsoluteURL(view.PublicBaseURL, "/my/posts/new"),
 			Path:         "/my/posts/new",
 			OGType:       "website",
 		},
-		suggested,
-		accounts,
+		view.Suggested,
+		view.Accounts,
 		children...,
 	)
 }

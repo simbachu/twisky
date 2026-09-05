@@ -25,7 +25,14 @@ func TestComposeModal_WrapsFieldInDialog(t *testing.T) {
 		`action="/my/posts"`,
 		`id="compose-text"`,
 		`formmethod="dialog"`,
+		`formnovalidate`,
+		`form="compose-form"`,
 		`aria-label="Close"`,
+		`id="compose-dialog-title"`,
+		`>New post<`,
+		`id="compose-parent-slot"`,
+		`name="parent"`,
+		`id="compose-form"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %q", html, want)

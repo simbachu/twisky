@@ -121,3 +121,31 @@ func TestActionButton_HxPostAttrs(t *testing.T) {
 		}
 	}
 }
+
+func TestActionButton_HrefRendersAnchor(t *testing.T) {
+	t.Parallel()
+
+	cfg := ui.PostEngagement(ui.IconReply, "Reply", 2)
+	cfg.Href = "/my/posts/new?parent=at://did:plc:example/app.bsky.feed.post/abc123"
+	cfg.DataComposeOpen = true
+	cfg.AriaHasPopup = "dialog"
+	var buf bytes.Buffer
+	if err := ui.ActionButton(cfg).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`<a `,
+		`href="/my/posts/new?parent=at://did:plc:example/app.bsky.feed.post/abc123"`,
+		`data-compose-open`,
+		`aria-haspopup="dialog"`,
+		`aria-label="Reply, 2"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, `<button`) {
+		t.Fatalf("html = %q, want anchor not button", html)
+	}
+}

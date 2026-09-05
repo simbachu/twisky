@@ -79,6 +79,14 @@
   }
 }
 
+.compose-parent {
+  margin-block: 0 0.75rem;
+}
+
+#compose-parent-slot:not(:empty) {
+  padding: 1rem 1rem 0;
+}
+
 .iface-dialog {
   border: 1px solid var(--iface-divider);
   border-radius: 0.75rem;

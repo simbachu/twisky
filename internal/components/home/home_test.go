@@ -25,7 +25,10 @@ func TestHome_MarksSiteNavCurrentAndRendersFeed(t *testing.T) {
 				Text:              "hello home",
 			}},
 		},
-	}, time.Now().UTC(), nil, ui.AccountMenuView{Enabled: true}, "https://twisky.test").Render(&buf); err != nil {
+	}, time.Now().UTC(), nil, ui.AccountMenuView{
+		Enabled: true,
+		Current: &ui.AuthorInfo{Handle: "alice.test", DID: "did:plc:alice"},
+	}, "https://twisky.test").Render(&buf); err != nil {
 		t.Fatalf("Render() err = %v", err)
 	}
 

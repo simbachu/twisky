@@ -13,7 +13,7 @@ const MaxPostGraphemes = 300
 
 // Writer creates post records on the viewer's PDS.
 type Writer interface {
-	CreatePost(ctx context.Context, text string) (string, error)
+	CreatePost(ctx context.Context, text string, reply *intent.ReplyTo) (string, error)
 }
 
 // Handler executes CreatePost intents.
@@ -33,10 +33,22 @@ func (h *Handler) HandleCreate(ctx context.Context, i intent.CreatePost) (string
 	if graphemeCount(text) > MaxPostGraphemes {
 		return "", fmt.Errorf("post: text exceeds %d graphemes", MaxPostGraphemes)
 	}
+	if i.Reply != nil {
+		if err := validateReply(i.Reply); err != nil {
+			return "", err
+		}
+	}
 	if h.writer == nil {
 		return "", fmt.Errorf("post: writer is required")
 	}
-	return h.writer.CreatePost(ctx, text)
+	return h.writer.CreatePost(ctx, text, i.Reply)
+}
+
+func validateReply(reply *intent.ReplyTo) error {
+	if reply.RootURI == "" || reply.RootCID == "" || reply.ParentURI == "" || reply.ParentCID == "" {
+		return fmt.Errorf("post: reply refs are incomplete")
+	}
+	return nil
 }
 
 func graphemeCount(text string) int {

@@ -141,15 +141,19 @@ func PageWithAlert(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.Account
 
 func document(meta PageMeta, suggested []ui.AuthorInfo, accounts ui.AccountMenuView, alertRegion g.Node, children ...g.Node) g.Node {
 	mainChildren := append([]g.Node{alertRegion}, children...)
+	bodyChildren := []g.Node{
+		pageHeader(meta.Path, accounts),
+		Main(mainChildren...),
+		pageFooter(suggested),
+	}
+	if accounts.Current != nil {
+		bodyChildren = append(bodyChildren, ui.ComposeModal(ui.ComposeFieldConfig{TextareaID: "compose-text"}))
+	}
 	return HTML(
 		Doctype(
 			Head(g.Group(pageHead(meta))),
 		),
-		Body(
-			pageHeader(meta.Path, accounts),
-			Main(mainChildren...),
-			pageFooter(suggested),
-		),
+		Body(g.Group(bodyChildren)),
 	)
 }
 

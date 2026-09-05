@@ -59,3 +59,26 @@ func TestComposeField_PreservesTextAndError(t *testing.T) {
 		}
 	}
 }
+
+func TestComposeField_RendersHiddenParent(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.ComposeField(ui.ComposeFieldConfig{
+		TextareaID: "compose-text",
+		ParentURI:  "at://did:plc:example/app.bsky.feed.post/parent1",
+	}).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	for _, want := range []string{
+		`type="hidden"`,
+		`name="parent"`,
+		`value="at://did:plc:example/app.bsky.feed.post/parent1"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %q", html, want)
+		}
+	}
+}

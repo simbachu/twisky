@@ -10,6 +10,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/intent"
 )
 
 const appViewService = "did:web:api.bsky.app#bsky_appview"
@@ -86,18 +87,32 @@ func (c *SessionClient) DeleteRepost(ctx context.Context, recordURI string) erro
 }
 
 // CreatePost writes an app.bsky.feed.post record with plain text.
-func (c *SessionClient) CreatePost(ctx context.Context, text string) (string, error) {
+// When reply is set, the record includes AT Protocol reply root and parent refs.
+func (c *SessionClient) CreatePost(ctx context.Context, text string, reply *intent.ReplyTo) (string, error) {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
 		return "", fmt.Errorf("oauth: session client not configured")
+	}
+	record := map[string]any{
+		"$type":     "app.bsky.feed.post",
+		"text":      text,
+		"createdAt": syntax.DatetimeNow(),
+	}
+	if reply != nil {
+		record["reply"] = map[string]any{
+			"root": map[string]any{
+				"uri": reply.RootURI,
+				"cid": reply.RootCID,
+			},
+			"parent": map[string]any{
+				"uri": reply.ParentURI,
+				"cid": reply.ParentCID,
+			},
+		}
 	}
 	body := map[string]any{
 		"repo":       c.client.AccountDID.String(),
 		"collection": "app.bsky.feed.post",
-		"record": map[string]any{
-			"$type":     "app.bsky.feed.post",
-			"text":      text,
-			"createdAt": syntax.DatetimeNow(),
-		},
+		"record":     record,
 	}
 	var resp struct {
 		URI string `json:"uri"`
