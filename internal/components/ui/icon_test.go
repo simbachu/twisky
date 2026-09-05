@@ -30,6 +30,31 @@ func TestIcon_LikeRendersHeartAtlas(t *testing.T) {
 	}
 }
 
+func TestIcon_ReplyRendersCommentSprite(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Icon(ui.IconReply).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`class="ui-icon"`,
+		`href="/static/icons/icons.svg#icon-comment-outline"`,
+		`viewBox="0 0 64 64"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if strings.Contains(html, "🗪") {
+		t.Fatalf("html = %q, want SVG sprite not glyph", html)
+	}
+	if strings.Contains(html, "ui-icon--toggle") {
+		t.Fatalf("html = %q, want static icon not toggle", html)
+	}
+}
+
 func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	t.Parallel()
 

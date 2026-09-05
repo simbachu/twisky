@@ -67,6 +67,7 @@ func TestPost_RendersEngagementActionLabels(t *testing.T) {
 		`aria-haspopup="dialog"`,
 		`class="compose-parent-template"`,
 		`class="post inset-post"`,
+		`icon-comment-outline`,
 		`at://did:plc:example/app.bsky.feed.post/abc123`,
 		`bafycid`,
 		`hx-target="this"`,

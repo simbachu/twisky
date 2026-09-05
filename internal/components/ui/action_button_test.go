@@ -140,6 +140,7 @@ func TestActionButton_HrefRendersAnchor(t *testing.T) {
 		`data-compose-open`,
 		`aria-haspopup="dialog"`,
 		`aria-label="Reply, 2"`,
+		`icon-comment-outline`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
@@ -147,5 +148,8 @@ func TestActionButton_HrefRendersAnchor(t *testing.T) {
 	}
 	if strings.Contains(html, `<button`) {
 		t.Fatalf("html = %q, want anchor not button", html)
+	}
+	if strings.Contains(html, "🗪") {
+		t.Fatalf("html = %q, want SVG comment icon not glyph", html)
 	}
 }
