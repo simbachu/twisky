@@ -84,8 +84,53 @@ func TestNewPostsBanner_RendersButtonWhenCountNonZero(t *testing.T) {
 	if !strings.Contains(html, `hx-target="#feed-list"`) {
 		t.Fatalf("html = %q, want feed-list target", html)
 	}
+	if !strings.Contains(html, `data-new-post-count="3"`) {
+		t.Fatalf("html = %q, want data-new-post-count", html)
+	}
 	if !strings.Contains(html, "Show 3 new posts") {
 		t.Fatalf("html = %q, want banner label", html)
+	}
+}
+
+func TestFeed_RendersToTopAfterFeedList(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := feed.Feed(feedquery.FeedView{
+		Posts: []feedquery.PostView{{
+			ID:           "post",
+			AuthorHandle: "dev.example",
+			Text:         "hello",
+		}},
+	}, time.Now().UTC(), "/dev.example").Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+
+	html := buf.String()
+	listIdx := strings.Index(html, `id="feed-list"`)
+	toTopIdx := strings.Index(html, `id="feed-to-top"`)
+	if listIdx < 0 {
+		t.Fatalf("html = %q, want feed-list", html)
+	}
+	if toTopIdx < 0 {
+		t.Fatalf("html = %q, want feed-to-top", html)
+	}
+	if toTopIdx < listIdx {
+		t.Fatalf("html = %q, want feed-to-top after feed-list", html)
+	}
+	for _, want := range []string{
+		`id="feed-to-top"`,
+		`class="feed-to-top"`,
+		`aria-label="Back to top"`,
+		`class="feed-to-top-count"`,
+		`↑`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("html = %q, want %s", html, want)
+		}
+	}
+	if !strings.Contains(html[toTopIdx:], `hidden=""`) {
+		t.Fatalf("html = %q, want hidden on feed-to-top", html)
 	}
 }
 

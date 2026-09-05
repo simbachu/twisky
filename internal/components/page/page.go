@@ -119,6 +119,7 @@ func pageHead(meta PageMeta) []g.Node {
 		Script(g.Attr("src", "/static/scripts/compose-dialog.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/nav-back.js"), g.Attr("defer", "")),
 		Script(g.Attr("src", "/static/scripts/page-alert.js"), g.Attr("defer", "")),
+		Script(g.Attr("src", "/static/scripts/feed-to-top.js"), g.Attr("defer", "")),
 		Link(
 			g.Attr("id", "page-favicon"),
 			g.Attr("rel", "icon"),

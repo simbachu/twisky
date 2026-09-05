@@ -12,11 +12,32 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// Feed renders a feed list with htmx infinite-scroll sentinel. Use to compose a page.
+// Feed renders a feed list with htmx infinite-scroll sentinel, plus a floating
+// to-top control (hidden until JS shows it). Use to compose a page.
 func Feed(view feedquery.FeedView, now time.Time, feedURL string) g.Node {
-	return Ul(
-		g.Attr("id", "feed-list"),
-		FeedItems(view, now, feedURL),
+	return g.Group([]g.Node{
+		Ul(
+			g.Attr("id", "feed-list"),
+			FeedItems(view, now, feedURL),
+		),
+		toTopButton(),
+	})
+}
+
+// toTopButton is fixed beside the feed once the page header scrolls away.
+// JS reveals it and mirrors the pending new-post count from #new-posts-slot.
+func toTopButton() g.Node {
+	return Button(
+		g.Attr("type", "button"),
+		g.Attr("id", "feed-to-top"),
+		g.Attr("class", "feed-to-top"),
+		g.Attr("aria-label", "Back to top"),
+		g.Attr("hidden", ""),
+		ui.Icon(ui.IconUp),
+		Span(
+			g.Attr("class", "feed-to-top-count"),
+			g.Attr("hidden", ""),
+		),
 	)
 }
 
@@ -74,6 +95,7 @@ func NewPostsBanner(count int, feedURL, sinceID string) g.Node {
 		g.Attr("hx-get", feedURL+"?refresh="+url.QueryEscape(sinceID)),
 		g.Attr("hx-target", "#feed-list"),
 		g.Attr("hx-swap", "afterbegin"),
+		g.Attr("data-new-post-count", fmt.Sprintf("%d", count)),
 		g.Text(label),
 	)
 }

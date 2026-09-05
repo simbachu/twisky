@@ -55,6 +55,19 @@ func TestIcon_ReplyRendersCommentSprite(t *testing.T) {
 	}
 }
 
+func TestIcon_UpRendersGlyph(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := ui.Icon(ui.IconUp).Render(&buf); err != nil {
+		t.Fatalf("Render() err = %v", err)
+	}
+	html := buf.String()
+	if html != "↑" {
+		t.Fatalf("html = %q, want ↑ glyph", html)
+	}
+}
+
 func TestIcon_BrandRendersStaticSprite(t *testing.T) {
 	t.Parallel()
 

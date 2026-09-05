@@ -8,6 +8,7 @@ type IconName string
 
 const (
 	IconBack     IconName = "back"
+	IconUp       IconName = "up"
 	IconReply    IconName = "reply"
 	IconRepost   IconName = "repost"
 	IconLike     IconName = "like"
@@ -43,6 +44,7 @@ var iconStatic = map[IconName]struct {
 
 var iconGlyphs = map[IconName]string{
 	IconBack:     "⬅️",
+	IconUp:       "↑",
 	IconReply:    "🗪",
 	IconRepost:   "⇄",
 	IconLike:     "👍︎",

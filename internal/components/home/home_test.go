@@ -37,6 +37,7 @@ func TestHome_MarksSiteNavCurrentAndRendersFeed(t *testing.T) {
 		`<a href="/" aria-current="page">`,
 		"hello home",
 		`id="feed-list"`,
+		`id="feed-to-top"`,
 		`aria-label="Site"`,
 		`property="og:title" content="Home · Twisky"`,
 		`rel="canonical" href="https://twisky.test/"`,
