@@ -45,11 +45,15 @@ func TestShareGroup_RendersMenuChrome(t *testing.T) {
 		`aria-expanded="false"`,
 		`aria-haspopup="menu"`,
 		`data-copy-feedback="icon"`,
+		`href="/static/icons/icons.svg#icon-share-outline"`,
 		`href="/static/icons/icons.svg#icon-butterfly-outline"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("html = %q, want %s", html, want)
 		}
+	}
+	if strings.Contains(html, "↗") {
+		t.Fatalf("html = %q, want share SVG not glyph", html)
 	}
 	if strings.Contains(html, "🦋") {
 		t.Fatalf("html = %q, want butterfly SVG not emoji", html)

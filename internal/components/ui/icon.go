@@ -39,6 +39,7 @@ var iconStatic = map[IconName]struct {
 }{
 	IconBrand:  {ID: "icon-brand", ViewBox: "0 0 256 128"},
 	IconReply:  {ID: "icon-comment-outline", ViewBox: "0 0 64 64"},
+	IconShare:  {ID: "icon-share-outline", ViewBox: "0 0 64 64"},
 	IconThread: {ID: "icon-thread-outline", ViewBox: "0 0 64 64"},
 }
 
