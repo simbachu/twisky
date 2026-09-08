@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bluesky-social/indigo/atproto/atclient"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/bluesky"
 )
@@ -308,5 +309,107 @@ func TestSessionClient_GetProfile_UsesAppViewProxy(t *testing.T) {
 	}
 	if profile.DID != "did:plc:alice" || profile.Handle != "alice.test" {
 		t.Fatalf("profile = %#v, want alice", profile)
+	}
+}
+
+func TestSessionClient_CreatePost_IncludesFacets(t *testing.T) {
+	t.Parallel()
+
+	var body []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/xrpc/com.atproto.repo.createRecord" {
+			t.Fatalf("path = %q, want createRecord", r.URL.Path)
+		}
+		var err error
+		body, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"uri":"at://did:plc:alice/app.bsky.feed.post/abc","cid":"bafy"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	api := atclient.NewAPIClient(server.URL)
+	did := syntax.DID("did:plc:alice")
+	api.AccountDID = &did
+	client := authoauth.NewSessionClient(api)
+
+	facets := []bluesky.Facet{{
+		Index: bluesky.FacetIndex{ByteStart: 4, ByteEnd: 15},
+		Features: []bluesky.FacetFeature{{
+			Type: "app.bsky.richtext.facet#link",
+			URI:  "https://example.com",
+		}},
+	}}
+	uri, err := client.CreatePost(context.Background(), "see example.com", facets, nil)
+	if err != nil {
+		t.Fatalf("CreatePost() err = %v", err)
+	}
+	if uri != "at://did:plc:alice/app.bsky.feed.post/abc" {
+		t.Fatalf("uri = %q", uri)
+	}
+	if !strings.Contains(string(body), `"facets"`) {
+		t.Fatalf("body missing facets: %s", body)
+	}
+	if !strings.Contains(string(body), `"https://example.com"`) {
+		t.Fatalf("body missing link uri: %s", body)
+	}
+	if !strings.Contains(string(body), `"see example.com"`) {
+		t.Fatalf("body missing text: %s", body)
+	}
+}
+
+func TestSessionClient_CreatePost_OmitsEmptyFacets(t *testing.T) {
+	t.Parallel()
+
+	var body []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		body, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"uri":"at://did:plc:alice/app.bsky.feed.post/abc","cid":"bafy"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	api := atclient.NewAPIClient(server.URL)
+	did := syntax.DID("did:plc:alice")
+	api.AccountDID = &did
+	client := authoauth.NewSessionClient(api)
+
+	_, err := client.CreatePost(context.Background(), "plain text", nil, nil)
+	if err != nil {
+		t.Fatalf("CreatePost() err = %v", err)
+	}
+	if strings.Contains(string(body), `"facets"`) {
+		t.Fatalf("body should omit empty facets: %s", body)
+	}
+}
+
+func TestSessionClient_ResolveHandle_UsesGetProfile(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/xrpc/app.bsky.actor.getProfile" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"did":"did:plc:bsky","handle":"bsky.app"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := authoauth.NewSessionClient(atclient.NewAPIClient(server.URL))
+	did, err := client.ResolveHandle(context.Background(), "bsky.app")
+	if err != nil {
+		t.Fatalf("ResolveHandle() err = %v", err)
+	}
+	if did != "did:plc:bsky" {
+		t.Fatalf("did = %q, want did:plc:bsky", did)
 	}
 }

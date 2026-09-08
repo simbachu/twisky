@@ -1,6 +1,7 @@
 package intent
 
-// CreatePost writes a new app.bsky.feed.post record with plain text.
+// CreatePost writes a new app.bsky.feed.post record.
+// Facets (links, tags, mentions) are detected server-side on create.
 type CreatePost struct {
 	Text  string
 	Reply *ReplyTo

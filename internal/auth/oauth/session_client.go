@@ -86,9 +86,10 @@ func (c *SessionClient) DeleteRepost(ctx context.Context, recordURI string) erro
 	return c.deleteRecord(ctx, recordURI)
 }
 
-// CreatePost writes an app.bsky.feed.post record with plain text.
+// CreatePost writes an app.bsky.feed.post record.
 // When reply is set, the record includes AT Protocol reply root and parent refs.
-func (c *SessionClient) CreatePost(ctx context.Context, text string, reply *intent.ReplyTo) (string, error) {
+// Facets are omitted when empty.
+func (c *SessionClient) CreatePost(ctx context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo) (string, error) {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
 		return "", fmt.Errorf("oauth: session client not configured")
 	}
@@ -96,6 +97,9 @@ func (c *SessionClient) CreatePost(ctx context.Context, text string, reply *inte
 		"$type":     "app.bsky.feed.post",
 		"text":      text,
 		"createdAt": syntax.DatetimeNow(),
+	}
+	if len(facets) > 0 {
+		record["facets"] = facets
 	}
 	if reply != nil {
 		record["reply"] = map[string]any{
@@ -121,6 +125,18 @@ func (c *SessionClient) CreatePost(ctx context.Context, text string, reply *inte
 		return "", err
 	}
 	return resp.URI, nil
+}
+
+// ResolveHandle looks up a handle via AppView getProfile and returns its DID.
+func (c *SessionClient) ResolveHandle(ctx context.Context, handle string) (string, error) {
+	profile, err := c.GetProfile(ctx, handle)
+	if err != nil {
+		return "", err
+	}
+	if profile == nil || profile.DID == "" {
+		return "", fmt.Errorf("oauth: handle %q has no did", handle)
+	}
+	return profile.DID, nil
 }
 
 func (c *SessionClient) deleteRecord(ctx context.Context, recordURI string) error {

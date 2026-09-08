@@ -1,13 +1,16 @@
 package richtext
 
 import (
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/rivo/uniseg"
 	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"golang.org/x/net/publicsuffix"
 )
 
 const (
@@ -21,8 +24,10 @@ var (
 	trailingPunctuation = regexp.MustCompile(`\p{P}+$`)
 	tagRegex            = regexp.MustCompile(`(?:^|\s)([#＃])([^\s#]+)`)
 	mentionRegex        = regexp.MustCompile(`(?:^|\s|\()(@[a-zA-Z0-9.-]+)`)
-	urlRegex            = regexp.MustCompile(`https?://\S+`)
-	domainRegex         = regexp.MustCompile(`(?:^|\s)([a-z][a-z0-9]*(?:\.[a-z0-9]+)+[\S]*)`)
+	// Mirrors @atproto/api URL_REGEX: start/whitespace/(, then https URL or bare domain+path.
+	urlRegex = regexp.MustCompile(`(?i)(^|[\s(])((https?://\S+)|((?P<domain>[a-z][a-z0-9]*(?:\.[a-z0-9]+)+)\S*))`)
+	cashtagRegex = regexp.MustCompile(`(?:^|\s|\()(\$[A-Za-z][A-Za-z0-9]{0,4})(?:\s|$|[.,;:!?)\"'\x{2019}])`)
+	linkTrailingPunct = regexp.MustCompile(`[.,;:!?]$`)
 )
 
 type SegmentKind int
@@ -59,12 +64,98 @@ func BuildSegments(text string, facets []bluesky.Facet) []Segment {
 	return segmentsFromSpans(text, spans)
 }
 
-func DetectSegments(text string) []Segment {
+// DetectFacets finds mention, link, tag, and cashtag facets using Bluesky-compatible rules.
+// Mention facets use the handle as a placeholder DID until resolved at publish time.
+func DetectFacets(text string) []bluesky.Facet {
 	spans := spansFromRegex(text)
 	if len(spans) == 0 {
 		return nil
 	}
-	return segmentsFromSpans(text, spans)
+	facets := make([]bluesky.Facet, 0, len(spans))
+	for _, span := range spans {
+		facet := bluesky.Facet{
+			Index: bluesky.FacetIndex{ByteStart: span.byteStart, ByteEnd: span.byteEnd},
+		}
+		switch span.kind {
+		case Tag:
+			facet.Features = []bluesky.FacetFeature{{Type: tagFacetType, Tag: span.tag}}
+		case Mention:
+			facet.Features = []bluesky.FacetFeature{{Type: mentionFacetType, DID: span.mention}}
+		case Link:
+			facet.Features = []bluesky.FacetFeature{{Type: linkFacetType, URI: span.uri}}
+		default:
+			continue
+		}
+		facets = append(facets, facet)
+	}
+	return facets
+}
+
+func DetectSegments(text string) []Segment {
+	return BuildSegments(text, DetectFacets(text))
+}
+
+// ShortenLinks rewrites link display text in place (scheme stripped, long paths truncated)
+// while keeping each link facet's URI as the full destination. Processes last-to-first.
+func ShortenLinks(text string, facets []bluesky.Facet) (string, []bluesky.Facet) {
+	if len(facets) == 0 {
+		return text, facets
+	}
+	out := []byte(text)
+	result := make([]bluesky.Facet, len(facets))
+	copy(result, facets)
+	for i := len(result) - 1; i >= 0; i-- {
+		facet := &result[i]
+		if !isLinkFacet(*facet) {
+			continue
+		}
+		start, end := facet.Index.ByteStart, facet.Index.ByteEnd
+		if start < 0 || end > len(out) || start >= end {
+			continue
+		}
+		display := string(out[start:end])
+		short := toShortURL(display)
+		if short == display {
+			continue
+		}
+		shortBytes := []byte(short)
+		delta := len(shortBytes) - (end - start)
+		out = append(out[:start], append(shortBytes, out[end:]...)...)
+		facet.Index.ByteEnd = start + len(shortBytes)
+		if delta == 0 {
+			continue
+		}
+		for j := range result {
+			if j == i {
+				continue
+			}
+			if result[j].Index.ByteStart >= end {
+				result[j].Index.ByteStart += delta
+				result[j].Index.ByteEnd += delta
+			}
+		}
+	}
+	return string(out), result
+}
+
+// StripInvalidMentions drops mention facets whose DID is empty or still a bare handle.
+func StripInvalidMentions(facets []bluesky.Facet) []bluesky.Facet {
+	if len(facets) == 0 {
+		return facets
+	}
+	kept := make([]bluesky.Facet, 0, len(facets))
+	for _, facet := range facets {
+		if mention, ok := mentionDID(facet); ok {
+			if mention == "" || !strings.HasPrefix(mention, "did:") {
+				continue
+			}
+		}
+		kept = append(kept, facet)
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	return kept
 }
 
 func spansFromFacets(text string, facets []bluesky.Facet) []linkSpan {
@@ -131,6 +222,7 @@ func spansFromRegex(text string) []linkSpan {
 	textBytes := []byte(text)
 	spans := make([]linkSpan, 0)
 	spans = append(spans, tagSpansFromRegex(text, textBytes)...)
+	spans = append(spans, cashtagSpansFromRegex(text, textBytes)...)
 	spans = append(spans, mentionSpansFromRegex(text, textBytes)...)
 	spans = append(spans, linkSpansFromRegex(text, textBytes)...)
 	if len(spans) == 0 {
@@ -174,6 +266,39 @@ func tagSpansFromRegex(text string, textBytes []byte) []linkSpan {
 	return spans
 }
 
+func cashtagSpansFromRegex(text string, textBytes []byte) []linkSpan {
+	matches := cashtagRegex.FindAllStringSubmatchIndex(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	spans := make([]linkSpan, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 4 {
+			continue
+		}
+		start, end := match[2], match[3]
+		if start < 0 || end > len(textBytes) || start >= end {
+			continue
+		}
+		raw := string(textBytes[start:end])
+		if !strings.HasPrefix(raw, "$") {
+			continue
+		}
+		tag := "$" + strings.ToUpper(raw[1:])
+		if !validTag(tag) {
+			continue
+		}
+		spans = append(spans, linkSpan{
+			byteStart: start,
+			byteEnd:   end,
+			kind:      Tag,
+			tag:       tag,
+		})
+	}
+	return spans
+}
+
 func mentionSpansFromRegex(text string, textBytes []byte) []linkSpan {
 	matches := mentionRegex.FindAllStringSubmatchIndex(text, -1)
 	if len(matches) == 0 {
@@ -196,7 +321,9 @@ func mentionSpansFromRegex(text string, textBytes []byte) []linkSpan {
 			continue
 		}
 		handle := display[1:]
-		if _, err := actor.ParseSlug(handle); err != nil {
+		if strings.HasSuffix(strings.ToLower(handle), ".test") {
+			// Official allows *.test without full handle grammar.
+		} else if _, err := actor.ParseSlug(handle); err != nil {
 			continue
 		}
 
@@ -211,15 +338,41 @@ func mentionSpansFromRegex(text string, textBytes []byte) []linkSpan {
 }
 
 func linkSpansFromRegex(text string, textBytes []byte) []linkSpan {
-	spans := make([]linkSpan, 0)
+	matches := urlRegex.FindAllStringSubmatchIndex(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
 
-	for _, match := range urlRegex.FindAllStringIndex(text, -1) {
-		if len(match) < 2 {
+	domainIdx := urlRegex.SubexpIndex("domain")
+	spans := make([]linkSpan, 0, len(matches))
+	for _, match := range matches {
+		// Groups: 0 full, 1 lead, 2 content, 3 https URL, 4 domain+path, domain named group.
+		if len(match) < 6 {
 			continue
 		}
-		start, end := match[0], match[1]
-		uri := trimLinkURI(string(textBytes[start:end]))
-		if uri == "" {
+		start, end := match[4], match[5]
+		if start < 0 || end > len(textBytes) || start >= end {
+			continue
+		}
+
+		uri := string(textBytes[start:end])
+		if !strings.HasPrefix(strings.ToLower(uri), "http://") && !strings.HasPrefix(strings.ToLower(uri), "https://") {
+			if domainIdx < 0 {
+				continue
+			}
+			di := domainIdx * 2
+			if di+1 >= len(match) || match[di] < 0 {
+				continue
+			}
+			domain := string(textBytes[match[di]:match[di+1]])
+			if !isValidDomain(domain) {
+				continue
+			}
+			uri = "https://" + uri
+		}
+
+		uri, end = trimLinkSpan(uri, start, end)
+		if uri == "" || start >= end {
 			continue
 		}
 		spans = append(spans, linkSpan{
@@ -229,52 +382,70 @@ func linkSpansFromRegex(text string, textBytes []byte) []linkSpan {
 			uri:       uri,
 		})
 	}
-
-	for _, match := range domainRegex.FindAllStringSubmatchIndex(text, -1) {
-		if len(match) < 4 {
-			continue
-		}
-		domainStart := match[2]
-		domainEnd := match[3]
-		if domainStart < 0 || domainEnd > len(textBytes) || domainStart >= domainEnd {
-			continue
-		}
-		if overlapsExisting(spans, domainStart, domainEnd) {
-			continue
-		}
-
-		raw := string(textBytes[domainStart:domainEnd])
-		raw = trailingPunctuation.ReplaceAllString(raw, "")
-		if raw == "" || strings.HasPrefix(raw, "http") {
-			continue
-		}
-
-		spans = append(spans, linkSpan{
-			byteStart: domainStart,
-			byteEnd:   domainEnd,
-			kind:      Link,
-			uri:       "https://" + raw,
-		})
-	}
-
 	return spans
 }
 
-func overlapsExisting(spans []linkSpan, start, end int) bool {
-	for _, span := range spans {
-		if start < span.byteEnd && end > span.byteStart {
+func trimLinkSpan(uri string, start, end int) (string, int) {
+	if linkTrailingPunct.MatchString(uri) {
+		uri = uri[:len(uri)-1]
+		end--
+	}
+	if strings.HasSuffix(uri, ")") && !strings.Contains(uri, "(") {
+		uri = uri[:len(uri)-1]
+		end--
+	}
+	return uri, end
+}
+
+func isValidDomain(domain string) bool {
+	domain = strings.ToLower(domain)
+	if strings.HasSuffix(domain, ".test") {
+		return true
+	}
+	suffix, icann := publicsuffix.PublicSuffix(domain)
+	if !icann || suffix == "" {
+		return false
+	}
+	return domain == suffix || strings.HasSuffix(domain, "."+suffix)
+}
+
+func toShortURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return raw
+	}
+	path := ""
+	if parsed.Path != "/" {
+		path = parsed.Path
+	}
+	if parsed.RawQuery != "" {
+		path += "?" + parsed.RawQuery
+	}
+	if parsed.Fragment != "" {
+		path += "#" + parsed.Fragment
+	}
+	if len(path) > 15 {
+		return parsed.Host + path[:13] + "..."
+	}
+	return parsed.Host + path
+}
+
+func isLinkFacet(facet bluesky.Facet) bool {
+	for _, feature := range facet.Features {
+		if feature.Type == linkFacetType {
 			return true
 		}
 	}
 	return false
 }
 
-func trimLinkURI(raw string) string {
-	raw = trailingPunctuation.ReplaceAllString(strings.TrimSpace(raw), "")
-	if raw == "" {
-		return ""
+func mentionDID(facet bluesky.Facet) (string, bool) {
+	for _, feature := range facet.Features {
+		if feature.Type == mentionFacetType {
+			return feature.DID, true
+		}
 	}
-	return raw
+	return "", false
 }
 
 func sortAndDedupeSpans(spans []linkSpan) []linkSpan {
@@ -341,7 +512,11 @@ func validTag(tag string) bool {
 	if tag == "" {
 		return false
 	}
-	if utf8.RuneCountInString(tag) > maxTagGraphemes {
+	if uniseg.GraphemeClusterCount(tag) > maxTagGraphemes {
+		return false
+	}
+	// Cheap reject for absurdly long UTF-16-ish lengths matching official early-out.
+	if utf8.RuneCountInString(tag) > maxTagGraphemes*2 {
 		return false
 	}
 	return true

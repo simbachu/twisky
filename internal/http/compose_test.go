@@ -2,6 +2,7 @@ package http_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -25,19 +26,25 @@ import (
 type stubPostWriter struct {
 	calls     int
 	text      string
+	facets    []bluesky.Facet
 	reply     *intent.ReplyTo
 	recordURI string
 	err       error
 }
 
-func (s *stubPostWriter) CreatePost(_ context.Context, text string, reply *intent.ReplyTo) (string, error) {
+func (s *stubPostWriter) CreatePost(_ context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo) (string, error) {
 	s.calls++
 	s.text = text
+	s.facets = facets
 	s.reply = reply
 	if s.recordURI == "" {
 		s.recordURI = "at://did:plc:alice/app.bsky.feed.post/newpost1"
 	}
 	return s.recordURI, s.err
+}
+
+func (s *stubPostWriter) ResolveHandle(_ context.Context, handle string) (string, error) {
+	return "", errors.New("not found")
 }
 
 type stubPostFetcher struct {
