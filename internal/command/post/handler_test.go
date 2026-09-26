@@ -1,8 +1,11 @@
 package post_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/png"
 	"strings"
 	"testing"
 
@@ -11,21 +14,32 @@ import (
 	"github.com/simbachu/twisky/internal/intent"
 )
 
+func tinyPNG() []byte {
+	var buf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	if err := png.Encode(&buf, img); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
 type stubWriter struct {
 	text      string
 	facets    []bluesky.Facet
 	reply     *intent.ReplyTo
+	image     *intent.PostImage
 	recordURI string
 	err       error
 
-	handles map[string]string
+	handles    map[string]string
 	resolveErr error
 }
 
-func (s *stubWriter) CreatePost(_ context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo) (string, error) {
+func (s *stubWriter) CreatePost(_ context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo, image *intent.PostImage) (string, error) {
 	s.text = text
 	s.facets = facets
 	s.reply = reply
+	s.image = image
 	if s.recordURI == "" {
 		s.recordURI = "at://did:plc:me/app.bsky.feed.post/abc123"
 	}
@@ -233,5 +247,101 @@ func TestHandler_CreatePost_AttachesTagFacet(t *testing.T) {
 	}
 	if len(writer.facets) != 1 || writer.facets[0].Features[0].Tag != "golang" {
 		t.Fatalf("facets = %#v, want tag golang", writer.facets)
+	}
+}
+
+func TestHandler_CreatePost_ImageOnlyAllowed(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubWriter{}
+	handler := post.NewHandler(writer)
+	png := tinyPNG()
+	_, err := handler.HandleCreate(context.Background(), intent.CreatePost{
+		Image: &intent.PostImage{Data: png, Alt: "dot"},
+	})
+	if err != nil {
+		t.Fatalf("HandleCreate() err = %v", err)
+	}
+	if writer.text != "" {
+		t.Fatalf("text = %q, want empty", writer.text)
+	}
+	if writer.image == nil || writer.image.MIME != "image/png" {
+		t.Fatalf("image = %#v, want png", writer.image)
+	}
+	if writer.image.Width != 1 || writer.image.Height != 1 {
+		t.Fatalf("aspect = %dx%d, want 1x1", writer.image.Width, writer.image.Height)
+	}
+	if writer.image.Alt != "dot" {
+		t.Fatalf("alt = %q, want dot", writer.image.Alt)
+	}
+}
+
+func TestHandler_CreatePost_NeitherTextNorImageRejected(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubWriter{}
+	handler := post.NewHandler(writer)
+	_, err := handler.HandleCreate(context.Background(), intent.CreatePost{})
+	if err == nil {
+		t.Fatal("HandleCreate() err = nil, want validation error")
+	}
+	if writer.image != nil || writer.text != "" {
+		t.Fatal("writer called, want no call")
+	}
+}
+
+func TestHandler_CreatePost_OversizeImageRejected(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubWriter{}
+	handler := post.NewHandler(writer)
+	data := make([]byte, post.MaxImageBytes+1)
+	copy(data, []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})
+	_, err := handler.HandleCreate(context.Background(), intent.CreatePost{
+		Text:  "ok",
+		Image: &intent.PostImage{Data: data},
+	})
+	if err == nil {
+		t.Fatal("HandleCreate() err = nil, want oversize error")
+	}
+	if writer.text != "" {
+		t.Fatal("writer called, want no call")
+	}
+}
+
+func TestHandler_CreatePost_NonImageRejected(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubWriter{}
+	handler := post.NewHandler(writer)
+	_, err := handler.HandleCreate(context.Background(), intent.CreatePost{
+		Text:  "ok",
+		Image: &intent.PostImage{Data: []byte("not an image")},
+	})
+	if err == nil {
+		t.Fatal("HandleCreate() err = nil, want type error")
+	}
+	if writer.text != "" {
+		t.Fatal("writer called, want no call")
+	}
+}
+
+func TestHandler_CreatePost_AltTooLongRejected(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubWriter{}
+	handler := post.NewHandler(writer)
+	_, err := handler.HandleCreate(context.Background(), intent.CreatePost{
+		Text: "ok",
+		Image: &intent.PostImage{
+			Data: tinyPNG(),
+			Alt:  strings.Repeat("a", post.MaxAltGraphemes+1),
+		},
+	})
+	if err == nil {
+		t.Fatal("HandleCreate() err = nil, want alt error")
+	}
+	if writer.text != "" {
+		t.Fatal("writer called, want no call")
 	}
 }

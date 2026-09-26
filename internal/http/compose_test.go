@@ -1,8 +1,12 @@
 package http_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -23,20 +27,31 @@ import (
 	"github.com/simbachu/twisky/internal/query/tag"
 )
 
+func tinyPNG() []byte {
+	var buf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	if err := png.Encode(&buf, img); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
 type stubPostWriter struct {
 	calls     int
 	text      string
 	facets    []bluesky.Facet
 	reply     *intent.ReplyTo
+	image     *intent.PostImage
 	recordURI string
 	err       error
 }
 
-func (s *stubPostWriter) CreatePost(_ context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo) (string, error) {
+func (s *stubPostWriter) CreatePost(_ context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo, image *intent.PostImage) (string, error) {
 	s.calls++
 	s.text = text
 	s.facets = facets
 	s.reply = reply
+	s.image = image
 	if s.recordURI == "" {
 		s.recordURI = "at://did:plc:alice/app.bsky.feed.post/newpost1"
 	}
@@ -232,6 +247,54 @@ func TestCreatePost_SuccessRedirectsToPost(t *testing.T) {
 	}
 	if writer.reply != nil {
 		t.Fatalf("reply = %#v, want nil", writer.reply)
+	}
+	if writer.image != nil {
+		t.Fatalf("image = %#v, want nil", writer.image)
+	}
+}
+
+func TestCreatePost_MultipartImageForwardsToWriter(t *testing.T) {
+	t.Parallel()
+
+	writer := &stubPostWriter{}
+	handler, cookie := newComposeTestServer(t, writer, nil)
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField("text", "hello pic")
+	_ = mw.WriteField("alt", "a pixel")
+	part, err := mw.CreateFormFile("image", "dot.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	png := tinyPNG()
+	if _, err := part.Write(png); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/my/posts", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303; body=%s", rec.Code, rec.Body.String())
+	}
+	if writer.calls != 1 || writer.text != "hello pic" {
+		t.Fatalf("CreatePost calls=%d text=%q", writer.calls, writer.text)
+	}
+	if writer.image == nil {
+		t.Fatal("image = nil, want uploaded image")
+	}
+	if !bytes.Equal(writer.image.Data, png) {
+		t.Fatalf("image data mismatch")
+	}
+	if writer.image.Alt != "a pixel" {
+		t.Fatalf("alt = %q, want a pixel", writer.image.Alt)
 	}
 }
 

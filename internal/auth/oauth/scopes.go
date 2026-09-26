@@ -15,4 +15,5 @@ var DefaultScopes = []string{
 	"repo:app.bsky.feed.repost?action=create",
 	"repo:app.bsky.feed.repost?action=delete",
 	"repo:app.bsky.feed.post?action=create",
+	"blob:image/*",
 }

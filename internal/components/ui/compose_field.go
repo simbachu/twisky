@@ -26,12 +26,14 @@ const ComposeFormID = "compose-form"
 // ComposeParentInputID is the id of the hidden parent field in the shared dialog.
 const ComposeParentInputID = "compose-parent-uri"
 
-// ComposeField renders the shared post textarea and submit control.
+// ComposeField renders the shared post textarea, media toolbar, and submit control.
 func ComposeField(cfg ComposeFieldConfig) g.Node {
 	textareaID := cfg.TextareaID
 	if textareaID == "" {
 		textareaID = "compose-text"
 	}
+	altID := textareaID + "-alt"
+	imageID := textareaID + "-image"
 	parentInput := []g.Node{
 		g.Attr("type", "hidden"),
 		g.Attr("name", "parent"),
@@ -57,15 +59,43 @@ func ComposeField(cfg ComposeFieldConfig) g.Node {
 			g.Attr("rows", "4"),
 			g.Attr("maxlength", "2000"),
 			g.Attr("placeholder", "What's on your mind?"),
-			g.Attr("required", ""),
 			g.Text(cfg.Text),
 		),
-		Button(g.Attr("type", "submit"), g.Text("Post")),
+		Label(
+			g.Attr("for", altID),
+			g.Text("Image alt text"),
+		),
+		Input(
+			g.Attr("id", altID),
+			g.Attr("class", "compose-alt"),
+			g.Attr("type", "text"),
+			g.Attr("name", "alt"),
+			g.Attr("maxlength", "2000"),
+			g.Attr("placeholder", "Alt text (optional)"),
+			g.Attr("autocomplete", "off"),
+		),
+		Div(
+			Class("compose-toolbar"),
+			Label(
+				Class("compose-image-picker"),
+				g.Attr("title", "Add image"),
+				Span(Class("visually-hidden"), g.Text("Add image")),
+				Icon(IconImage),
+				Input(
+					g.Attr("id", imageID),
+					g.Attr("type", "file"),
+					g.Attr("name", "image"),
+					g.Attr("accept", "image/jpeg,image/png,image/webp,image/gif"),
+				),
+			),
+			Button(g.Attr("type", "submit"), g.Text("Post")),
+		),
 	)
 	formAttrs := []g.Node{
 		g.Attr("class", "compose-field"),
 		g.Attr("method", "post"),
 		g.Attr("action", composeFormAction),
+		g.Attr("enctype", "multipart/form-data"),
 	}
 	if cfg.FormID != "" {
 		formAttrs = append(formAttrs, g.Attr("id", cfg.FormID))

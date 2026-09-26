@@ -20,6 +20,7 @@ func TestDefaultScopes_IncludeTimelineAndPrefs(t *testing.T) {
 		"repo:app.bsky.feed.repost?action=create",
 		"repo:app.bsky.feed.repost?action=delete",
 		"repo:app.bsky.feed.post?action=create",
+		"blob:image/*",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("DefaultScopes = %q, missing %q", joined, want)

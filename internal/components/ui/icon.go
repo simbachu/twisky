@@ -22,6 +22,7 @@ const (
 	IconBluesky  IconName = "bluesky"
 	IconBrand    IconName = "brand"
 	IconThread   IconName = "thread"
+	IconImage    IconName = "image"
 )
 
 const iconsSpritePath = "/static/icons/icons.svg"
@@ -59,6 +60,7 @@ var iconGlyphs = map[IconName]string{
 	IconBluesky:  "🦋",
 	IconBrand:    "Twisky",
 	IconThread:   "🧵",
+	IconImage:    "🖼",
 }
 
 // ActionClass returns a CSS modifier for per-action hover colors, or empty.

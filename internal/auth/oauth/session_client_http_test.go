@@ -1,7 +1,10 @@
 package oauth_test
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +15,17 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	authoauth "github.com/simbachu/twisky/internal/auth/oauth"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/intent"
 )
+
+func tinyPNG() []byte {
+	var buf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	if err := png.Encode(&buf, img); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
 
 const timelineFixture = `{
 	"feed": [{
@@ -345,7 +358,7 @@ func TestSessionClient_CreatePost_IncludesFacets(t *testing.T) {
 			URI:  "https://example.com",
 		}},
 	}}
-	uri, err := client.CreatePost(context.Background(), "see example.com", facets, nil)
+	uri, err := client.CreatePost(context.Background(), "see example.com", facets, nil, nil)
 	if err != nil {
 		t.Fatalf("CreatePost() err = %v", err)
 	}
@@ -383,12 +396,88 @@ func TestSessionClient_CreatePost_OmitsEmptyFacets(t *testing.T) {
 	api.AccountDID = &did
 	client := authoauth.NewSessionClient(api)
 
-	_, err := client.CreatePost(context.Background(), "plain text", nil, nil)
+	_, err := client.CreatePost(context.Background(), "plain text", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("CreatePost() err = %v", err)
 	}
 	if strings.Contains(string(body), `"facets"`) {
 		t.Fatalf("body should omit empty facets: %s", body)
+	}
+	if strings.Contains(string(body), `"embed"`) {
+		t.Fatalf("body should omit embed without image: %s", body)
+	}
+}
+
+func TestSessionClient_CreatePost_UploadsImageEmbed(t *testing.T) {
+	t.Parallel()
+
+	var uploadBody []byte
+	var uploadCT string
+	var createBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/xrpc/com.atproto.repo.uploadBlob":
+			if r.Method != http.MethodPost {
+				t.Fatalf("upload method = %q", r.Method)
+			}
+			uploadCT = r.Header.Get("Content-Type")
+			var err error
+			uploadBody, err = io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("ReadAll upload: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"blob":{"$type":"blob","ref":{"$link":"bafkreiblob"},"mimeType":"image/png","size":68}}`))
+		case "/xrpc/com.atproto.repo.createRecord":
+			var err error
+			createBody, err = io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("ReadAll create: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"uri":"at://did:plc:alice/app.bsky.feed.post/abc","cid":"bafy"}`))
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api := atclient.NewAPIClient(server.URL)
+	did := syntax.DID("did:plc:alice")
+	api.AccountDID = &did
+	client := authoauth.NewSessionClient(api)
+
+	png := tinyPNG()
+	uri, err := client.CreatePost(context.Background(), "with pic", nil, nil, &intent.PostImage{
+		Data:   png,
+		MIME:   "image/png",
+		Alt:    "a dot",
+		Width:  1,
+		Height: 1,
+	})
+	if err != nil {
+		t.Fatalf("CreatePost() err = %v", err)
+	}
+	if uri != "at://did:plc:alice/app.bsky.feed.post/abc" {
+		t.Fatalf("uri = %q", uri)
+	}
+	if uploadCT != "image/png" {
+		t.Fatalf("upload Content-Type = %q, want image/png", uploadCT)
+	}
+	if string(uploadBody) != string(png) {
+		t.Fatalf("upload body mismatch")
+	}
+	body := string(createBody)
+	for _, want := range []string{
+		`"app.bsky.embed.images"`,
+		`"bafkreiblob"`,
+		`"a dot"`,
+		`"width":1`,
+		`"height":1`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("create body = %s, want %q", body, want)
+		}
 	}
 }
 

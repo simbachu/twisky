@@ -1,9 +1,12 @@
 package oauth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/atclient"
@@ -88,8 +91,9 @@ func (c *SessionClient) DeleteRepost(ctx context.Context, recordURI string) erro
 
 // CreatePost writes an app.bsky.feed.post record.
 // When reply is set, the record includes AT Protocol reply root and parent refs.
+// When image is set, the blob is uploaded and attached as app.bsky.embed.images.
 // Facets are omitted when empty.
-func (c *SessionClient) CreatePost(ctx context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo) (string, error) {
+func (c *SessionClient) CreatePost(ctx context.Context, text string, facets []bluesky.Facet, reply *intent.ReplyTo, image *intent.PostImage) (string, error) {
 	if c == nil || c.client == nil || c.client.AccountDID == nil {
 		return "", fmt.Errorf("oauth: session client not configured")
 	}
@@ -113,6 +117,26 @@ func (c *SessionClient) CreatePost(ctx context.Context, text string, facets []bl
 			},
 		}
 	}
+	if image != nil {
+		blob, err := c.uploadBlob(ctx, image.Data, image.MIME)
+		if err != nil {
+			return "", err
+		}
+		imageEmbed := map[string]any{
+			"alt":   image.Alt,
+			"image": blob,
+		}
+		if image.Width > 0 && image.Height > 0 {
+			imageEmbed["aspectRatio"] = map[string]any{
+				"width":  image.Width,
+				"height": image.Height,
+			}
+		}
+		record["embed"] = map[string]any{
+			"$type":  "app.bsky.embed.images",
+			"images": []map[string]any{imageEmbed},
+		}
+	}
 	body := map[string]any{
 		"repo":       c.client.AccountDID.String(),
 		"collection": "app.bsky.feed.post",
@@ -125,6 +149,31 @@ func (c *SessionClient) CreatePost(ctx context.Context, text string, facets []bl
 		return "", err
 	}
 	return resp.URI, nil
+}
+
+func (c *SessionClient) uploadBlob(ctx context.Context, data []byte, mimeType string) (map[string]any, error) {
+	req := atclient.NewAPIRequest(http.MethodPost, "com.atproto.repo.uploadBlob", bytes.NewReader(data))
+	req.Headers.Set("Accept", "application/json")
+	req.Headers.Set("Content-Type", mimeType)
+	resp, err := c.client.Do(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("oauth: uploadBlob status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out struct {
+		Blob map[string]any `json:"blob"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("oauth: uploadBlob decode: %w", err)
+	}
+	if out.Blob == nil {
+		return nil, fmt.Errorf("oauth: uploadBlob returned empty blob")
+	}
+	return out.Blob, nil
 }
 
 // ResolveHandle looks up a handle via AppView getProfile and returns its DID.

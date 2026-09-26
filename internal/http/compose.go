@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,12 +12,16 @@ import (
 	"github.com/simbachu/twisky/internal/actor"
 	"github.com/simbachu/twisky/internal/atproto"
 	"github.com/simbachu/twisky/internal/bluesky"
+	"github.com/simbachu/twisky/internal/command/post"
 	composepage "github.com/simbachu/twisky/internal/components/compose"
 	loginpage "github.com/simbachu/twisky/internal/components/login"
 	postpage "github.com/simbachu/twisky/internal/components/post"
 	"github.com/simbachu/twisky/internal/intent"
 	feedquery "github.com/simbachu/twisky/internal/query/feed"
 )
+
+// maxComposeFormBytes caps multipart memory; image size is enforced separately.
+const maxComposeFormBytes = 2 << 20
 
 func (s *Server) handleComposeNew(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAuth() {
@@ -41,12 +47,18 @@ func (s *Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
+	if err := parseComposeForm(r); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
 	text := r.FormValue("text")
+	alt := r.FormValue("alt")
 	parentURI := strings.TrimSpace(r.FormValue("parent"))
+	image, err := readComposeImage(r, alt)
+	if err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
 
 	account, err := s.loadActiveAccount(r)
 	if err != nil {
@@ -77,7 +89,7 @@ func (s *Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	create := intent.CreatePost{Text: text}
+	create := intent.CreatePost{Text: text, Image: image}
 	var parentPost *bluesky.Post
 	if parentURI != "" {
 		reply, parent, err := resolveReplyTo(fetcher, r.Context(), parentURI)
@@ -112,6 +124,36 @@ func (s *Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 	location := actor.PostPath(account.Handle, account.DID, parsed.Rkey())
 	http.Redirect(w, r, location, http.StatusSeeOther)
+}
+
+func parseComposeForm(r *http.Request) error {
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "multipart/form-data") {
+		return r.ParseMultipartForm(maxComposeFormBytes)
+	}
+	return r.ParseForm()
+}
+
+func readComposeImage(r *http.Request, alt string) (*intent.PostImage, error) {
+	file, _, err := r.FormFile("image")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, int64(post.MaxImageBytes)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, nil
+	}
+	return &intent.PostImage{
+		Data: data,
+		Alt:  alt,
+	}, nil
 }
 
 func (s *Server) composePageView(w http.ResponseWriter, r *http.Request, errorMessage, text string) composepage.PageView {
@@ -227,6 +269,12 @@ func composeErrorMessage(err error) string {
 	switch {
 	case strings.Contains(msg, "text is required"):
 		return "Post text is required."
+	case strings.Contains(msg, "image exceeds"):
+		return "Image is too large."
+	case strings.Contains(msg, "image type"):
+		return "Image type is not supported."
+	case strings.Contains(msg, "alt exceeds"):
+		return "Alt text is too long."
 	case strings.Contains(msg, "exceeds"):
 		return "Post text is too long."
 	case strings.Contains(msg, "reply refs"):
